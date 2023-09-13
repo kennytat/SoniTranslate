@@ -189,7 +189,7 @@ def vc_single(
 def load_hubert():
     global hubert_model
     models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
-        ["hubert_base.pt"],
+        [os.path.join("model","hubert","hubert_base.pt")],
         suffix="",
     )
     hubert_model = models[0]
@@ -454,19 +454,20 @@ class ClassVoices:
         
         # find models and index
         global weight_root, index_root, config, hubert_model
-        weight_root = "weights"
+        weight_root = os.path.join("model","weights")
         names = []
         for name in os.listdir(weight_root):
             if name.endswith(".pth"):
                 names.append(name)
 
-        index_root = "logs"
+        index_root = os.path.join("model","logs")
         index_paths = []
         for name in os.listdir(index_root):
             if name.endswith(".index"):
                 index_paths.append(name)
+                # index_paths.append(os.path.join(index_root, name))
 
-        print(names, index_paths)
+        print("models::", names, index_paths)
         # config machine
         hubert_model = None
         config = Config('cuda:0', is_half=True) # config = Config('cpu', is_half=False) # cpu

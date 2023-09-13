@@ -1,4 +1,5 @@
 #%cd SoniTranslate
+from dotenv import load_dotenv
 import numpy as np
 import gradio as gr
 import whisperx
@@ -18,8 +19,9 @@ from soni_translate.translate_segments import translate_text
 import time
 import shutil
 
+load_dotenv()
 
-title = "<center><strong><font size='7'>📽️ SoniTranslate 🈷️</font></strong></center>"
+title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
 
 news = """ ## 📖 News
         🔥 2023/07/26: new UI and add mix options.
@@ -27,14 +29,9 @@ news = """ ## 📖 News
         """
 
 description = """
-### 🎥 **Translate videos easily with SoniTranslate!** 📽️
+### 🎥 **Translate videos easily with VGM Translate!** 📽️
 
-Upload a video or provide a video link.
-
-For faster results and no duration limits, try the Colab notebook with a GPU:
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/R3gm/SoniTranslate/blob/main/SoniTranslate_Colab.ipynb)
-
-📽️ **GitHub repository: [SoniTranslate](https://github.com/R3gm/SoniTranslate)!**
+🎥 Upload a video or provide a video link. 📽️
 
 See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
 """
@@ -132,16 +129,31 @@ def translate_from_video(
 
     LANGUAGES = {
         'Automatic detection': 'Automatic detection',
+        'Arabic (ar)': 'ar',
+        'Chinese (zh)': 'zh',
+        'Czech (cs)': 'cs',
+        'Danish (da)': 'da',
+        'Dutch (nl)': 'nl',
         'English (en)': 'en',
+        'Finnish (fi)': 'fi',
         'French (fr)': 'fr',
         'German (de)': 'de',
-        'Spanish (es)': 'es',
+        'Greek (el)': 'el',
+        'Hebrew (he)': 'he',
+        'Hungarian (hu)': 'hu',
         'Italian (it)': 'it',
         'Japanese (ja)': 'ja',
-        'Chinese (zh)': 'zh',
-        'Dutch (nl)': 'nl',
+        'Korean (ko)': 'ko',
+        'Persian (fa)': 'fa',
+        'Polish (pl)': 'pl',
+        'Portuguese (pt)': 'pt',
+        'Russian (ru)': 'ru',
+        'Spanish (es)': 'es',
+        'Turkish (tr)': 'tr',
         'Ukrainian (uk)': 'uk',
-        'Portuguese (pt)': 'pt'
+        'Urdu (ur)': 'ur',
+        'Vietnamese (vi)': 'vi',
+        'Hindi (hi)': 'hi',
     }
 
     TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
@@ -424,13 +436,13 @@ with gr.Blocks(theme=theme) as demo:
                 #link = gr.HTML()
                 #video_input.change(submit_file_func, video_input, [video_input, link], show_progress='full')
 
-                SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'English (en)', 'French (fr)', 'German (de)', 'Spanish (es)', 'Italian (it)', 'Japanese (ja)', 'Chinese (zh)', 'Dutch (nl)', 'Ukrainian (uk)', 'Portuguese (pt)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
-                TRANSLATE_AUDIO_TO = gr.Dropdown(['English (en)', 'French (fr)', 'German (de)', 'Spanish (es)', 'Italian (it)', 'Japanese (ja)', 'Chinese (zh)', 'Dutch (nl)', 'Ukrainian (uk)', 'Portuguese (pt)'], value='English (en)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
+                SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
+                TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
 
                 line_ = gr.HTML("<hr></h2>")
                 gr.Markdown("Select how many people are speaking in the video.")
                 min_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
-                max_speakers = gr.Slider(1, MAX_TTS, value=2, step=1, label="Max speakers", interative=True)
+                max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
                 gr.Markdown("Select the voice you want for each speaker.")
                 def submit(value):
                     visibility_dict = {
@@ -526,7 +538,7 @@ with gr.Blocks(theme=theme) as demo:
         with gr.Row():
             with gr.Column():
 
-                blink_input = gr.Textbox(label="Media link.", info="Example: www.youtube.com/watch?v=g_9rPvbENUw", placeholder="URL goes here...")
+                blink_input = gr.Textbox(label="Media link.", info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc", placeholder="URL goes here...")
                 # bSOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'en', 'fr', 'de', 'es', 'it', 'ja', 'zh', 'nl', 'uk', 'pt'], value='en',label = 'Source language')
 
                 # gr.HTML("<hr></h2>")
@@ -717,4 +729,10 @@ with gr.Blocks(theme=theme) as demo:
         ], outputs=blink_output)
 
 #demo.launch(debug=True, enable_queue=True)
-demo.launch(share=True, enable_queue=True)
+demo.launch(
+  share=True,     
+  server_name="0.0.0.0",
+	# server_port=7860, 
+	enable_queue=True, 
+	quiet=True, 
+	debug=False)

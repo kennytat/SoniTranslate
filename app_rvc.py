@@ -1,4 +1,5 @@
 #%cd SoniTranslate
+from dotenv import load_dotenv
 import numpy as np
 import gradio as gr
 import whisperx
@@ -28,8 +29,9 @@ logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
 
+load_dotenv()
 
-title = "<center><strong><font size='7'>📽️ SoniTranslate 🈷️</font></strong></center>"
+title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
 
 news = """ ## 📖 News
         🔥 2023/07/26: New UI and add mix options.
@@ -44,11 +46,11 @@ news = """ ## 📖 News
         """
 
 description = """
-### 🎥 **Translate videos easily with SoniTranslate!** 📽️
+### 🎥 **Translate videos easily with VGM Translate!** 📽️
 
-Upload a video or provide a video link. 📽️ **Gets the updated notebook from the official repository.: [SoniTranslate](https://github.com/R3gm/SoniTranslate)!**
+🎥 Upload a video or provide a video link. 📽️
 
-See the tab labeled `Help` for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
+See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
 """
 
 
@@ -84,14 +86,41 @@ Tip: You can use `Test RVC` to experiment and find the best TTS or configuration
 
 """
 
-
+LANGUAGES = {
+    'Automatic detection': 'Automatic detection',
+    'Arabic (ar)': 'ar',
+    'Chinese (zh)': 'zh',
+    'Czech (cs)': 'cs',
+    'Danish (da)': 'da',
+    'Dutch (nl)': 'nl',
+    'English (en)': 'en',
+    'Finnish (fi)': 'fi',
+    'French (fr)': 'fr',
+    'German (de)': 'de',
+    'Greek (el)': 'el',
+    'Hebrew (he)': 'he',
+    'Hungarian (hu)': 'hu',
+    'Italian (it)': 'it',
+    'Japanese (ja)': 'ja',
+    'Korean (ko)': 'ko',
+    'Persian (fa)': 'fa',
+    'Polish (pl)': 'pl',
+    'Portuguese (pt)': 'pt',
+    'Russian (ru)': 'ru',
+    'Spanish (es)': 'es',
+    'Turkish (tr)': 'tr',
+    'Ukrainian (uk)': 'uk',
+    'Urdu (ur)': 'ur',
+    'Vietnamese (vi)': 'vi',
+    'Hindi (hi)': 'hi',
+}
 
 # Check GPU
 if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
-    whisper_model_default = 'large-v2'
+    whisper_model_default = 'medium'
 else:
     device = "cpu"
     list_compute_type = ['float32']
@@ -103,10 +132,10 @@ list_tts = ['af-ZA-AdriNeural-Female', 'af-ZA-WillemNeural-Male', 'am-ET-AmehaNe
 
 ### voices
 with capture.capture_output() as cap:
-    os.system('mkdir downloads')
-    os.system('mkdir logs')
-    os.system('mkdir weights')
-    os.system('mkdir downloads')
+    os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
+    os.system('mkdir -p downloads')
+    os.system('mkdir -p model/logs')
+    os.system('mkdir -p model/weights')
     del cap
 
 
@@ -136,19 +165,20 @@ def print_tree_directory(root_dir, indent=''):
 
 
 def upload_model_list():
-    weight_root = "weights"
+    weight_root = os.path.join("model","weights")
     models = []
     for name in os.listdir(weight_root):
         if name.endswith(".pth"):
             models.append(name)
 
-    index_root = "logs"
+    index_root = os.path.join("model","logs")
     index_paths = []
     for name in os.listdir(index_root):
         if name.endswith(".index"):
-            index_paths.append("logs/"+name)
+            index_paths.append(name)
+            # index_paths.append(os.path.join(index_root, name))
 
-    print(models, index_paths)
+    print("models::", models, index_paths)
     return models, index_paths
 
 def manual_download(url, dst):
@@ -184,9 +214,9 @@ def download_list(text_downloads):
     except:
       return 'No valid link'
 
-    os.system('mkdir downloads')
-    os.system('mkdir logs')
-    os.system('mkdir weights')
+    os.system('mkdir -p downloads')
+    os.system('mkdir -p model/logs')
+    os.system('mkdir -p model/weights')
     path_download = "downloads/"
     for url in urls:
       manual_download(url, path_download)
@@ -236,8 +266,8 @@ def select_zip_and_rar_files(directory_path="downloads/"):
                     destination = os.path.join(destination_dir, file_name)
                     shutil.move(source_file, destination)
 
-    move_files_with_extension(directory_path, ".index", "logs/")
-    move_files_with_extension(directory_path, ".pth", "weights/")
+    move_files_with_extension(directory_path, ".index", os.path.join("model","logs"))
+    move_files_with_extension(directory_path, ".pth", os.path.join("model","weights"))
 
     return 'Download complete'
 
@@ -265,13 +295,13 @@ def translate_from_video(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
 
     create_translated_audio(result_diarize, audio_files, Output_name_file)
 
-    os.system("rm audio_dub_stereo.wav")
+    os.system("rm -rf audio_dub_stereo.wav")
     os.system("ffmpeg -i audio_dub_solo.wav -ac 1 audio_dub_stereo.wav")
 
-    os.system(f"rm {mix_audio}")
+    os.system(f"rm -rf {mix_audio}")
     os.system(f'ffmpeg -y -i audio.wav -i audio_dub_stereo.wav -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
 
-    os.system(f"rm {video_output}")
+    os.system(f"rm -rf {video_output}")
     os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output}")
 
     return video_output
@@ -318,35 +348,6 @@ def translate_from_video(
       WHISPER_MODEL_SIZE="medium"
       print("DEMO; set whisper model to medium")
 
-    LANGUAGES = {
-        'Automatic detection': 'Automatic detection',
-        'Arabic (ar)': 'ar',
-        'Chinese (zh)': 'zh',
-        'Czech (cs)': 'cs',
-        'Danish (da)': 'da',
-        'Dutch (nl)': 'nl',
-        'English (en)': 'en',
-        'Finnish (fi)': 'fi',
-        'French (fr)': 'fr',
-        'German (de)': 'de',
-        'Greek (el)': 'el',
-        'Hebrew (he)': 'he',
-        'Hungarian (hu)': 'hu',
-        'Italian (it)': 'it',
-        'Japanese (ja)': 'ja',
-        'Korean (ko)': 'ko',
-        'Persian (fa)': 'fa',
-        'Polish (pl)': 'pl',
-        'Portuguese (pt)': 'pt',
-        'Russian (ru)': 'ru',
-        'Spanish (es)': 'es',
-        'Turkish (tr)': 'tr',
-        'Ukrainian (uk)': 'uk',
-        'Urdu (ur)': 'ur',
-        'Vietnamese (vi)': 'vi',
-        'Hindi (hi)': 'hi',
-    }
-
     TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
     SOURCE_LANGUAGE = LANGUAGES[SOURCE_LANGUAGE]
 
@@ -366,9 +367,9 @@ def translate_from_video(
     Output_name_file = "audio_dub_solo.ogg"
     mix_audio = "audio_mix.mp3"
 
-    os.system("rm Video.mp4")
-    os.system("rm audio.webm")
-    os.system("rm audio.wav")
+    os.system("rm -rf Video.mp4")
+    os.system("rm -rf audio.webm")
+    os.system("rm -rf audio.wav")
 
     progress(0.15, desc="Processing video...")
     if os.path.exists(video):
@@ -579,13 +580,13 @@ def translate_from_video(
     # replace files with the accelerates
     os.system("mv -f audio2/audio/*.ogg audio/")
 
-    os.system(f"rm {Output_name_file}")
+    os.system(f"rm -rf {Output_name_file}")
 
     progress(0.95, desc="Creating final translated video...")
 
     create_translated_audio(result_diarize, audio_files, Output_name_file)
 
-    os.system(f"rm {mix_audio}")
+    os.system(f"rm -rf {mix_audio}")
 
     # TYPE MIX AUDIO
     if AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
@@ -599,7 +600,7 @@ def translate_from_video(
             # volume mix except
             os.system(f'ffmpeg -y -i {audio_wav} -i {Output_name_file} -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
 
-    os.system(f"rm {video_output}")
+    os.system(f"rm -rf {video_output}")
     os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output}")
 
     return video_output
@@ -648,24 +649,25 @@ with gr.Blocks(theme=theme) as demo:
             with gr.Column():
                 #video_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
                 video_input = gr.File(label="VIDEO")
-                #link = gr.HTML()
-                #video_input.change(submit_file_func, video_input, [video_input, link], show_progress='full')
+                ## video_input change function
+                # link = gr.HTML()
+                # video_input.change(submit_file_func, video_input, [video_input, link], show_progress='full')
 
                 SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
-                TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='English (en)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
+                TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
 
                 line_ = gr.HTML("<hr></h2>")
                 gr.Markdown("Select how many people are speaking in the video.")
                 min_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
-                max_speakers = gr.Slider(1, MAX_TTS, value=2, step=1, label="Max speakers", interative=True)
+                max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
                 gr.Markdown("Select the voice you want for each speaker.")
                 def submit(value):
                     visibility_dict = {
                         f'tts_voice{i:02d}': gr.update(visible=i < value) for i in range(6)
                     }
                     return [value for value in visibility_dict.values()]
-                tts_voice00 = gr.Dropdown(list_tts, value='en-AU-WilliamNeural-Male', label = 'TTS Speaker 1', visible=True, interactive= True)
-                tts_voice01 = gr.Dropdown(list_tts, value='en-CA-ClaraNeural-Female', label = 'TTS Speaker 2', visible=True, interactive= True)
+                tts_voice00 = gr.Dropdown(list_tts, value='vi-VN-NamMinhNeural-Male', label = 'TTS Speaker 1', visible=True, interactive= True)
+                tts_voice01 = gr.Dropdown(list_tts, value='vi-VN-HoaiMyNeural-Female', label = 'TTS Speaker 2', visible=False, interactive= True)
                 tts_voice02 = gr.Dropdown(list_tts, value='en-GB-ThomasNeural-Male', label = 'TTS Speaker 3', visible=False, interactive= True)
                 tts_voice03 = gr.Dropdown(list_tts, value='en-GB-SoniaNeural-Female', label = 'TTS Speaker 4', visible=False, interactive= True)
                 tts_voice04 = gr.Dropdown(list_tts, value='en-NZ-MitchellNeural-Male', label = 'TTS Speaker 5', visible=False, interactive= True)
@@ -686,7 +688,15 @@ with gr.Blocks(theme=theme) as demo:
                           gr.HTML("<hr></h2>")
                           VIDEO_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="video_output.mp4", info="The name of the output file")
                           PREVIEW = gr.Checkbox(label="Preview", info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
-
+                
+                ## update_output_filename if video_input or TRANSLATE_AUDIO_TO change
+                def update_output_filename(file,lang):
+                    file_name, file_extension = os.path.splitext(os.path.basename(file.name.strip().replace(' ','_')))
+                    output_name = f"{file_name}-{LANGUAGES[lang]}{file_extension}"
+                    return gr.update(value=output_name)
+                video_input.change(update_output_filename, [video_input,TRANSLATE_AUDIO_TO], [VIDEO_OUTPUT_NAME])
+                TRANSLATE_AUDIO_TO.change(update_output_filename, [video_input,TRANSLATE_AUDIO_TO], [VIDEO_OUTPUT_NAME])
+                
             with gr.Column(variant='compact'):
                 with gr.Row():
                     video_button = gr.Button("TRANSLATE", )
@@ -753,23 +763,23 @@ with gr.Blocks(theme=theme) as demo:
         with gr.Row():
             with gr.Column():
 
-                blink_input = gr.Textbox(label="Media link.", info="Example: www.youtube.com/watch?v=g_9rPvbENUw", placeholder="URL goes here...")
+                blink_input = gr.Textbox(label="Media link.", info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc", placeholder="URL goes here...")
 
                 bSOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
-                bTRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='English (en)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
+                bTRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
 
                 bline_ = gr.HTML("<hr></h2>")
                 gr.Markdown("Select how many people are speaking in the video.")
                 bmin_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
-                bmax_speakers = gr.Slider(1, MAX_TTS, value=2, step=1, label="Max speakers", interative=True)
+                bmax_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
                 gr.Markdown("Select the voice you want for each speaker.")
                 def bsubmit(value):
                     visibility_dict = {
                         f'btts_voice{i:02d}': gr.update(visible=i < value) for i in range(6)
                     }
                     return [value for value in visibility_dict.values()]
-                btts_voice00 = gr.Dropdown(list_tts, value='en-AU-WilliamNeural-Male', label = 'TTS Speaker 1', visible=True, interactive= True)
-                btts_voice01 = gr.Dropdown(list_tts, value='en-CA-ClaraNeural-Female', label = 'TTS Speaker 2', visible=True, interactive= True)
+                btts_voice00 = gr.Dropdown(list_tts, value='vi-VN-NamMinhNeural-Male', label = 'TTS Speaker 1', visible=True, interactive= True)
+                btts_voice01 = gr.Dropdown(list_tts, value='vi-VN-HoaiMyNeural-Female', label = 'TTS Speaker 2', visible=False, interactive= True)
                 btts_voice02 = gr.Dropdown(list_tts, value='en-GB-ThomasNeural-Male', label = 'TTS Speaker 3', visible=False, interactive= True)
                 btts_voice03 = gr.Dropdown(list_tts, value='en-GB-SoniaNeural-Female', label = 'TTS Speaker 4', visible=False, interactive= True)
                 btts_voice04 = gr.Dropdown(list_tts, value='en-NZ-MitchellNeural-Male', label = 'TTS Speaker 5', visible=False, interactive= True)
@@ -854,7 +864,7 @@ with gr.Blocks(theme=theme) as demo:
                 )
 
 
-    with gr.Tab("Custom voice RVC"):
+    with gr.Tab("RVC Setting"):
         with gr.Column():
           with gr.Accordion("Get the RVC Models", open=True):
             url_links = gr.Textbox(label="URLs", value="",info="Automatically download the RVC models from the URL. You can use links from HuggingFace or Drive, and you can include several links, each one separated by a comma. Example: https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.pth, https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.index", placeholder="urls here...", lines=1)
@@ -926,7 +936,7 @@ with gr.Blocks(theme=theme) as demo:
                   name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True, interactive=True)
                 gr.HTML("<hr></h2>")
                 with gr.Row():
-                  f0_method_global = gr.Dropdown(f0_methods_voice, value='pm', label = 'Global F0 method', visible=True, interactive= True)
+                  f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True, interactive= True)
 
             with gr.Row(variant='compact'):
               button_config = gr.Button("APPLY CONFIGURATION")
@@ -955,7 +965,7 @@ with gr.Blocks(theme=theme) as demo:
                       model_voice_path07 = gr.Dropdown(models, label = 'Model', visible=True, interactive= True) #value=''
                       file_index2_07 = gr.Dropdown(index_paths, label = 'Index', visible=True, interactive= True) #value=''
                       transpose_test = gr.Number(label = 'Transpose', value=0, visible=True, interactive= True, info="integer, number of semitones, raise by an octave: 12, lower by an octave: -12")
-                      f0method_test = gr.Dropdown(f0_methods_voice, value='pm', label = 'F0 method', visible=True, interactive= True) 
+                      f0method_test = gr.Dropdown(f0_methods_voice, value='harvest', label = 'F0 method', visible=True, interactive= True) 
                   with gr.Row(variant='compact'):
                     button_test = gr.Button("Test audio")
 
@@ -1031,4 +1041,10 @@ with gr.Blocks(theme=theme) as demo:
         ], outputs=blink_output)
 
 #demo.launch(debug=True, enable_queue=True)
-demo.launch(share=True, enable_queue=True, quiet=True, debug=False)
+demo.launch(
+  share=True,     
+  server_name="0.0.0.0",
+	# server_port=7860, 
+	enable_queue=True, 
+	quiet=True, 
+	debug=False)

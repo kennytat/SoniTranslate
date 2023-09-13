@@ -133,7 +133,7 @@ class VC(object):
 
                 print("loading rmvpe model")
                 self.model_rmvpe = RMVPE(
-                    "rmvpe.pt", is_half=self.is_half, device=self.device
+                    os.path.join("model","rmvpe","rmvpe.pt"), is_half=self.is_half, device=self.device
                 )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
         f0 *= pow(2, f0_up_key / 12)
@@ -158,7 +158,7 @@ class VC(object):
         ) + 1
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > 255] = 255
-        f0_coarse = np.rint(f0_mel).astype(np.int)
+        f0_coarse = np.rint(f0_mel).astype(np.int_)
         return f0_coarse, f0bak  # 1-0
 
     def vc(
@@ -285,6 +285,9 @@ class VC(object):
         protect,
         f0_file=None,
     ):
+        index_root = os.path.join("model","logs")
+        file_index = os.path.join(index_root, file_index)
+        # print("file_index::",file_index)
         if (
             file_index != ""
             # and file_big_npy != ""

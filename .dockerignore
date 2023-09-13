@@ -9,9 +9,10 @@ __pycache__/
 *.mp3
 *.mp4
 *.ogg
-
+*.log
 # Distribution / packaging
 .Python
+.git/
 build/
 develop-eggs/
 dist/

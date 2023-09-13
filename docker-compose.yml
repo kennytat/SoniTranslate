@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  soni:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kennytat/sonitranslate:stable
+    container_name: soni
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # shm_size: 1024m
+    ports:
+      - 7860:7860
+    # environment:
+    #   YOUR_HF_TOKEN: ""
+    #   YOUR_AUTH_TOKEN: ""
+    volumes:
+      - /mnt/backup/AI/sonitranslate/cache:/root/.cache
+      - /mnt/backup/AI/sonitranslate/model:/app/model
