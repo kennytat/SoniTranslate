@@ -1,5 +1,9 @@
 #%cd SoniTranslate
 from dotenv import load_dotenv
+import json
+import re
+from datetime import timedelta, datetime
+from pathlib import Path
 import numpy as np
 import gradio as gr
 import whisperx
@@ -16,15 +20,16 @@ from pydub import AudioSegment
 from tqdm import tqdm
 from deep_translator import GoogleTranslator
 import os
-from soni_translate.audio_segments import create_translated_audio
-from soni_translate.text_to_speech import make_voice_gradio
-from soni_translate.translate_segments import translate_text
+from audio_segments import create_translated_audio
+from text_to_speech import make_voice_gradio
+from translate_segments import translate_text
 import time
 import shutil
 from urllib.parse import unquote
 import zipfile
 import rarfile
 import logging
+import tempfile
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
@@ -136,6 +141,7 @@ with capture.capture_output() as cap:
     os.system('mkdir -p downloads')
     os.system('mkdir -p model/logs')
     os.system('mkdir -p model/weights')
+    os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
     del cap
 
 
@@ -276,7 +282,23 @@ def custom_model_voice_enable(enable_custom_voice):
       os.environ["VOICES_MODELS"] = 'ENABLE'
     else:
       os.environ["VOICES_MODELS"] = 'DISABLE'
-
+      
+def new_dir_now():
+    now = datetime.now() # current date and time
+    date_time = now.strftime("%Y%m%d%H%M")
+    return date_time
+  
+def segments_to_srt(segments, output_path):
+  def srt_time(str):
+    return re.sub(r"\.",",",re.sub(r"0{3}$","",str)) if re.search(r"\.\d{6}", str) else f'{str},000'
+  for index, segment in enumerate(segments):
+      startTime = srt_time(str(0)+str(timedelta(seconds=segment['start'])))
+      endTime = srt_time(str(0)+str(timedelta(seconds=segment['end'])))
+      text = segment['text']
+      segmentId = index+1
+      segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text[0] == ' ' else text}\n\n"
+      with open(output_path, 'a', encoding='utf-8') as srtFile:
+          srtFile.write(segment)
 
 models, index_paths = upload_model_list()
 
@@ -308,7 +330,10 @@ def translate_from_video(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
 '''
 
 def translate_from_video(
-    video,
+    video_input,
+    s2t_method,
+    t2t_method,
+    t2s_method,
     YOUR_HF_TOKEN,
     preview=False,
     WHISPER_MODEL_SIZE="large-v1",
@@ -328,7 +353,6 @@ def translate_from_video(
     AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
     progress=gr.Progress(),
     ):
-
     if YOUR_HF_TOKEN == "" or YOUR_HF_TOKEN == None:
       YOUR_HF_TOKEN = os.getenv("YOUR_HF_TOKEN")
       if YOUR_HF_TOKEN == None:
@@ -337,8 +361,8 @@ def translate_from_video(
       else:
         os.environ["YOUR_HF_TOKEN"] = YOUR_HF_TOKEN
 
-    video = video if isinstance(video, str) else video.name
-    print(video)
+    video_input = video_input if isinstance(video_input, str) else video_input.name
+    # print(video_input)
 
     if "SET_LIMIT" == os.getenv("DEMO"):
       preview=True
@@ -362,35 +386,38 @@ def translate_from_video(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     compute_type = "float32" if device == "cpu" else compute_type
 
-    OutputFile = 'Video.mp4'
-    audio_wav = "audio.wav"
-    Output_name_file = "audio_dub_solo.ogg"
-    mix_audio = "audio_mix.mp3"
-
-    os.system("rm -rf Video.mp4")
-    os.system("rm -rf audio.webm")
-    os.system("rm -rf audio.wav")
+    temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", new_dir_now())
+    Path(temp_dir).mkdir(parents=True, exist_ok=True)
+    OutputFile = os.path.join(temp_dir, 'Video.mp4')
+    audio_wav = os.path.join(temp_dir, "audio_origin.wav")
+    audio_webm = os.path.join(temp_dir, "audio_origin.webm")  
+    Output_name_file = os.path.join(temp_dir, "audio_translated.ogg")
+    mix_audio = os.path.join(temp_dir, "audio_mix.mp3") 
+    video_output = os.path.join(temp_dir, video_output)
+    # os.system("rm -rf Video.mp4")
+    # os.system("rm -rf audio_origin.webm")
+    # os.system("rm -rf audio_origin.wav")
 
     progress(0.15, desc="Processing video...")
-    if os.path.exists(video):
+    if os.path.exists(video_input):
         if preview:
             print('Creating a preview video of 10 seconds, to disable this option, go to advanced settings and turn off preview.')
-            os.system(f'ffmpeg -y -i "{video}" -ss 00:00:20 -t 00:00:10 -c:v libx264 -c:a aac -strict experimental Video.mp4')
+            os.system(f'ffmpeg -y -i "{video_input}" -ss 00:00:20 -t 00:00:10 -c:v libx264 -c:a aac -strict experimental {OutputFile}')
         else:
             # Check if the file ends with ".mp4" extension
-            if video.endswith(".mp4"):
-                destination_path = os.path.join(os.getcwd(), "Video.mp4")
-                shutil.copy(video, destination_path)
+            if video_input.endswith(".mp4"):
+                destination_path = OutputFile
+                shutil.copy(video_input, destination_path)
             else:
                 print("File does not have the '.mp4' extension. Converting video.")
-                os.system(f'ffmpeg -y -i "{video}" -c:v libx264 -c:a aac -strict experimental Video.mp4')
+                os.system(f'ffmpeg -y -i "{video_input}" -c:v libx264 -c:a aac -strict experimental {OutputFile}')
 
         for i in range (120):
             time.sleep(1)
             print('process video...')
             if os.path.exists(OutputFile):
                 time.sleep(1)
-                os.system("ffmpeg -y -i Video.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 2 audio.wav")
+                os.system(f"ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}")
                 time.sleep(1)
                 break
             if i == 119:
@@ -410,20 +437,20 @@ def translate_from_video(
         if preview:
             print('Creating a preview from the link, 10 seconds to disable this option, go to advanced settings and turn off preview.')
             #https://github.com/yt-dlp/yt-dlp/issues/2220
-            mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {video}'
-            wav_ = "ffmpeg -y -i Video.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 2 audio.wav"
+            mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {video_input}'
+            wav_ = "ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}"
             os.system(mp4_)
             os.system(wav_)
         else:
-            mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {video}'
-            wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {video}'
+            mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {video_input}'
+            wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {video_input}'
 
             os.system(wav_)
 
             for i in range (120):
                 time.sleep(1)
                 print('process audio...')
-                if os.path.exists(audio_wav) and not os.path.exists('audio.webm'):
+                if os.path.exists(audio_wav) and not os.path.exists(audio_webm):
                     time.sleep(1)
                     os.system(mp4_)
                     break
@@ -437,6 +464,7 @@ def translate_from_video(
     SOURCE_LANGUAGE = None if SOURCE_LANGUAGE == 'Automatic detection' else SOURCE_LANGUAGE
 
     # 1. Transcribe with original whisper (batched)
+    print("Start transcribing::")
     with capture.capture_output() as cap:
       model = whisperx.load_model(
           WHISPER_MODEL_SIZE,
@@ -448,17 +476,18 @@ def translate_from_video(
     audio = whisperx.load_audio(audio_wav)
     result = model.transcribe(audio, batch_size=batch_size)
     gc.collect(); torch.cuda.empty_cache(); del model
-    print("Transcript complete")
+    print("Transcript complete::")
 
     
-
     # 2. Align whisper output
+    print("Start aligning::")
     progress(0.45, desc="Aligning...")
     DAMHF.update(DAMT) #lang align
     EXTRA_ALIGN = {
         "hi": "theainerd/Wav2Vec2-large-xlsr-hindi"
     } # add new align models here
     #print(result['language'], DAM.keys(), EXTRA_ALIGN.keys())
+    SOURCE_LANGUAGE = result['language']
     if not result['language'] in DAMHF.keys() and not result['language'] in EXTRA_ALIGN.keys():
         audio = result = None
         print("Automatic detection: Source language not compatible")
@@ -479,13 +508,14 @@ def translate_from_video(
         return_char_alignments=True,
         )
     gc.collect(); torch.cuda.empty_cache(); del model_a
-    print("Align complete")
+    print("Align complete::")
 
     if result['segments'] == []:
         print('No active speech found in audio')
         return
 
     # 3. Assign speaker labels
+    print("Start Diarizing::")
     progress(0.60, desc="Diarizing...")
     with capture.capture_output() as cap:
       diarize_model = whisperx.DiarizationPipeline(use_auth_token=YOUR_HF_TOKEN, device=device)
@@ -497,13 +527,25 @@ def translate_from_video(
     result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
     gc.collect(); torch.cuda.empty_cache(); del diarize_model
     print("Diarize complete")
-
+    
+    print("Start translating::")
     progress(0.75, desc="Translating...")
     if TRANSLATE_AUDIO_TO == "zh":
         TRANSLATE_AUDIO_TO = "zh-CN"
     if TRANSLATE_AUDIO_TO == "he":
         TRANSLATE_AUDIO_TO = "iw"
-    result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO)
+    print("os.path.splitext(video_input)[0]::", os.path.splitext(video_input)[0])
+    ## Write source segment and srt to file
+    video_basename = re.sub(r'\-\w{2}$', '', os.path.splitext(video_output)[0])
+    with open(f'{video_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
+      srtFile.write(json.dumps(result_diarize['segments']))
+    segments_to_srt(result_diarize['segments'], f'{video_basename}-{SOURCE_LANGUAGE}.srt')
+    # Start translate
+    result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
+    ## Write target segment and srt to file
+    with open(f'{video_basename}-{TRANSLATE_AUDIO_TO}.json', 'a', encoding='utf-8') as srtFile:
+      srtFile.write(json.dumps(result_diarize['segments']))
+    segments_to_srt(result_diarize['segments'], f'{video_basename}-{TRANSLATE_AUDIO_TO}.srt')
     print("Translation complete")
 
     progress(0.85, desc="Text_to_speech...")
@@ -519,7 +561,7 @@ def translate_from_video(
         'SPEAKER_04': tts_voice04,
         'SPEAKER_05': tts_voice05
     }
-
+    print("Start TTS::")
     for segment in tqdm(result_diarize['segments']):
 
         text = segment['text']
@@ -602,8 +644,12 @@ def translate_from_video(
 
     os.system(f"rm -rf {video_output}")
     os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output}")
-
-    return video_output
+    os.system(f"rm -rf {OutputFile}")
+    ## Archve all files and return output
+    archive_path = os.path.join(Path(temp_dir).parent.absolute(), re.sub(r'\.mp4$', '', os.path.basename(video_output)))
+    shutil.make_archive(archive_path, 'zip', temp_dir)
+    final_output = f"{archive_path}.zip"
+    return final_output
 
 import sys
 
@@ -709,53 +755,53 @@ with gr.Blocks(theme=theme) as demo:
                 else:
                   HFKEY = gr.Textbox(visible= False, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
 
-                gr.Examples(
-                    examples=[
-                        [
-                            "./assets/Video_main.mp4",
-                            "",
-                            False,
-                            "large-v2",
-                            16,
-                            "float16",
-                            "Spanish (es)",
-                            "English (en)",
-                            1,
-                            2,
-                            'en-AU-WilliamNeural-Male',
-                            'en-CA-ClaraNeural-Female',
-                            'en-GB-ThomasNeural-Male',
-                            'en-GB-SoniaNeural-Female',
-                            'en-NZ-MitchellNeural-Male',
-                            'en-GB-MaisieNeural-Female',
-                            "video_output.mp4",
-                            'Adjusting volumes and mixing audio',
-                        ],
-                    ],
-                    fn=translate_from_video,
-                    inputs=[
-                    video_input,
-                    HFKEY,
-                    PREVIEW,
-                    WHISPER_MODEL_SIZE,
-                    batch_size,
-                    compute_type,
-                    SOURCE_LANGUAGE,
-                    TRANSLATE_AUDIO_TO,
-                    min_speakers,
-                    max_speakers,
-                    tts_voice00,
-                    tts_voice01,
-                    tts_voice02,
-                    tts_voice03,
-                    tts_voice04,
-                    tts_voice05,
-                    VIDEO_OUTPUT_NAME,
-                    AUDIO_MIX,
-                    ],
-                    outputs=[video_output],
-                    cache_examples=False,
-                )
+                # gr.Examples(
+                #     examples=[
+                #         [
+                #             "./assets/Video_main.mp4",
+                #             "",
+                #             False,
+                #             "large-v2",
+                #             16,
+                #             "float16",
+                #             "Spanish (es)",
+                #             "English (en)",
+                #             1,
+                #             2,
+                #             'en-AU-WilliamNeural-Male',
+                #             'en-CA-ClaraNeural-Female',
+                #             'en-GB-ThomasNeural-Male',
+                #             'en-GB-SoniaNeural-Female',
+                #             'en-NZ-MitchellNeural-Male',
+                #             'en-GB-MaisieNeural-Female',
+                #             "video_output.mp4",
+                #             'Adjusting volumes and mixing audio',
+                #         ],
+                #     ],
+                #     fn=translate_from_video,
+                #     inputs=[
+                #     video_input,
+                #     HFKEY,
+                #     PREVIEW,
+                #     WHISPER_MODEL_SIZE,
+                #     batch_size,
+                #     compute_type,
+                #     SOURCE_LANGUAGE,
+                #     TRANSLATE_AUDIO_TO,
+                #     min_speakers,
+                #     max_speakers,
+                #     tts_voice00,
+                #     tts_voice01,
+                #     tts_voice02,
+                #     tts_voice03,
+                #     tts_voice04,
+                #     tts_voice05,
+                #     VIDEO_OUTPUT_NAME,
+                #     AUDIO_MIX,
+                #     ],
+                #     outputs=[video_output],
+                #     cache_examples=False,
+                # )
 
 ### link
 
@@ -815,58 +861,76 @@ with gr.Blocks(theme=theme) as demo:
                 else:
                   bHFKEY = gr.Textbox(visible= False, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
 
-                gr.Examples(
-                    examples=[
-                        [
-                            "https://www.youtube.com/watch?v=5ZeHtRKHl7Y",
-                            "",
-                            False,
-                            "large-v2",
-                            16,
-                            "float16",
-                            "Japanese (ja)",
-                            "English (en)",
-                            1,
-                            2,
-                            'en-CA-ClaraNeural-Female',
-                            'en-AU-WilliamNeural-Male',
-                            'en-GB-ThomasNeural-Male',
-                            'en-GB-SoniaNeural-Female',
-                            'en-NZ-MitchellNeural-Male',
-                            'en-GB-MaisieNeural-Female',
-                            "video_output.mp4",
-                            'Adjusting volumes and mixing audio',
-                        ],
-                    ],
-                    fn=translate_from_video,
-                    inputs=[
-                    blink_input,
-                    bHFKEY,
-                    bPREVIEW,
-                    bWHISPER_MODEL_SIZE,
-                    bbatch_size,
-                    bcompute_type,
-                    bSOURCE_LANGUAGE,
-                    bTRANSLATE_AUDIO_TO,
-                    bmin_speakers,
-                    bmax_speakers,
-                    btts_voice00,
-                    btts_voice01,
-                    btts_voice02,
-                    btts_voice03,
-                    btts_voice04,
-                    btts_voice05,
-                    bVIDEO_OUTPUT_NAME,
-                    bAUDIO_MIX
-                    ],
-                    outputs=[blink_output],
-                    cache_examples=False,
-                )
+                # gr.Examples(
+                #     examples=[
+                #         [
+                #             "https://www.youtube.com/watch?v=5ZeHtRKHl7Y",
+                #             "",
+                #             False,
+                #             "large-v2",
+                #             16,
+                #             "float16",
+                #             "Japanese (ja)",
+                #             "English (en)",
+                #             1,
+                #             2,
+                #             'en-CA-ClaraNeural-Female',
+                #             'en-AU-WilliamNeural-Male',
+                #             'en-GB-ThomasNeural-Male',
+                #             'en-GB-SoniaNeural-Female',
+                #             'en-NZ-MitchellNeural-Male',
+                #             'en-GB-MaisieNeural-Female',
+                #             "video_output.mp4",
+                #             'Adjusting volumes and mixing audio',
+                #         ],
+                #     ],
+                #     fn=translate_from_video,
+                #     inputs=[
+                #     blink_input,
+                #     bHFKEY,
+                #     bPREVIEW,
+                #     bWHISPER_MODEL_SIZE,
+                #     bbatch_size,
+                #     bcompute_type,
+                #     bSOURCE_LANGUAGE,
+                #     bTRANSLATE_AUDIO_TO,
+                #     bmin_speakers,
+                #     bmax_speakers,
+                #     btts_voice00,
+                #     btts_voice01,
+                #     btts_voice02,
+                #     btts_voice03,
+                #     btts_voice04,
+                #     btts_voice05,
+                #     bVIDEO_OUTPUT_NAME,
+                #     bAUDIO_MIX
+                #     ],
+                #     outputs=[blink_output],
+                #     cache_examples=False,
+                # )
 
 
-    with gr.Tab("RVC Setting"):
+    with gr.Tab("Settings"):
         with gr.Column():
-          with gr.Accordion("Get the RVC Models", open=True):
+          with gr.Accordion("S2T - T2T - T2S", open=True):
+            with gr.Row():
+              s2t_method = gr.Dropdown(["Whisper", "Meta", "Custom"], label='S2T', value='Whisper', visible=True, interactive= True)
+              t2t_method = gr.Dropdown(["Google", "Meta", "Custom"], label='T2T', value='Custom', visible=True, interactive= True)
+              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "Custom"], label='T2S', value='Google', visible=True, interactive= True)
+            # def update_models():
+            #   models, index_paths = upload_model_list()
+            #   for i in range(8):                      
+            #     dict_models = {
+            #         f'model_voice_path{i:02d}': gr.update(choices=models) for i in range(8)
+            #     }
+            #     dict_index = {
+            #         f'file_index2_{i:02d}': gr.update(choices=index_paths) for i in range(8)
+            #     }
+            #     dict_changes = {**dict_models, **dict_index}
+            #     return [value for value in dict_changes.values()]
+              
+        with gr.Column():
+          with gr.Accordion("Download RVC Models", open=False):
             url_links = gr.Textbox(label="URLs", value="",info="Automatically download the RVC models from the URL. You can use links from HuggingFace or Drive, and you can include several links, each one separated by a comma. Example: https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.pth, https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.index", placeholder="urls here...", lines=1)
             download_finish = gr.HTML()
             download_button = gr.Button("DOWNLOAD MODELS")
@@ -884,7 +948,7 @@ with gr.Blocks(theme=theme) as demo:
                 return [value for value in dict_changes.values()]
 
         with gr.Column():
-          with gr.Accordion("Replace voice: TTS to RVC", open=False):
+          with gr.Accordion("RVC Setting", open=False):
             with gr.Column(variant='compact'):
               with gr.Column():
                 gr.Markdown("### 1. To enable its use, mark it as enable.")
@@ -945,6 +1009,7 @@ with gr.Blocks(theme=theme) as demo:
 
             button_config.click(voices.apply_conf, inputs=[
                 f0_method_global,
+                s2t_method, t2t_method, t2s_method,
                 model_voice_path00, name_transpose00, file_index2_00,
                 model_voice_path01, name_transpose01, file_index2_01,
                 model_voice_path02, name_transpose02, file_index2_02,
@@ -1001,6 +1066,9 @@ with gr.Blocks(theme=theme) as demo:
     # run
     video_button.click(translate_from_video, inputs=[
         video_input,
+        s2t_method,
+        t2t_method,
+        t2s_method,
         HFKEY,
         PREVIEW,
         WHISPER_MODEL_SIZE,
@@ -1021,6 +1089,9 @@ with gr.Blocks(theme=theme) as demo:
         ], outputs=video_output)
     text_button.click(translate_from_video, inputs=[
         blink_input,
+        s2t_method,
+        t2t_method,
+        t2s_method,
         bHFKEY,
         bPREVIEW,
         bWHISPER_MODEL_SIZE,
@@ -1044,7 +1115,7 @@ with gr.Blocks(theme=theme) as demo:
 demo.launch(
   share=True,     
   server_name="0.0.0.0",
-	# server_port=7860, 
-	enable_queue=True, 
-	quiet=True, 
-	debug=False)
+  server_port=6860,
+  enable_queue=True, 
+  quiet=True, 
+  debug=False)

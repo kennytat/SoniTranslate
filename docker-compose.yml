@@ -17,7 +17,7 @@ services:
               capabilities: [gpu]
     # shm_size: 1024m
     ports:
-      - 7860:7860
+      - 6860:6860
     # environment:
     #   YOUR_HF_TOKEN: ""
     #   YOUR_AUTH_TOKEN: ""

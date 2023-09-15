@@ -13,9 +13,9 @@ from pydub import AudioSegment
 from tqdm import tqdm
 from deep_translator import GoogleTranslator
 import os
-from soni_translate.audio_segments import create_translated_audio
-from soni_translate.text_to_speech import make_voice_gradio
-from soni_translate.translate_segments import translate_text
+from audio_segments import create_translated_audio
+from text_to_speech import make_voice_gradio
+from translate_segments import translate_text
 import time
 import shutil
 

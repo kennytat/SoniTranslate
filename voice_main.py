@@ -304,6 +304,7 @@ class ClassVoices:
         self.file_index = "" # root
 
     def apply_conf(self, f0method,
+                   s2t_method, t2t_method, t2s_method,
                    model_voice_path00, transpose00, file_index2_00,
                    model_voice_path01, transpose01, file_index2_01,
                    model_voice_path02, transpose02, file_index2_02,
@@ -314,6 +315,10 @@ class ClassVoices:
 
         #self.filename = filename
         self.f0method = f0method # pm
+        
+        self.s2t_method = s2t_method
+        self.t2t_method = t2t_method
+        self.t2s_method = t2s_method
         
         self.model_voice_path00 = model_voice_path00
         self.transpose00 = transpose00

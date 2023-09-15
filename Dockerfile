@@ -16,6 +16,6 @@ RUN rm -rf /root/.cache/pip && rm -rf /var/cache/apt/*
 
 COPY . .
 
-EXPOSE 7860
+EXPOSE 6860
 
 CMD python app_rvc.py
