@@ -1,3 +1,15 @@
+## T5 transformer translate
+pytesseract
+transformers
+accelerate
+datasets
+rouge-score
+nltk
+bitsandbytes
+peft
+scipy
+##
+IPython
 nest_asyncio
 --extra-index-url https://download.pytorch.org/whl/cu117 torch==2.0.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2+cu117
 yt-dlp 
@@ -10,3 +22,11 @@ git+https://github.com/m-bain/whisperx.git
 python-dotenv
 datetime
 pathlib
+praat-parselmouth>=0.4.3
+pyworld==0.3.2
+faiss-cpu==1.7.3
+torchcrepe==0.0.20
+ffmpeg-python>=0.2.0
+fairseq==0.12.2 
+gdown
+rarfile

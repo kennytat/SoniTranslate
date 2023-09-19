@@ -9,7 +9,7 @@ from peft import PeftModel
 
 device = torch.device("cuda")
 BASE_MODEL = "./model/envit5-translation"
-LORA_WEIGHT = "./model/envit5-translation-lora-30500"
+LORA_WEIGHT = "./model/envit5-translation-lora-38500"
 
 def t5_translator(input_text: str, tokenizer, model):
     print("t5_translator::")
@@ -41,8 +41,8 @@ def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method):
         print("translate_text_in::", text, TRANSLATE_AUDIO_TO, t2t_method)
         if t2t_method == "Custom" and TRANSLATE_AUDIO_TO == "vi":
           translated_line = t5_translator(text.strip(), t5_tokenizer, t5_model)
-        elif t2t_method == "Meta":
-          pass
+        # elif t2t_method == "Meta":
+        #   pass
         else:
           translated_line = google_translator.translate(text.strip())
         segments[line]['text'] = translated_line

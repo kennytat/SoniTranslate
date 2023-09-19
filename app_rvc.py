@@ -13,6 +13,7 @@ from IPython.utils import capture
 import torch
 from gtts import gTTS
 import librosa
+import ffmpeg
 import edge_tts
 import asyncio
 import gc
@@ -30,6 +31,7 @@ import zipfile
 import rarfile
 import logging
 import tempfile
+from pymediainfo import MediaInfo
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
@@ -54,8 +56,9 @@ description = """
 ### 🎥 **Translate videos easily with VGM Translate!** 📽️
 
 🎥 Upload a video or provide a video link. 📽️
-
-See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
+🎥 Upload SRT File for skiping S2T & T2T 📽️
+ - SRT Format: "<video|audio name>-<language>.srt" - Example: "video-vi.srt"
+ - See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
 """
 
 
@@ -300,6 +303,24 @@ def segments_to_srt(segments, output_path):
       with open(output_path, 'a', encoding='utf-8') as srtFile:
           srtFile.write(segment)
 
+def is_video_or_audio(file_path):
+    try:
+        info = ffmpeg.probe(file_path, select_streams='v:0', show_entries='stream=codec_type')
+        if len(info["streams"]) > 0 and info["streams"][0]["codec_type"] == "video":
+            return "video"
+    except ffmpeg.Error:
+        print("ffmpeg error:")
+        pass
+
+    try:
+        info = ffmpeg.probe(file_path, select_streams='a:0', show_entries='stream=codec_type')
+        if len(info["streams"]) > 0 and info["streams"][0]["codec_type"] == "audio":
+            return "audio"
+    except ffmpeg.Error:
+        print("ffmpeg error:")
+        pass
+    return "Unknown"
+  
 models, index_paths = upload_model_list()
 
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
@@ -309,13 +330,13 @@ from voice_main import ClassVoices
 voices = ClassVoices()
 
 '''
-def translate_from_video(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
+def translate_from_media(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
                          TRANSLATE_AUDIO_TO, min_speakers, max_speakers,
                          tts_voice00, tts_voice01,tts_voice02,tts_voice03,tts_voice04,tts_voice05):
 
     YOUR_HF_TOKEN = os.getenv("My_hf_token")
 
-    create_translated_audio(result_diarize, audio_files, Output_name_file)
+    create_translated_audio(result_diarize, audio_files, translated_output_file)
 
     os.system("rm -rf audio_dub_stereo.wav")
     os.system("ffmpeg -i audio_dub_solo.wav -ac 1 audio_dub_stereo.wav")
@@ -323,17 +344,57 @@ def translate_from_video(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
     os.system(f"rm -rf {mix_audio}")
     os.system(f'ffmpeg -y -i audio.wav -i audio_dub_stereo.wav -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
 
-    os.system(f"rm -rf {video_output}")
-    os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output}")
+    os.system(f"rm -rf {media_output}")
+    os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {media_output}")
 
-    return video_output
+    return media_output
 '''
 
-def translate_from_video(
-    video_input,
+def batch_preprocess(
+  media_inputs,
+  srt_inputs,
+  s2t_method,
+  t2t_method,
+  t2s_method,
+  disable_timeline,
+  YOUR_HF_TOKEN,
+  preview=False,
+  WHISPER_MODEL_SIZE="large-v1",
+  batch_size=16,
+  compute_type="float16",
+  SOURCE_LANGUAGE= "Automatic detection",
+  TRANSLATE_AUDIO_TO="English (en)",
+  min_speakers=1,
+  max_speakers=2,
+  tts_voice00="en-AU-WilliamNeural-Male",
+  tts_voice01="en-CA-ClaraNeural-Female",
+  tts_voice02="en-GB-ThomasNeural-Male",
+  tts_voice03="en-GB-SoniaNeural-Female",
+  tts_voice04="en-NZ-MitchellNeural-Male",
+  tts_voice05="en-GB-MaisieNeural-Female",
+  AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
+  progress=gr.Progress(),
+):
+  ## Move all srt files to srt tempdir
+  output = []
+  srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
+  Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
+  os.system(f"rm -rf {srt_temp_dir}/*")
+  if srt_inputs is not None and len(srt_inputs)> 0:
+    for srt in srt_inputs:
+      os.system(f"mv {srt.name} {srt_temp_dir}/")
+  if media_inputs is not None and len(media_inputs)> 0:
+    for media in media_inputs:
+      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
+      output.append(result)
+  return output
+
+def translate_from_media(
+    media_input,
     s2t_method,
     t2t_method,
     t2s_method,
+    disable_timeline,
     YOUR_HF_TOKEN,
     preview=False,
     WHISPER_MODEL_SIZE="large-v1",
@@ -349,7 +410,6 @@ def translate_from_video(
     tts_voice03="en-GB-SoniaNeural-Female",
     tts_voice04="en-NZ-MitchellNeural-Male",
     tts_voice05="en-GB-MaisieNeural-Female",
-    video_output="video_dub.mp4",
     AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
     progress=gr.Progress(),
     ):
@@ -361,8 +421,8 @@ def translate_from_video(
       else:
         os.environ["YOUR_HF_TOKEN"] = YOUR_HF_TOKEN
 
-    video_input = video_input if isinstance(video_input, str) else video_input.name
-    # print(video_input)
+    media_input = media_input if isinstance(media_input, str) else media_input.name
+    # print(media_input)
 
     if "SET_LIMIT" == os.getenv("DEMO"):
       preview=True
@@ -388,40 +448,59 @@ def translate_from_video(
 
     temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", new_dir_now())
     Path(temp_dir).mkdir(parents=True, exist_ok=True)
-    OutputFile = os.path.join(temp_dir, 'Video.mp4')
+    
+    is_video = True if is_video_or_audio(media_input) == 'video' else False
+    
+    OutputFile = os.path.join(temp_dir, 'Video.mp4') if is_video else os.path.join(temp_dir, 'Audio.mp3')
     audio_wav = os.path.join(temp_dir, "audio_origin.wav")
     audio_webm = os.path.join(temp_dir, "audio_origin.webm")  
-    Output_name_file = os.path.join(temp_dir, "audio_translated.ogg")
+    translated_output_file = os.path.join(temp_dir, "audio_translated.ogg")
     mix_audio = os.path.join(temp_dir, "audio_mix.mp3") 
-    video_output = os.path.join(temp_dir, video_output)
+    file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
+    media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
+    media_output = os.path.join(temp_dir, media_output_name)
+    
     # os.system("rm -rf Video.mp4")
     # os.system("rm -rf audio_origin.webm")
     # os.system("rm -rf audio_origin.wav")
 
     progress(0.15, desc="Processing video...")
-    if os.path.exists(video_input):
-        if preview:
-            print('Creating a preview video of 10 seconds, to disable this option, go to advanced settings and turn off preview.')
-            os.system(f'ffmpeg -y -i "{video_input}" -ss 00:00:20 -t 00:00:10 -c:v libx264 -c:a aac -strict experimental {OutputFile}')
+    if os.path.exists(media_input):
+        if is_video:
+          if preview:
+              print('Creating a preview video of 10 seconds, to disable this option, go to advanced settings and turn off preview.')
+              os.system(f'ffmpeg -y -i "{media_input}" -ss 00:00:20 -t 00:00:10 -c:v libx264 -c:a aac -strict experimental {OutputFile}')
+          else:
+              # Check if the file ends with ".mp4" extension
+              if media_input.endswith(".mp4"):
+                  destination_path = OutputFile
+                  shutil.copy(media_input, destination_path)
+              else:
+                  print("File does not have the '.mp4' extension. Converting video.")
+                  os.system(f'ffmpeg -y -i "{media_input}" -c:v libx264 -c:a aac -strict experimental {OutputFile}')
         else:
-            # Check if the file ends with ".mp4" extension
-            if video_input.endswith(".mp4"):
-                destination_path = OutputFile
-                shutil.copy(video_input, destination_path)
-            else:
-                print("File does not have the '.mp4' extension. Converting video.")
-                os.system(f'ffmpeg -y -i "{video_input}" -c:v libx264 -c:a aac -strict experimental {OutputFile}')
+          if preview:
+              print('Creating a preview video of 10 seconds, to disable this option, go to advanced settings and turn off preview.')
+              os.system(f'ffmpeg -y -i "{media_input}" -ss 00:00:20 -t 00:00:10 -strict experimental {OutputFile}')
+          else:
+              # Check if the file ends with ".mp4" extension
+              if media_input.endswith(".mp3"):
+                  destination_path = OutputFile
+                  shutil.copy(media_input, destination_path)
+              else:
+                  print("File does not have the '.mp3' extension. Converting audio.")
+                  os.system(f'ffmpeg -y -i "{media_input}" -strict experimental {OutputFile}')   
 
         for i in range (120):
             time.sleep(1)
-            print('process video...')
+            print('process media...')
             if os.path.exists(OutputFile):
                 time.sleep(1)
                 os.system(f"ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}")
                 time.sleep(1)
                 break
             if i == 119:
-              print('Error processing video')
+              print('Error processing media')
               return
 
         for i in range (120):
@@ -437,13 +516,13 @@ def translate_from_video(
         if preview:
             print('Creating a preview from the link, 10 seconds to disable this option, go to advanced settings and turn off preview.')
             #https://github.com/yt-dlp/yt-dlp/issues/2220
-            mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {video_input}'
+            mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
             wav_ = "ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}"
             os.system(mp4_)
             os.system(wav_)
         else:
-            mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {video_input}'
-            wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {video_input}'
+            mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
+            wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {media_input}'
 
             os.system(wav_)
 
@@ -534,9 +613,9 @@ def translate_from_video(
         TRANSLATE_AUDIO_TO = "zh-CN"
     if TRANSLATE_AUDIO_TO == "he":
         TRANSLATE_AUDIO_TO = "iw"
-    print("os.path.splitext(video_input)[0]::", os.path.splitext(video_input)[0])
+    print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
     ## Write source segment and srt to file
-    video_basename = re.sub(r'\-\w{2}$', '', os.path.splitext(video_output)[0])
+    video_basename = re.sub(r'\-\w{2}$', '', os.path.splitext(media_output)[0])
     with open(f'{video_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
     segments_to_srt(result_diarize['segments'], f'{video_basename}-{SOURCE_LANGUAGE}.srt')
@@ -579,7 +658,7 @@ def translate_from_video(
         filename = f"audio/{start}.ogg"
 
         if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-            make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO)
+            make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
         elif speaker == "SPEAKER_99":
             try:
                 tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
@@ -622,31 +701,32 @@ def translate_from_video(
     # replace files with the accelerates
     os.system("mv -f audio2/audio/*.ogg audio/")
 
-    os.system(f"rm -rf {Output_name_file}")
+    os.system(f"rm -rf {translated_output_file}")
 
-    progress(0.95, desc="Creating final translated video...")
+    progress(0.95, desc="Creating final translated media...")
 
-    create_translated_audio(result_diarize, audio_files, Output_name_file)
+    create_translated_audio(result_diarize, audio_files, translated_output_file)
 
     os.system(f"rm -rf {mix_audio}")
 
     # TYPE MIX AUDIO
     if AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
         # volume mix
-        os.system(f'ffmpeg -y -i {audio_wav} -i {Output_name_file} -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
+        os.system(f'ffmpeg -y -i {audio_wav} -i {translated_output_file} -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
     else:
         try:
             # background mix
-            os.system(f'ffmpeg -i {audio_wav} -i {Output_name_file} -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] {mix_audio}')
+            os.system(f'ffmpeg -i {audio_wav} -i {translated_output_file} -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] {mix_audio}')
         except:
             # volume mix except
-            os.system(f'ffmpeg -y -i {audio_wav} -i {Output_name_file} -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
+            os.system(f'ffmpeg -y -i {audio_wav} -i {translated_output_file} -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
 
-    os.system(f"rm -rf {video_output}")
-    os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output}")
+    os.system(f"rm -rf {media_output}")
+    if is_video:
+      os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {media_output}")
     os.system(f"rm -rf {OutputFile}")
     ## Archve all files and return output
-    archive_path = os.path.join(Path(temp_dir).parent.absolute(), re.sub(r'\.mp4$', '', os.path.basename(video_output)))
+    archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output))[0])
     shutil.make_archive(archive_path, 'zip', temp_dir)
     final_output = f"{archive_path}.zip"
     return final_output
@@ -693,11 +773,13 @@ with gr.Blocks(theme=theme) as demo:
     with gr.Tab("Audio Translation for a Video"):
         with gr.Row():
             with gr.Column():
-                #video_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                video_input = gr.File(label="VIDEO")
-                ## video_input change function
+                #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
+                media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'])
+                srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
+                disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
+                ## media_input change function
                 # link = gr.HTML()
-                # video_input.change(submit_file_func, video_input, [video_input, link], show_progress='full')
+                # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
 
                 SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
                 TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
@@ -732,22 +814,22 @@ with gr.Blocks(theme=theme) as demo:
                           compute_type = gr.inputs.Dropdown(list_compute_type, default=compute_type_default, label="Compute type")
 
                           gr.HTML("<hr></h2>")
-                          VIDEO_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="video_output.mp4", info="The name of the output file")
+                          # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
                           PREVIEW = gr.Checkbox(label="Preview", info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
                 
-                ## update_output_filename if video_input or TRANSLATE_AUDIO_TO change
-                def update_output_filename(file,lang):
-                    file_name, file_extension = os.path.splitext(os.path.basename(file.name.strip().replace(' ','_')))
-                    output_name = f"{file_name}-{LANGUAGES[lang]}{file_extension}"
-                    return gr.update(value=output_name)
-                video_input.change(update_output_filename, [video_input,TRANSLATE_AUDIO_TO], [VIDEO_OUTPUT_NAME])
-                TRANSLATE_AUDIO_TO.change(update_output_filename, [video_input,TRANSLATE_AUDIO_TO], [VIDEO_OUTPUT_NAME])
+                ## update_output_filename if media_input or TRANSLATE_AUDIO_TO change
+                # def update_output_filename(file,lang):
+                #     file_name, file_extension = os.path.splitext(os.path.basename(file.name.strip().replace(' ','_')))
+                #     output_name = f"{file_name}-{LANGUAGES[lang]}{file_extension}"
+                #     return gr.update(value=output_name)
+                # media_input.change(update_output_filename, [media_input,TRANSLATE_AUDIO_TO], [MEDIA_OUTPUT_NAME])
+                # TRANSLATE_AUDIO_TO.change(update_output_filename, [media_input,TRANSLATE_AUDIO_TO], [MEDIA_OUTPUT_NAME])
                 
             with gr.Column(variant='compact'):
                 with gr.Row():
                     video_button = gr.Button("TRANSLATE", )
                 with gr.Row():
-                    video_output = gr.outputs.File(label="DOWNLOAD TRANSLATED VIDEO") #gr.Video()
+                    media_output = gr.Files(label="DOWNLOAD TRANSLATED VIDEO") #gr.Video()
 
                 line_ = gr.HTML("<hr></h2>")
                 if os.getenv("YOUR_HF_TOKEN") == None or os.getenv("YOUR_HF_TOKEN") == "":
@@ -774,13 +856,13 @@ with gr.Blocks(theme=theme) as demo:
                 #             'en-GB-SoniaNeural-Female',
                 #             'en-NZ-MitchellNeural-Male',
                 #             'en-GB-MaisieNeural-Female',
-                #             "video_output.mp4",
+                #             "media_output.mp4",
                 #             'Adjusting volumes and mixing audio',
                 #         ],
                 #     ],
-                #     fn=translate_from_video,
+                #     fn=translate_from_media,
                 #     inputs=[
-                #     video_input,
+                #     media_input,
                 #     HFKEY,
                 #     PREVIEW,
                 #     WHISPER_MODEL_SIZE,
@@ -796,10 +878,10 @@ with gr.Blocks(theme=theme) as demo:
                 #     tts_voice03,
                 #     tts_voice04,
                 #     tts_voice05,
-                #     VIDEO_OUTPUT_NAME,
+                #     MEDIA_OUTPUT_NAME,
                 #     AUDIO_MIX,
                 #     ],
-                #     outputs=[video_output],
+                #     outputs=[media_output],
                 #     cache_examples=False,
                 # )
 
@@ -845,7 +927,7 @@ with gr.Blocks(theme=theme) as demo:
                           bcompute_type = gr.inputs.Dropdown(list_compute_type, default=compute_type_default, label="Compute type")
 
                           gr.HTML("<hr></h2>")
-                          bVIDEO_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="video_output.mp4", info="The name of the output file")
+                          bMEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
                           bPREVIEW = gr.Checkbox(label="Preview", info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
 
             with gr.Column(variant='compact'):
@@ -880,11 +962,11 @@ with gr.Blocks(theme=theme) as demo:
                 #             'en-GB-SoniaNeural-Female',
                 #             'en-NZ-MitchellNeural-Male',
                 #             'en-GB-MaisieNeural-Female',
-                #             "video_output.mp4",
+                #             "media_output.mp4",
                 #             'Adjusting volumes and mixing audio',
                 #         ],
                 #     ],
-                #     fn=translate_from_video,
+                #     fn=translate_from_media,
                 #     inputs=[
                 #     blink_input,
                 #     bHFKEY,
@@ -902,7 +984,7 @@ with gr.Blocks(theme=theme) as demo:
                 #     btts_voice03,
                 #     btts_voice04,
                 #     btts_voice05,
-                #     bVIDEO_OUTPUT_NAME,
+                #     bMEDIA_OUTPUT_NAME,
                 #     bAUDIO_MIX
                 #     ],
                 #     outputs=[blink_output],
@@ -912,11 +994,11 @@ with gr.Blocks(theme=theme) as demo:
 
     with gr.Tab("Settings"):
         with gr.Column():
-          with gr.Accordion("S2T - T2T - T2S", open=True):
+          with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
-              s2t_method = gr.Dropdown(["Whisper", "Meta", "Custom"], label='S2T', value='Whisper', visible=True, interactive= True)
+              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True, interactive= True)
               t2t_method = gr.Dropdown(["Google", "Meta", "Custom"], label='T2T', value='Custom', visible=True, interactive= True)
-              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "Custom"], label='T2S', value='Google', visible=True, interactive= True)
+              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "Custom"], label='T2S', value='Custom', visible=True, interactive= True)
             # def update_models():
             #   models, index_paths = upload_model_list()
             #   for i in range(8):                      
@@ -1064,11 +1146,13 @@ with gr.Blocks(theme=theme) as demo:
         demo.load(read_logs, None, logs, every=1)
 
     # run
-    video_button.click(translate_from_video, inputs=[
-        video_input,
+    video_button.click(batch_preprocess, inputs=[
+        media_input,
+        srt_input,
         s2t_method,
         t2t_method,
         t2s_method,
+        disable_timeline,
         HFKEY,
         PREVIEW,
         WHISPER_MODEL_SIZE,
@@ -1084,14 +1168,14 @@ with gr.Blocks(theme=theme) as demo:
         tts_voice03,
         tts_voice04,
         tts_voice05,
-        VIDEO_OUTPUT_NAME,
         AUDIO_MIX,
-        ], outputs=video_output)
-    text_button.click(translate_from_video, inputs=[
+        ], outputs=media_output)
+    text_button.click(translate_from_media, inputs=[
         blink_input,
         s2t_method,
         t2t_method,
         t2s_method,
+        disable_timeline,
         bHFKEY,
         bPREVIEW,
         bWHISPER_MODEL_SIZE,
@@ -1107,15 +1191,18 @@ with gr.Blocks(theme=theme) as demo:
         btts_voice03,
         btts_voice04,
         btts_voice05,
-        bVIDEO_OUTPUT_NAME,
+        bMEDIA_OUTPUT_NAME,
         bAUDIO_MIX,
         ], outputs=blink_output)
 
-#demo.launch(debug=True, enable_queue=True)
-demo.launch(
-  share=True,     
-  server_name="0.0.0.0",
-  server_port=6860,
-  enable_queue=True, 
-  quiet=True, 
-  debug=False)
+
+if __name__ == "__main__":
+  os.system('rm -rf /tmp/gradio/*')
+  #demo.launch(debug=True, enable_queue=True)
+  demo.launch(
+    share=True,     
+    server_name="0.0.0.0",
+    server_port=6860,
+    enable_queue=True, 
+    quiet=True, 
+    debug=False)

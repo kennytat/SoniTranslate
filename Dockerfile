@@ -1,5 +1,9 @@
 FROM python:3.10-bullseye
 
+RUN apt update && apt upgrade
+
+RUN apt -y install -qq aria2 ffmpeg wget curl git
+
 WORKDIR /app
 
 COPY requirement*.txt ./
@@ -7,10 +11,6 @@ COPY requirement*.txt ./
 RUN pip install -r requirements.txt 
 
 RUN pip install -r requirements_extra.txt 
-
-RUN apt update && apt upgrade
-
-RUN apt -y install -qq aria2 ffmpeg wget curl git
 
 RUN rm -rf /root/.cache/pip && rm -rf /var/cache/apt/*
 
