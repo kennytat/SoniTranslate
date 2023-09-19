@@ -2,7 +2,8 @@ from pydub import AudioSegment
 from tqdm import tqdm
 import os
 
-def create_translated_audio(result_diarize, audio_files, Output_name_file):
+def create_translated_audio(result_diarize, audio_files, Output_name_file, disable_timeline):
+  if not disable_timeline:
     total_duration = result_diarize['segments'][-1]['end'] # in seconds
 
     # silent audio with total_duration
@@ -21,7 +22,13 @@ def create_translated_audio(result_diarize, audio_files, Output_name_file):
         except:
           print(f'ERROR AUDIO FILE {audio_file}')
 
-    os.system("rm -rf audio/*")
-
     # combined audio as a file
     combined_audio.export(Output_name_file, format="wav") # best than ogg, change if the audio is anomalous
+  else:
+    concatenated_audio = AudioSegment.empty()
+    for audio_file in audio_files:
+        audio = AudioSegment.from_file(audio_file)
+        concatenated_audio += audio
+    # Export the concatenated audio to a file
+    concatenated_audio.export(Output_name_file, format="wav")
+  os.system("rm -rf audio/*")

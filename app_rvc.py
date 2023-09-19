@@ -1,5 +1,6 @@
 #%cd SoniTranslate
 from dotenv import load_dotenv
+import srt
 import json
 import re
 from datetime import timedelta, datetime
@@ -292,6 +293,7 @@ def new_dir_now():
     return date_time
   
 def segments_to_srt(segments, output_path):
+  # print("segments_to_srt::", type(segments[0]), segments)
   def srt_time(str):
     return re.sub(r"\.",",",re.sub(r"0{3}$","",str)) if re.search(r"\.\d{6}", str) else f'{str},000'
   for index, segment in enumerate(segments):
@@ -303,6 +305,26 @@ def segments_to_srt(segments, output_path):
       with open(output_path, 'a', encoding='utf-8') as srtFile:
           srtFile.write(segment)
 
+def srt_to_segments(segments, srt_input_path):
+  srt_input = open(srt_input_path, 'r').read()
+  srt_list = list(srt.parse(srt_input))
+  srt_segments = list([vars(obj) for obj in srt_list])
+  for i, segment in enumerate(segments):
+    segments[i]['start'] = srt_segments[i]['start'].total_seconds()
+    segments[i]['end'] = srt_segments[i]['end'].total_seconds()
+    segments[i]['text'] = str(srt_segments[i]['content'])
+    del segments[i]['words']
+    del segments[i]['chars']
+  # print("srt_to_segments::", type(segments), segments)
+  return segments
+          
+def segments_to_txt(segments, output_path):
+  for segment in segments:
+      text = segment['text']
+      segment = f"{text[1:] if text[0] == ' ' else text}\n"
+      with open(output_path, 'a', encoding='utf-8') as txtFile:
+          txtFile.write(segment)
+                   
 def is_video_or_audio(file_path):
     try:
         info = ffmpeg.probe(file_path, select_streams='v:0', show_entries='stream=codec_type')
@@ -460,6 +482,7 @@ def translate_from_media(
     media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
     media_output = os.path.join(temp_dir, media_output_name)
     
+    
     # os.system("rm -rf Video.mp4")
     # os.system("rm -rf audio_origin.webm")
     # os.system("rm -rf audio_origin.wav")
@@ -614,17 +637,24 @@ def translate_from_media(
     if TRANSLATE_AUDIO_TO == "he":
         TRANSLATE_AUDIO_TO = "iw"
     print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
-    ## Write source segment and srt to file
-    video_basename = re.sub(r'\-\w{2}$', '', os.path.splitext(media_output)[0])
-    with open(f'{video_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
+    ## Write source segment and srt,txt to file
+    media_output_basename = os.path.join(temp_dir, file_name)
+    segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.srt')
+    segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
+    with open(f'{media_output_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
-    segments_to_srt(result_diarize['segments'], f'{video_basename}-{SOURCE_LANGUAGE}.srt')
-    # Start translate
-    result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
+    target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{os.path.splitext(media_output_name)[0]}.srt')
+    if os.path.exists(target_srt_inputpath):
+      # Start convert from srt if srt found
+      print("srt file exist::", target_srt_inputpath)
+      result_diarize['segments'] = srt_to_segments(result_diarize['segments'], target_srt_inputpath)
+    else:
+      # Start translate if srt not found
+      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
     ## Write target segment and srt to file
-    with open(f'{video_basename}-{TRANSLATE_AUDIO_TO}.json', 'a', encoding='utf-8') as srtFile:
+    segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
+    with open(f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
-    segments_to_srt(result_diarize['segments'], f'{video_basename}-{TRANSLATE_AUDIO_TO}.srt')
     print("Translation complete")
 
     progress(0.85, desc="Text_to_speech...")
@@ -683,9 +713,10 @@ def translate_from_media(
         elif porcentaje <= 0.79:
             porcentaje = 0.8
 
-        # Smoth and round
+        # Smooth and round
         porcentaje = round(porcentaje+0.0, 1)
-
+        porcentaje = 1.0 if disable_timeline else porcentaje     
+        
         # apply aceleration or opposite to the audio file in audio2 folder
         os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
 
@@ -705,7 +736,7 @@ def translate_from_media(
 
     progress(0.95, desc="Creating final translated media...")
 
-    create_translated_audio(result_diarize, audio_files, translated_output_file)
+    create_translated_audio(result_diarize, audio_files, translated_output_file, disable_timeline)
 
     os.system(f"rm -rf {mix_audio}")
 
