@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import srt
 import json
 import re
+import yt_dlp
 from datetime import timedelta, datetime
 from pathlib import Path
 import numpy as np
@@ -123,6 +124,8 @@ LANGUAGES = {
     'Vietnamese (vi)': 'vi',
     'Hindi (hi)': 'hi',
 }
+
+ydl = yt_dlp.YoutubeDL()
 
 # Check GPU
 if torch.cuda.is_available():
@@ -343,10 +346,23 @@ def is_video_or_audio(file_path):
         pass
     return "Unknown"
   
+def youtube_download(url, output_path):
+    ydl_opts = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'force_overwrites': True,
+        'max_downloads': 5,
+        'no_warnings': True,
+        'ignore_no_formats_error': True,
+        'restrictfilenames': True,
+        'outtmpl': output_path,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl_download:
+        ydl_download.download([url])
+
+     
 models, index_paths = upload_model_list()
 
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
-
 
 from voice_main import ClassVoices
 voices = ClassVoices()
@@ -374,6 +390,7 @@ def translate_from_media(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
 
 def batch_preprocess(
   media_inputs,
+  link_inputs,
   srt_inputs,
   s2t_method,
   t2t_method,
@@ -398,10 +415,24 @@ def batch_preprocess(
   progress=gr.Progress(),
 ):
   ## Move all srt files to srt tempdir
+  media_inputs = media_inputs if media_inputs is not None else []
   output = []
   srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
   Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
   os.system(f"rm -rf {srt_temp_dir}/*")
+  youtube_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'youtube')
+  Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True)
+  os.system(f"rm -rf {youtube_temp_dir}/*")
+  link_inputs = link_inputs.split(',')
+  print("link_inputs::", link_inputs)
+  if link_inputs is not None and len(link_inputs) > 0:
+    for url in link_inputs:
+      if url.startswith(('https://youtube.com')):
+        media_info =  ydl.extract_info(url, download=False)
+        download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
+        youtube_download(url, download_path)
+        media_inputs.append(download_path)
+    
   if srt_inputs is not None and len(srt_inputs)> 0:
     for srt in srt_inputs:
       os.system(f"mv {srt.name} {srt_temp_dir}/")
@@ -756,6 +787,7 @@ def translate_from_media(
     if is_video:
       os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {media_output}")
     os.system(f"rm -rf {OutputFile}")
+    os.system(f"rm -rf {media_input}")
     ## Archve all files and return output
     archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output))[0])
     shutil.make_archive(archive_path, 'zip', temp_dir)
@@ -806,7 +838,9 @@ with gr.Blocks(theme=theme) as demo:
             with gr.Column():
                 #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
                 media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'])
+                link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
                 srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
+                gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
                 ## media_input change function
                 # link = gr.HTML()
@@ -915,113 +949,6 @@ with gr.Blocks(theme=theme) as demo:
                 #     outputs=[media_output],
                 #     cache_examples=False,
                 # )
-
-### link
-
-    with gr.Tab("Audio Translation via Video Link"):
-        with gr.Row():
-            with gr.Column():
-
-                blink_input = gr.Textbox(label="Media link.", info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc", placeholder="URL goes here...")
-
-                bSOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
-                bTRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
-
-                bline_ = gr.HTML("<hr></h2>")
-                gr.Markdown("Select how many people are speaking in the video.")
-                bmin_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
-                bmax_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
-                gr.Markdown("Select the voice you want for each speaker.")
-                def bsubmit(value):
-                    visibility_dict = {
-                        f'btts_voice{i:02d}': gr.update(visible=i < value) for i in range(6)
-                    }
-                    return [value for value in visibility_dict.values()]
-                btts_voice00 = gr.Dropdown(list_tts, value='vi-VN-NamMinhNeural-Male', label = 'TTS Speaker 1', visible=True, interactive= True)
-                btts_voice01 = gr.Dropdown(list_tts, value='vi-VN-HoaiMyNeural-Female', label = 'TTS Speaker 2', visible=False, interactive= True)
-                btts_voice02 = gr.Dropdown(list_tts, value='en-GB-ThomasNeural-Male', label = 'TTS Speaker 3', visible=False, interactive= True)
-                btts_voice03 = gr.Dropdown(list_tts, value='en-GB-SoniaNeural-Female', label = 'TTS Speaker 4', visible=False, interactive= True)
-                btts_voice04 = gr.Dropdown(list_tts, value='en-NZ-MitchellNeural-Male', label = 'TTS Speaker 5', visible=False, interactive= True)
-                btts_voice05 = gr.Dropdown(list_tts, value='en-GB-MaisieNeural-Female', label = 'TTS Speaker 6', visible=False, interactive= True)
-                bmax_speakers.change(bsubmit, bmax_speakers, [btts_voice00, btts_voice01, btts_voice02, btts_voice03, btts_voice04, btts_voice05])
-
-
-                with gr.Column():
-                      with gr.Accordion("Advanced Settings", open=False):
-
-                          bAUDIO_MIX = gr.Dropdown(['Mixing audio with sidechain compression', 'Adjusting volumes and mixing audio'], value='Adjusting volumes and mixing audio', label = 'Audio Mixing Method', info="Mix original and translated audio files to create a customized, balanced output with two available mixing modes.")
-
-                          gr.HTML("<hr></h2>")
-                          gr.Markdown("Default configuration of Whisper.")
-                          bWHISPER_MODEL_SIZE = gr.inputs.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2'], default=whisper_model_default, label="Whisper model")
-                          bbatch_size = gr.inputs.Slider(1, 32, default=16, label="Batch size", step=1)
-                          bcompute_type = gr.inputs.Dropdown(list_compute_type, default=compute_type_default, label="Compute type")
-
-                          gr.HTML("<hr></h2>")
-                          bMEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
-                          bPREVIEW = gr.Checkbox(label="Preview", info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
-
-            with gr.Column(variant='compact'):
-                with gr.Row():
-                    text_button = gr.Button("TRANSLATE")
-                with gr.Row():
-                    blink_output = gr.outputs.File(label="DOWNLOAD TRANSLATED VIDEO") # gr.Video()
-
-
-                bline_ = gr.HTML("<hr></h2>")
-                if os.getenv("YOUR_HF_TOKEN") == None or os.getenv("YOUR_HF_TOKEN") == "":
-                  bHFKEY = gr.Textbox(visible= True, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
-                else:
-                  bHFKEY = gr.Textbox(visible= False, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
-
-                # gr.Examples(
-                #     examples=[
-                #         [
-                #             "https://www.youtube.com/watch?v=5ZeHtRKHl7Y",
-                #             "",
-                #             False,
-                #             "large-v2",
-                #             16,
-                #             "float16",
-                #             "Japanese (ja)",
-                #             "English (en)",
-                #             1,
-                #             2,
-                #             'en-CA-ClaraNeural-Female',
-                #             'en-AU-WilliamNeural-Male',
-                #             'en-GB-ThomasNeural-Male',
-                #             'en-GB-SoniaNeural-Female',
-                #             'en-NZ-MitchellNeural-Male',
-                #             'en-GB-MaisieNeural-Female',
-                #             "media_output.mp4",
-                #             'Adjusting volumes and mixing audio',
-                #         ],
-                #     ],
-                #     fn=translate_from_media,
-                #     inputs=[
-                #     blink_input,
-                #     bHFKEY,
-                #     bPREVIEW,
-                #     bWHISPER_MODEL_SIZE,
-                #     bbatch_size,
-                #     bcompute_type,
-                #     bSOURCE_LANGUAGE,
-                #     bTRANSLATE_AUDIO_TO,
-                #     bmin_speakers,
-                #     bmax_speakers,
-                #     btts_voice00,
-                #     btts_voice01,
-                #     btts_voice02,
-                #     btts_voice03,
-                #     btts_voice04,
-                #     btts_voice05,
-                #     bMEDIA_OUTPUT_NAME,
-                #     bAUDIO_MIX
-                #     ],
-                #     outputs=[blink_output],
-                #     cache_examples=False,
-                # )
-
 
     with gr.Tab("Settings"):
         with gr.Column():
@@ -1179,6 +1106,7 @@ with gr.Blocks(theme=theme) as demo:
     # run
     video_button.click(batch_preprocess, inputs=[
         media_input,
+        link_input,
         srt_input,
         s2t_method,
         t2t_method,
@@ -1201,34 +1129,9 @@ with gr.Blocks(theme=theme) as demo:
         tts_voice05,
         AUDIO_MIX,
         ], outputs=media_output)
-    text_button.click(translate_from_media, inputs=[
-        blink_input,
-        s2t_method,
-        t2t_method,
-        t2s_method,
-        disable_timeline,
-        bHFKEY,
-        bPREVIEW,
-        bWHISPER_MODEL_SIZE,
-        bbatch_size,
-        bcompute_type,
-        bSOURCE_LANGUAGE,
-        bTRANSLATE_AUDIO_TO,
-        bmin_speakers,
-        bmax_speakers,
-        btts_voice00,
-        btts_voice01,
-        btts_voice02,
-        btts_voice03,
-        btts_voice04,
-        btts_voice05,
-        bMEDIA_OUTPUT_NAME,
-        bAUDIO_MIX,
-        ], outputs=blink_output)
-
 
 if __name__ == "__main__":
-  os.system('rm -rf /tmp/gradio/*')
+  # os.system('rm -rf /tmp/gradio/*')
   #demo.launch(debug=True, enable_queue=True)
   demo.launch(
     share=True,     
