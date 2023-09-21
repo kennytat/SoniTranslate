@@ -33,7 +33,6 @@ import zipfile
 import rarfile
 import logging
 import tempfile
-from pymediainfo import MediaInfo
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
@@ -425,13 +424,14 @@ def batch_preprocess(
   os.system(f"rm -rf {youtube_temp_dir}/*")
   link_inputs = link_inputs.split(',')
   print("link_inputs::", link_inputs)
-  if link_inputs is not None and len(link_inputs) > 0:
+  if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
     for url in link_inputs:
-      if url.startswith(('https://youtube.com')):
+      # print('testing url::', url.startswith( 'https://www.youtube.com' ))
+      if url.startswith('https://www.youtube.com'):
         media_info =  ydl.extract_info(url, download=False)
         download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
         youtube_download(url, download_path)
-        media_inputs.append(download_path)
+        media_inputs.append(download_path) 
     
   if srt_inputs is not None and len(srt_inputs)> 0:
     for srt in srt_inputs:
@@ -826,7 +826,10 @@ def submit_file_func(file):
 # max tts
 MAX_TTS = 6
 
-theme='Taithrah/Minimal'
+theme = gr.themes.Base.load(os.path.join('themes','taithrah-minimal@0.0.1.json')).set(
+            background_fill_primary ="transparent",
+            panel_background_fill = "transparent"
+        )
 
 with gr.Blocks(theme=theme) as demo:
     gr.Markdown(title)
@@ -1133,10 +1136,13 @@ with gr.Blocks(theme=theme) as demo:
 if __name__ == "__main__":
   # os.system('rm -rf /tmp/gradio/*')
   #demo.launch(debug=True, enable_queue=True)
+  auth_user = os.getenv('AUTH_USER', '')
+  auth_pass = os.getenv('AUTH_PASS', '')
   demo.launch(
-    share=True,     
+    auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
+    share=False,
     server_name="0.0.0.0",
     server_port=6860,
-    enable_queue=True, 
-    quiet=True, 
+    enable_queue=True,
+    quiet=True,
     debug=False)
