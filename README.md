@@ -34,6 +34,7 @@ SonyTranslate is a powerful and user-friendly web application that allows you to
 ```
 conda create -n soni python=3.10.12
 conda activate soni
+git submodule update --init --recursive
 pip install -r requirements.txt
 pip install -r requirements_extra.txt
 conda install -y libcusparse=11.7.3.50 -c nvidia

@@ -423,9 +423,10 @@ def batch_preprocess(
   Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True)
   os.system(f"rm -rf {youtube_temp_dir}/*")
   link_inputs = link_inputs.split(',')
-  print("link_inputs::", link_inputs)
+  # print("link_inputs::", link_inputs)
   if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
     for url in link_inputs:
+      url = url.strip()
       # print('testing url::', url.startswith( 'https://www.youtube.com' ))
       if url.startswith('https://www.youtube.com'):
         media_info =  ydl.extract_info(url, download=False)
@@ -466,6 +467,7 @@ def translate_from_media(
     AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
     progress=gr.Progress(),
     ):
+    print("processing::", media_input)
     if YOUR_HF_TOKEN == "" or YOUR_HF_TOKEN == None:
       YOUR_HF_TOKEN = os.getenv("YOUR_HF_TOKEN")
       if YOUR_HF_TOKEN == None:
@@ -475,6 +477,7 @@ def translate_from_media(
         os.environ["YOUR_HF_TOKEN"] = YOUR_HF_TOKEN
 
     media_input = media_input if isinstance(media_input, str) else media_input.name
+    # media_input = '/home/vgm/Desktop/WE KNOW LOVE 09 17 23 - ANAHEIM CHURCH.mp4'
     # print(media_input)
 
     if "SET_LIMIT" == os.getenv("DEMO"):
@@ -543,14 +546,14 @@ def translate_from_media(
                   shutil.copy(media_input, destination_path)
               else:
                   print("File does not have the '.mp3' extension. Converting audio.")
-                  os.system(f'ffmpeg -y -i "{media_input}" -strict experimental {OutputFile}')   
+                  os.system(f"ffmpeg -y -i '{media_input}' -strict experimental '{OutputFile}'")   
 
         for i in range (120):
             time.sleep(1)
             print('process media...')
             if os.path.exists(OutputFile):
                 time.sleep(1)
-                os.system(f"ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}")
+                os.system(f"ffmpeg -y -i '{OutputFile}' -vn -acodec pcm_s16le -ar 44100 -ac 2 '{audio_wav}'")
                 time.sleep(1)
                 break
             if i == 119:
@@ -826,10 +829,11 @@ def submit_file_func(file):
 # max tts
 MAX_TTS = 6
 
-theme = gr.themes.Base.load(os.path.join('themes','taithrah-minimal@0.0.1.json')).set(
-            background_fill_primary ="transparent",
-            panel_background_fill = "transparent"
-        )
+# theme = gr.themes.Base.load(os.path.join('themes','taithrah-minimal@0.0.1.json')).set(
+#             background_fill_primary ="#171717",
+#             panel_background_fill = "#171717"
+#         )
+theme="Taithrah/Minimal"
 
 with gr.Blocks(theme=theme) as demo:
     gr.Markdown(title)
@@ -840,7 +844,7 @@ with gr.Blocks(theme=theme) as demo:
         with gr.Row():
             with gr.Column():
                 #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'])
+                media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'], interactive=True)
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
                 srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
                 gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
@@ -958,8 +962,8 @@ with gr.Blocks(theme=theme) as demo:
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
               s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True, interactive= True)
-              t2t_method = gr.Dropdown(["Google", "Meta", "Custom"], label='T2T', value='Custom', visible=True, interactive= True)
-              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "Custom"], label='T2S', value='Custom', visible=True, interactive= True)
+              t2t_method = gr.Dropdown(["Google", "Meta", "VB", "T5"], label='T2T', value='VB', visible=True, interactive= True)
+              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "VietTTS"], label='T2S', value='VietTTS', visible=True, interactive= True)
             # def update_models():
             #   models, index_paths = upload_model_list()
             #   for i in range(8):                      
@@ -1002,9 +1006,9 @@ with gr.Blocks(theme=theme) as demo:
                 gr.Markdown('Depending on how many "TTS Speaker" you will use, each one needs its respective model. Additionally, there is an auxiliary one if for some reason the speaker is not detected correctly.')
                 gr.Markdown("Voice to apply to the first speaker.")
                 with gr.Row():
-                  model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True, interactive= True)
-                  file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True, interactive= True)
-                  name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True, interactive= True)
+                  model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True, interactive=True)
+                  file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True, interactive=True)
+                  name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True, interactive=True)
                 gr.HTML("<hr></h2>")
                 gr.Markdown("Voice to apply to the second speaker.")
                 with gr.Row():

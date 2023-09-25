@@ -8,6 +8,8 @@ nltk
 bitsandbytes
 peft
 scipy
+langdetect
+-e git+https://github.com/pytorch/fairseq.git@v0.12.1#egg=fairseq
 #
 praat-parselmouth>=0.4.3
 pyworld==0.3.2

@@ -1,0 +1,6 @@
+[submodule "translate_tool/mosesdecoder"]
+	path = translate_tool/mosesdecoder
+	url = https://github.com/moses-smt/mosesdecoder
+[submodule "translate_tool/subword-nmt"]
+	path = translate_tool/subword-nmt
+	url = https://github.com/rsennrich/subword-nmt

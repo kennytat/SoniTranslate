@@ -1,6 +1,8 @@
 import re
 import os
 from tqdm import tqdm
+from translate_text_processor import post_process_text_vi
+from vb_translate import vb_translate
 from deep_translator import GoogleTranslator
 
 import torch
@@ -12,7 +14,6 @@ BASE_MODEL = "./model/envit5-translation"
 LORA_WEIGHT = "./model/envit5-translation-lora-38500"
 
 def t5_translator(input_text: str, tokenizer, model):
-    print("t5_translator::")
     def process_batch(sentences):
         sentences = [ text if text.endswith(".") else text + "." for text in sentences]
         input_ids = tokenizer.batch_encode_plus(sentences, return_tensors='pt', padding=True, truncation=True).to(device)
@@ -20,7 +21,7 @@ def t5_translator(input_text: str, tokenizer, model):
         output_texts = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
         # print("output_texts::::", sentences, output_texts)
         output_texts = [re.sub(r"^(vi|vn|en)\:? ", "", text) for text in output_texts]
-        return output_texts
+        return post_process_text_vi(output_texts)
     result = process_batch(input_text.split("\n"))
     return "\n".join(result)
 
@@ -35,16 +36,24 @@ def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method):
     
     ## Google translator
     google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
-
-    for line in tqdm(range(len(segments))):
+    if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
+      print("vb_translator::", len(segments), "segments")
+      source_text = "\n".join([ segment['text'] for segment in segments])
+      translated_text = vb_translate(source_text.strip())
+      print("vb_translator translated_text::", len(translated_text), "segments")
+      for index, segment in enumerate(segments):
+        segments[index]['text'] = translated_text[index]
+    else:
+      for line in tqdm(range(len(segments))):
         text = segments[line]['text']
-        print("translate_text_in::", text, TRANSLATE_AUDIO_TO, t2t_method)
-        if t2t_method == "Custom" and TRANSLATE_AUDIO_TO == "vi":
+        if t2t_method == "T5" and TRANSLATE_AUDIO_TO == "vi":
+          print("t5_translator::")
           translated_line = t5_translator(text.strip(), t5_tokenizer, t5_model)
         # elif t2t_method == "Meta":
         #   pass
         else:
           translated_line = google_translator.translate(text.strip())
+        print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
         segments[line]['text'] = translated_line
-    print("translate_text_out::", segments)
+    # print("translate_text_out::", segments)
     return segments
