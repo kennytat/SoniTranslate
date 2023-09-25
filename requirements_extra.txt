@@ -8,14 +8,25 @@ nltk
 bitsandbytes
 peft
 scipy
+# VB translate
 langdetect
 -e git+https://github.com/pytorch/fairseq.git@v0.12.1#egg=fairseq
+# vietTTS
+numpy==1.24.3
+numba==0.57.0
+vietnam_number
+dm-haiku
+jax==0.4.1
+jaxlib==0.4.1
+cryptography
+optax==0.1.4
+# so-vits-svc-fork
+so-vits-svc-fork
 #
 praat-parselmouth>=0.4.3
 pyworld==0.3.2
 faiss-cpu==1.7.3
 torchcrepe==0.0.20
 ffmpeg-python>=0.2.0
-fairseq==0.12.2 
 gdown
 rarfile
