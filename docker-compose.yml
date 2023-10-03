@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: kennytat/sonitranslate:stable
+    image: ghcr.io/mdds-labs/sonitranslate:stable
     container_name: soni
     deploy:
       resources:
@@ -18,9 +18,13 @@ services:
     # shm_size: 1024m
     ports:
       - 6860:6860
-    # environment:
-    #   YOUR_HF_TOKEN: ""
-    #   YOUR_AUTH_TOKEN: ""
+    environment:
+      YOUR_HF_TOKEN: "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"
+      YOUR_AUTH_TOKEN: "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"
+      SVC_VOICES_MODELS: "ENABLE"
+      # AUTH_USER='test'
+      # AUTH_PASS='test'
+
     volumes:
-      - /mnt/backup/AI/sonitranslate/cache:/root/.cache
+      # - /mnt/backup/AI/sonitranslate/cache:/root/.cache
       - /mnt/backup/AI/sonitranslate/model:/app/model

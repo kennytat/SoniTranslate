@@ -70,17 +70,21 @@ def text2tokens(text, lexicon_fn):
         if word in FLAGS.special_phonemes:
             tokens.append(phonemes.index(word))
         elif word in lexicon:
+          try:
             p = lexicon[word]
             p = p.split()
             p = [phonemes.index(pp) for pp in p]
             tokens.extend(p)
             tokens.append(FLAGS.word_end_index)
+          except:
+            tokens.append(phonemes.index('sil'))
         else:
             for p in word:
                 if p in phonemes:
                     tokens.append(phonemes.index(p))
             tokens.append(FLAGS.word_end_index)
     tokens.append(FLAGS.sil_index)  # silence
+    print("tokens::", tokens)
     return tokens
 
 def predict_mel(tokens, durations, ckpt_fn, speed, sample_rate):
@@ -142,15 +146,15 @@ def text2mel(
     return mels
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("--text", type=str, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    mel = text2mel(args.text)
-    plt.figure(figsize=(10, 5))
-    plt.imshow(mel[0].T, origin="lower", aspect="auto")
-    plt.savefig(str(args.output))
-    plt.close()
-    mel = jax.device_get(mel)
-    mel.tofile("clip.mel")
+# if __name__ == "__main__":
+#     parser = ArgumentParser()
+#     parser.add_argument("--text", type=str, required=True)
+#     parser.add_argument("--output", type=Path, required=True)
+#     args = parser.parse_args()
+#     mel = text2mel(args.text)
+#     plt.figure(figsize=(10, 5))
+#     plt.imshow(mel[0].T, origin="lower", aspect="auto")
+#     plt.savefig(str(args.output))
+#     plt.close()
+#     mel = jax.device_get(mel)
+#     mel.tofile("clip.mel")

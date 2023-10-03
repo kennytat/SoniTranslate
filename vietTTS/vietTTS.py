@@ -7,6 +7,7 @@ from vietTTS.txt_parser import normalize, num_to_str
 from vietTTS.text2mel import text2mel
 from vietTTS.mel2wave import mel2wave
 from pydub import AudioSegment
+from langdetect import detect_langs, detect
 import json
 
 TTS_MODEL_DIR = os.path.join(os.getcwd(),"model","vietTTS")
@@ -25,7 +26,7 @@ def nat_normalize_text(text):
     text = text.replace("-", " ")
     text = text.replace('–', '')
     text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"[.,:;?!()]+", f" {sil} ", text)
+    text = re.sub(r"[.,:;?!()♪]+", f" {sil} ", text)
     text = re.sub(f"( {sil}+)+ ", f" {sil} ", text)
     text = re.sub(r'sil(\d+)', replace_sil_num, text)
     text = re.sub("nghithemmotchut", f" {sil} {sil} ", text)
@@ -62,6 +63,7 @@ def text_to_speech(text, output_file, model_name, speed = 1):
     else:
         text = normalize(text)
         text = nat_normalize_text(text)
+        text = text if detect(text) == 'vi' else 'sil'
         ## Text2Mel with edited default_sil_time, text with sil_num and playback_rate
         mel = text2mel(
             text,

@@ -1,8 +1,8 @@
-FROM python:3.10-bullseye
+FROM python:3.10.12
 
 RUN apt update -y && apt upgrade -y
 
-RUN apt -y install -qq aria2 ffmpeg wget curl git
+RUN apt -y install -qq aria2 ffmpeg wget curl git vim
 
 WORKDIR /app
 
