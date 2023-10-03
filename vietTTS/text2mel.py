@@ -84,7 +84,7 @@ def text2tokens(text, lexicon_fn):
                     tokens.append(phonemes.index(p))
             tokens.append(FLAGS.word_end_index)
     tokens.append(FLAGS.sil_index)  # silence
-    print("tokens::", tokens)
+    # print("tokens::", tokens)
     return tokens
 
 def predict_mel(tokens, durations, ckpt_fn, speed, sample_rate):

@@ -195,7 +195,7 @@ def upload_model_list():
             index_paths.append(name)
             # index_paths.append(os.path.join(index_root, name))
 
-    print("models::", models, index_paths)
+    print("rvc models::", len(models))
     return models, index_paths
 
 def manual_download(url, dst):

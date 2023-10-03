@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/mdds-labs/sonitranslate:stable
+    image: ghcr.io/mdds-labs/sonitranslate:v1.1.0
     container_name: soni
     deploy:
       resources:

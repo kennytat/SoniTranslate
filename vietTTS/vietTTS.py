@@ -61,9 +61,10 @@ def text_to_speech(text, output_file, model_name, speed = 1):
         second_of_silence = second_of_silence.set_frame_rate(sample_rate)
         second_of_silence.export(output_file, format="wav")
     else:
+        text = text if detect(text) == 'vi' else ' sil '
         text = normalize(text)
         text = nat_normalize_text(text)
-        text = text if detect(text) == 'vi' else 'sil'
+        
         ## Text2Mel with edited default_sil_time, text with sil_num and playback_rate
         mel = text2mel(
             text,
