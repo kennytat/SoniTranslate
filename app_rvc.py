@@ -483,6 +483,57 @@ def batch_preprocess(
       output.append(result)
   return output
 
+def tts(segment, speaker_to_voice):
+    text = segment['text']
+    start = segment['start']
+    end = segment['end']
+
+    try:
+        speaker = segment['speaker']
+    except KeyError:
+        segment['speaker'] = "SPEAKER_99"
+        speaker = segment['speaker']
+        print(f"NO SPEAKER DETECT IN SEGMENT: TTS auxiliary will be used in the segment time {segment['start'], segment['text']}")
+
+    # make the tts audio
+    filename = f"audio/{start}.ogg"
+
+    if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
+        make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
+    elif speaker == "SPEAKER_99":
+        try:
+            tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
+            tts.save(filename)
+            print('Using GTTS')
+        except:
+            tts = gTTS('a', lang=TRANSLATE_AUDIO_TO)
+            tts.save(filename)
+            print('Error: Audio will be replaced.')
+
+    # duration
+    duration_true = end - start
+    duration_tts = librosa.get_duration(filename=filename)
+
+    # porcentaje
+    porcentaje = duration_tts / duration_true
+
+    if porcentaje > 2.1:
+        porcentaje = 2.1
+    elif porcentaje <= 1.2 and porcentaje >= 0.8:
+        porcentaje = 1.0
+    elif porcentaje <= 0.79:
+        porcentaje = 0.8
+
+    # Smooth and round
+    porcentaje = round(porcentaje+0.0, 1)
+    porcentaje = 1.0 if disable_timeline else porcentaje     
+    
+    # apply aceleration or opposite to the audio file in audio2 folder
+    os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
+
+    duration_create = librosa.get_duration(filename=f"audio2/{filename}")
+    return (filename, speaker) 
+  
 def translate_from_media(
     media_input,
     s2t_method,
@@ -747,59 +798,11 @@ def translate_from_media(
         'SPEAKER_05': tts_voice05
     }
     print("Start TTS::")
-
-    for segment in tqdm(result_diarize['segments']):
-
-        text = segment['text']
-        start = segment['start']
-        end = segment['end']
-
-        try:
-            speaker = segment['speaker']
-        except KeyError:
-            segment['speaker'] = "SPEAKER_99"
-            speaker = segment['speaker']
-            print(f"NO SPEAKER DETECT IN SEGMENT: TTS auxiliary will be used in the segment time {segment['start'], segment['text']}")
-
-        # make the tts audio
-        filename = f"audio/{start}.ogg"
-
-        if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-            make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
-        elif speaker == "SPEAKER_99":
-            try:
-                tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
-                tts.save(filename)
-                print('Using GTTS')
-            except:
-                tts = gTTS('a', lang=TRANSLATE_AUDIO_TO)
-                tts.save(filename)
-                print('Error: Audio will be replaced.')
-
-        # duration
-        duration_true = end - start
-        duration_tts = librosa.get_duration(filename=filename)
-
-        # porcentaje
-        porcentaje = duration_tts / duration_true
-
-        if porcentaje > 2.1:
-            porcentaje = 2.1
-        elif porcentaje <= 1.2 and porcentaje >= 0.8:
-            porcentaje = 1.0
-        elif porcentaje <= 0.79:
-            porcentaje = 0.8
-
-        # Smooth and round
-        porcentaje = round(porcentaje+0.0, 1)
-        porcentaje = 1.0 if disable_timeline else porcentaje     
-        
-        # apply aceleration or opposite to the audio file in audio2 folder
-        os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
-
-        duration_create = librosa.get_duration(filename=f"audio2/{filename}")
-        audio_files.append(filename)
-        speakers_list.append(speaker)
+    JOBS = os.cpu_count()/2 if t2s_method == "VietTTS" else 1
+    with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(JOBS)):
+      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice) for (segment) in tqdm(result_diarize['segments']))
+    audio_files = [result[0] for result in tts_results]
+    speakers_list = [result[1] for result in tts_results]
 
     # custom voice
     if os.getenv('SVC_VOICES_MODELS') == 'ENABLE':
@@ -847,7 +850,8 @@ def translate_from_media(
     if is_video:
       os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {media_output}")
     os.system(f"rm -rf {OutputFile}")
-    os.system(f"rm -rf {media_input}")
+    if media_input.startswith('/tmp'):
+      os.system(f"rm -rf {media_input}")
     ## Archve all files and return output
     archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output))[0])
     shutil.make_archive(archive_path, 'zip', temp_dir)
@@ -887,25 +891,25 @@ def submit_file_func(file):
 # max tts
 MAX_TTS = 6
 
+#### video
 # theme = gr.themes.Base.load(os.path.join('themes','taithrah-minimal@0.0.1.json')).set(
 #             background_fill_primary ="#171717",
 #             panel_background_fill = "#171717"
 #         )
 theme="Taithrah/Minimal"
-
-with gr.Blocks(theme=theme) as demo:
-    gr.Markdown(title)
-    gr.Markdown(description)
-
-#### video
+demo = gr.Blocks(theme=theme)
+with demo:
+  gr.Markdown(title)
+  gr.Markdown(description)
+  with gr.Tabs():
     with gr.Tab("Audio Translation for a Video"):
         with gr.Row():
             with gr.Column():
                 #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'], interactive=True)
+                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='multiple', file_types=['audio','video'])
                 path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
-                srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
+                srt_input = gr.File(label="SRT(Optional)", file_count='multiple', file_types=['.srt'])
                 gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
                 ## media_input change function
@@ -1275,11 +1279,12 @@ if __name__ == "__main__":
   #demo.launch(debug=True, enable_queue=True)
   auth_user = os.getenv('AUTH_USER', '')
   auth_pass = os.getenv('AUTH_PASS', '')
-  demo.launch(
-    auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-    share=False,
+  demo.queue(concurrency_count=1).launch(
+    # auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
+    show_api=False,
+    debug=False,
+    inbrowser=True,
+    show_error=True,
     server_name="0.0.0.0",
     server_port=6860,
-    enable_queue=True,
-    quiet=True,
-    debug=False)
+    share=False)
