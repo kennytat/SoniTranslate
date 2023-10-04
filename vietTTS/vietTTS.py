@@ -41,6 +41,7 @@ def nat_normalize_text(text):
 def text_to_speech(text, output_file, model_name, speed = 1):
     tts_voice_ckpt_dir = os.path.join(TTS_MODEL_DIR, model_name)
     print("Starting TTS {}".format(output_file))
+    print("tts text::", text)
     ## Init setting
     playback_rate = speed
     default_tail_time = 1.9
@@ -51,8 +52,7 @@ def text_to_speech(text, output_file, model_name, speed = 1):
     data = json.load(open(config_path))
     sample_rate = data['sampling_rate']
     speed_threshold = data['speed_threshold']
-    # print("hifigan config data::", sample_rate)  
-    print("test text::", text)
+    # print("hifigan config data::", sample_rate) 
     if re.sub(r'^sil\s+','',text).isnumeric():
         silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
         print("Got integer::", text, silence_duration) 
@@ -60,8 +60,11 @@ def text_to_speech(text, output_file, model_name, speed = 1):
         second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
         second_of_silence = second_of_silence.set_frame_rate(sample_rate)
         second_of_silence.export(output_file, format="wav")
+    elif text == "♪":
+        second_of_silence = AudioSegment.silent(duration=2000) # or be explicit
+        second_of_silence = second_of_silence.set_frame_rate(sample_rate)
+        second_of_silence.export(output_file, format="wav")
     else:
-        
         text = normalize(text)
         text = nat_normalize_text(text)
         try:
@@ -102,7 +105,7 @@ def text_to_speech(text, output_file, model_name, speed = 1):
 
 if __name__ == '__main__':
   model_name = "vn_han_male"
-  raw_str = """Tiếng Việt, cũng gọi là tiếng Việt Nam hay Việt ngữ là ngôn ngữ của người Việt và là ngôn ngữ chính thức tại Việt Nam. Đây là tiếng mẹ đẻ của khoảng 85% dân cư Việt Nam cùng với hơn 4 triệu người Việt kiều. Tiếng Việt còn là ngôn ngữ thứ hai của các dân tộc thiểu số tại Việt Nam và là ngôn ngữ dân tộc thiểu số được công nhận tại Cộng hòa Séc. Dựa trên từ vựng cơ bản, tiếng Việt được phân loại là một ngôn ngữ thuộc ngữ hệ Nam Á. Tiếng Việt là ngôn ngữ có nhiều người nói nhất trong ngữ hệ này (nhiều hơn tổng số người nói của tất cả các ngôn ngữ còn lại trong ngữ hệ). Vì Việt Nam thuộc Vùng văn hoá Đông Á, tiếng Việt cũng chịu nhiều ảnh hưởng về từ tiếng Hán, do vậy là ngôn ngữ có ít điểm tương đồng nhất với các ngôn ngữ khác trong ngữ hệ Nam Á."""
+  raw_str = """♪"""
   result = text_to_speech(raw_str, "/mnt/ssd256/Projects/SoniTranslate/test/viettts.ogg", model_name)
   # print("result::", result)
 

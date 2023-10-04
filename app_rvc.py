@@ -314,7 +314,7 @@ def segments_to_srt(segments, output_path):
       endTime = srt_time(str(0)+str(timedelta(seconds=segment['end'])))
       text = segment['text']
       segmentId = index+1
-      segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text[0] == ' ' else text}\n\n"
+      segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text and text[0] == ' ' else text}\n\n"
       with open(output_path, 'a', encoding='utf-8') as srtFile:
           srtFile.write(segment)
 
@@ -483,7 +483,7 @@ def batch_preprocess(
       output.append(result)
   return output
 
-def tts(segment, speaker_to_voice):
+def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
     text = segment['text']
     start = segment['start']
     end = segment['end']
@@ -799,8 +799,8 @@ def translate_from_media(
     }
     print("Start TTS::")
     JOBS = os.cpu_count()/2 if t2s_method == "VietTTS" else 1
-    with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(JOBS)):
-      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice) for (segment) in tqdm(result_diarize['segments']))
+    with joblib.parallel_config(backend="multiprocessing", prefer="threads", n_jobs=int(JOBS)):
+      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method) for (segment) in tqdm(result_diarize['segments']))
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
 
@@ -906,10 +906,10 @@ with demo:
         with gr.Row():
             with gr.Column():
                 #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='multiple', file_types=['audio','video'])
+                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='directory', file_types=['audio','video'])
                 path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
-                srt_input = gr.File(label="SRT(Optional)", file_count='multiple', file_types=['.srt'])
+                srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='directory', file_types=['.srt'])
                 gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
                 ## media_input change function
@@ -1276,7 +1276,6 @@ with demo:
 
 if __name__ == "__main__":
   # os.system('rm -rf /tmp/gradio/*')
-  #demo.launch(debug=True, enable_queue=True)
   auth_user = os.getenv('AUTH_USER', '')
   auth_pass = os.getenv('AUTH_PASS', '')
   demo.queue(concurrency_count=1).launch(
@@ -1284,7 +1283,7 @@ if __name__ == "__main__":
     show_api=False,
     debug=False,
     inbrowser=True,
-    show_error=True,
+    # show_error=True,
     server_name="0.0.0.0",
     server_port=6860,
     share=False)
