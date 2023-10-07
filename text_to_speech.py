@@ -21,8 +21,7 @@ from vietTTS.vietTTS import text_to_speech
 def make_voice_gradio(tts_text, tts_voice, filename, language, t2s_method):
     print("make_voice_gradio::",tts_text, tts_voice, filename, language, t2s_method)
     if t2s_method == "VietTTS" and language == "vi" :
-      model_dir = "vn_han_male"
-      text_to_speech(tts_text, filename, model_dir)
+      text_to_speech(tts_text, filename, tts_voice)
     else:
       try:
         asyncio.run(edge_tts.Communicate(tts_text, "-".join(tts_voice.split('-')[:-1])).save(filename))

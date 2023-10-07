@@ -144,7 +144,10 @@ print('Working in: ', device)
 
 
 
-list_tts = ['af-ZA-AdriNeural-Female', 'af-ZA-WillemNeural-Male', 'am-ET-AmehaNeural-Male', 'am-ET-MekdesNeural-Female', 'ar-AE-FatimaNeural-Female', 'ar-AE-HamdanNeural-Male', 'ar-BH-AliNeural-Male', 'ar-BH-LailaNeural-Female', 'ar-DZ-AminaNeural-Female', 'ar-DZ-IsmaelNeural-Male', 'ar-EG-SalmaNeural-Female', 'ar-EG-ShakirNeural-Male', 'ar-IQ-BasselNeural-Male', 'ar-IQ-RanaNeural-Female', 'ar-JO-SanaNeural-Female', 'ar-JO-TaimNeural-Male', 'ar-KW-FahedNeural-Male', 'ar-KW-NouraNeural-Female', 'ar-LB-LaylaNeural-Female', 'ar-LB-RamiNeural-Male', 'ar-LY-ImanNeural-Female', 'ar-LY-OmarNeural-Male', 'ar-MA-JamalNeural-Male', 'ar-MA-MounaNeural-Female', 'ar-OM-AbdullahNeural-Male', 'ar-OM-AyshaNeural-Female', 'ar-QA-AmalNeural-Female', 'ar-QA-MoazNeural-Male', 'ar-SA-HamedNeural-Male', 'ar-SA-ZariyahNeural-Female', 'ar-SY-AmanyNeural-Female', 'ar-SY-LaithNeural-Male', 'ar-TN-HediNeural-Male', 'ar-TN-ReemNeural-Female', 'ar-YE-MaryamNeural-Female', 'ar-YE-SalehNeural-Male', 'az-AZ-BabekNeural-Male', 'az-AZ-BanuNeural-Female', 'bg-BG-BorislavNeural-Male', 'bg-BG-KalinaNeural-Female', 'bn-BD-NabanitaNeural-Female', 'bn-BD-PradeepNeural-Male', 'bn-IN-BashkarNeural-Male', 'bn-IN-TanishaaNeural-Female', 'bs-BA-GoranNeural-Male', 'bs-BA-VesnaNeural-Female', 'ca-ES-EnricNeural-Male', 'ca-ES-JoanaNeural-Female', 'cs-CZ-AntoninNeural-Male', 'cs-CZ-VlastaNeural-Female', 'cy-GB-AledNeural-Male', 'cy-GB-NiaNeural-Female', 'da-DK-ChristelNeural-Female', 'da-DK-JeppeNeural-Male', 'de-AT-IngridNeural-Female', 'de-AT-JonasNeural-Male', 'de-CH-JanNeural-Male', 'de-CH-LeniNeural-Female', 'de-DE-AmalaNeural-Female', 'de-DE-ConradNeural-Male', 'de-DE-KatjaNeural-Female', 'de-DE-KillianNeural-Male', 'el-GR-AthinaNeural-Female', 'el-GR-NestorasNeural-Male', 'en-AU-NatashaNeural-Female', 'en-AU-WilliamNeural-Male', 'en-CA-ClaraNeural-Female', 'en-CA-LiamNeural-Male', 'en-GB-LibbyNeural-Female', 'en-GB-MaisieNeural-Female', 'en-GB-RyanNeural-Male', 'en-GB-SoniaNeural-Female', 'en-GB-ThomasNeural-Male', 'en-HK-SamNeural-Male', 'en-HK-YanNeural-Female', 'en-IE-ConnorNeural-Male', 'en-IE-EmilyNeural-Female', 'en-IN-NeerjaExpressiveNeural-Female', 'en-IN-NeerjaNeural-Female', 'en-IN-PrabhatNeural-Male', 'en-KE-AsiliaNeural-Female', 'en-KE-ChilembaNeural-Male', 'en-NG-AbeoNeural-Male', 'en-NG-EzinneNeural-Female', 'en-NZ-MitchellNeural-Male', 'en-NZ-MollyNeural-Female', 'en-PH-JamesNeural-Male', 'en-PH-RosaNeural-Female', 'en-SG-LunaNeural-Female', 'en-SG-WayneNeural-Male', 'en-TZ-ElimuNeural-Male', 'en-TZ-ImaniNeural-Female', 'en-US-AnaNeural-Female', 'en-US-AriaNeural-Female', 'en-US-ChristopherNeural-Male', 'en-US-EricNeural-Male', 'en-US-GuyNeural-Male', 'en-US-JennyNeural-Female', 'en-US-MichelleNeural-Female', 'en-US-RogerNeural-Male', 'en-US-SteffanNeural-Male', 'en-ZA-LeahNeural-Female', 'en-ZA-LukeNeural-Male', 'es-AR-ElenaNeural-Female', 'es-AR-TomasNeural-Male', 'es-BO-MarceloNeural-Male', 'es-BO-SofiaNeural-Female', 'es-CL-CatalinaNeural-Female', 'es-CL-LorenzoNeural-Male', 'es-CO-GonzaloNeural-Male', 'es-CO-SalomeNeural-Female', 'es-CR-JuanNeural-Male', 'es-CR-MariaNeural-Female', 'es-CU-BelkysNeural-Female', 'es-CU-ManuelNeural-Male', 'es-DO-EmilioNeural-Male', 'es-DO-RamonaNeural-Female', 'es-EC-AndreaNeural-Female', 'es-EC-LuisNeural-Male', 'es-ES-AlvaroNeural-Male', 'es-ES-ElviraNeural-Female', 'es-GQ-JavierNeural-Male', 'es-GQ-TeresaNeural-Female', 'es-GT-AndresNeural-Male', 'es-GT-MartaNeural-Female', 'es-HN-CarlosNeural-Male', 'es-HN-KarlaNeural-Female', 'es-MX-DaliaNeural-Female', 'es-MX-JorgeNeural-Male', 'es-NI-FedericoNeural-Male', 'es-NI-YolandaNeural-Female', 'es-PA-MargaritaNeural-Female', 'es-PA-RobertoNeural-Male', 'es-PE-AlexNeural-Male', 'es-PE-CamilaNeural-Female', 'es-PR-KarinaNeural-Female', 'es-PR-VictorNeural-Male', 'es-PY-MarioNeural-Male', 'es-PY-TaniaNeural-Female', 'es-SV-LorenaNeural-Female', 'es-SV-RodrigoNeural-Male', 'es-US-AlonsoNeural-Male', 'es-US-PalomaNeural-Female', 'es-UY-MateoNeural-Male', 'es-UY-ValentinaNeural-Female', 'es-VE-PaolaNeural-Female', 'es-VE-SebastianNeural-Male', 'et-EE-AnuNeural-Female', 'et-EE-KertNeural-Male', 'fa-IR-DilaraNeural-Female', 'fa-IR-FaridNeural-Male', 'fi-FI-HarriNeural-Male', 'fi-FI-NooraNeural-Female', 'fil-PH-AngeloNeural-Male', 'fil-PH-BlessicaNeural-Female', 'fr-BE-CharlineNeural-Female', 'fr-BE-GerardNeural-Male', 'fr-CA-AntoineNeural-Male', 'fr-CA-JeanNeural-Male', 'fr-CA-SylvieNeural-Female', 'fr-CH-ArianeNeural-Female', 'fr-CH-FabriceNeural-Male', 'fr-FR-DeniseNeural-Female', 'fr-FR-EloiseNeural-Female', 'fr-FR-HenriNeural-Male', 'ga-IE-ColmNeural-Male', 'ga-IE-OrlaNeural-Female', 'gl-ES-RoiNeural-Male', 'gl-ES-SabelaNeural-Female', 'gu-IN-DhwaniNeural-Female', 'gu-IN-NiranjanNeural-Male', 'he-IL-AvriNeural-Male', 'he-IL-HilaNeural-Female', 'hi-IN-MadhurNeural-Male', 'hi-IN-SwaraNeural-Female', 'hr-HR-GabrijelaNeural-Female', 'hr-HR-SreckoNeural-Male', 'hu-HU-NoemiNeural-Female', 'hu-HU-TamasNeural-Male', 'id-ID-ArdiNeural-Male', 'id-ID-GadisNeural-Female', 'is-IS-GudrunNeural-Female', 'is-IS-GunnarNeural-Male', 'it-IT-DiegoNeural-Male', 'it-IT-ElsaNeural-Female', 'it-IT-IsabellaNeural-Female', 'ja-JP-KeitaNeural-Male', 'ja-JP-NanamiNeural-Female', 'jv-ID-DimasNeural-Male', 'jv-ID-SitiNeural-Female', 'ka-GE-EkaNeural-Female', 'ka-GE-GiorgiNeural-Male', 'kk-KZ-AigulNeural-Female', 'kk-KZ-DauletNeural-Male', 'km-KH-PisethNeural-Male', 'km-KH-SreymomNeural-Female', 'kn-IN-GaganNeural-Male', 'kn-IN-SapnaNeural-Female', 'ko-KR-InJoonNeural-Male', 'ko-KR-SunHiNeural-Female', 'lo-LA-ChanthavongNeural-Male', 'lo-LA-KeomanyNeural-Female', 'lt-LT-LeonasNeural-Male', 'lt-LT-OnaNeural-Female', 'lv-LV-EveritaNeural-Female', 'lv-LV-NilsNeural-Male', 'mk-MK-AleksandarNeural-Male', 'mk-MK-MarijaNeural-Female', 'ml-IN-MidhunNeural-Male', 'ml-IN-SobhanaNeural-Female', 'mn-MN-BataaNeural-Male', 'mn-MN-YesuiNeural-Female', 'mr-IN-AarohiNeural-Female', 'mr-IN-ManoharNeural-Male', 'ms-MY-OsmanNeural-Male', 'ms-MY-YasminNeural-Female', 'mt-MT-GraceNeural-Female', 'mt-MT-JosephNeural-Male', 'my-MM-NilarNeural-Female', 'my-MM-ThihaNeural-Male', 'nb-NO-FinnNeural-Male', 'nb-NO-PernilleNeural-Female', 'ne-NP-HemkalaNeural-Female', 'ne-NP-SagarNeural-Male', 'nl-BE-ArnaudNeural-Male', 'nl-BE-DenaNeural-Female', 'nl-NL-ColetteNeural-Female', 'nl-NL-FennaNeural-Female', 'nl-NL-MaartenNeural-Male', 'pl-PL-MarekNeural-Male', 'pl-PL-ZofiaNeural-Female', 'ps-AF-GulNawazNeural-Male', 'ps-AF-LatifaNeural-Female', 'pt-BR-AntonioNeural-Male', 'pt-BR-FranciscaNeural-Female', 'pt-PT-DuarteNeural-Male', 'pt-PT-RaquelNeural-Female', 'ro-RO-AlinaNeural-Female', 'ro-RO-EmilNeural-Male', 'ru-RU-DmitryNeural-Male', 'ru-RU-SvetlanaNeural-Female', 'si-LK-SameeraNeural-Male', 'si-LK-ThiliniNeural-Female', 'sk-SK-LukasNeural-Male', 'sk-SK-ViktoriaNeural-Female', 'sl-SI-PetraNeural-Female', 'sl-SI-RokNeural-Male', 'so-SO-MuuseNeural-Male', 'so-SO-UbaxNeural-Female', 'sq-AL-AnilaNeural-Female', 'sq-AL-IlirNeural-Male', 'sr-RS-NicholasNeural-Male', 'sr-RS-SophieNeural-Female', 'su-ID-JajangNeural-Male', 'su-ID-TutiNeural-Female', 'sv-SE-MattiasNeural-Male', 'sv-SE-SofieNeural-Female', 'sw-KE-RafikiNeural-Male', 'sw-KE-ZuriNeural-Female', 'sw-TZ-DaudiNeural-Male', 'sw-TZ-RehemaNeural-Female', 'ta-IN-PallaviNeural-Female', 'ta-IN-ValluvarNeural-Male', 'ta-LK-KumarNeural-Male', 'ta-LK-SaranyaNeural-Female', 'ta-MY-KaniNeural-Female', 'ta-MY-SuryaNeural-Male', 'ta-SG-AnbuNeural-Male', 'ta-SG-VenbaNeural-Female', 'te-IN-MohanNeural-Male', 'te-IN-ShrutiNeural-Female', 'th-TH-NiwatNeural-Male', 'th-TH-PremwadeeNeural-Female', 'tr-TR-AhmetNeural-Male', 'tr-TR-EmelNeural-Female', 'uk-UA-OstapNeural-Male', 'uk-UA-PolinaNeural-Female', 'ur-IN-GulNeural-Female', 'ur-IN-SalmanNeural-Male', 'ur-PK-AsadNeural-Male', 'ur-PK-UzmaNeural-Female', 'uz-UZ-MadinaNeural-Female', 'uz-UZ-SardorNeural-Male', 'vi-VN-HoaiMyNeural-Female', 'vi-VN-NamMinhNeural-Male', 'zh-CN-XiaoxiaoNeural-Female', 'zh-CN-XiaoyiNeural-Female', 'zh-CN-YunjianNeural-Male', 'zh-CN-YunxiNeural-Male', 'zh-CN-YunxiaNeural-Male', 'zh-CN-YunyangNeural-Male', 'zh-CN-liaoning-XiaobeiNeural-Female', 'zh-CN-shaanxi-XiaoniNeural-Female']
+list_gtts = ['af-ZA-AdriNeural-Female', 'af-ZA-WillemNeural-Male', 'am-ET-AmehaNeural-Male', 'am-ET-MekdesNeural-Female', 'ar-AE-FatimaNeural-Female', 'ar-AE-HamdanNeural-Male', 'ar-BH-AliNeural-Male', 'ar-BH-LailaNeural-Female', 'ar-DZ-AminaNeural-Female', 'ar-DZ-IsmaelNeural-Male', 'ar-EG-SalmaNeural-Female', 'ar-EG-ShakirNeural-Male', 'ar-IQ-BasselNeural-Male', 'ar-IQ-RanaNeural-Female', 'ar-JO-SanaNeural-Female', 'ar-JO-TaimNeural-Male', 'ar-KW-FahedNeural-Male', 'ar-KW-NouraNeural-Female', 'ar-LB-LaylaNeural-Female', 'ar-LB-RamiNeural-Male', 'ar-LY-ImanNeural-Female', 'ar-LY-OmarNeural-Male', 'ar-MA-JamalNeural-Male', 'ar-MA-MounaNeural-Female', 'ar-OM-AbdullahNeural-Male', 'ar-OM-AyshaNeural-Female', 'ar-QA-AmalNeural-Female', 'ar-QA-MoazNeural-Male', 'ar-SA-HamedNeural-Male', 'ar-SA-ZariyahNeural-Female', 'ar-SY-AmanyNeural-Female', 'ar-SY-LaithNeural-Male', 'ar-TN-HediNeural-Male', 'ar-TN-ReemNeural-Female', 'ar-YE-MaryamNeural-Female', 'ar-YE-SalehNeural-Male', 'az-AZ-BabekNeural-Male', 'az-AZ-BanuNeural-Female', 'bg-BG-BorislavNeural-Male', 'bg-BG-KalinaNeural-Female', 'bn-BD-NabanitaNeural-Female', 'bn-BD-PradeepNeural-Male', 'bn-IN-BashkarNeural-Male', 'bn-IN-TanishaaNeural-Female', 'bs-BA-GoranNeural-Male', 'bs-BA-VesnaNeural-Female', 'ca-ES-EnricNeural-Male', 'ca-ES-JoanaNeural-Female', 'cs-CZ-AntoninNeural-Male', 'cs-CZ-VlastaNeural-Female', 'cy-GB-AledNeural-Male', 'cy-GB-NiaNeural-Female', 'da-DK-ChristelNeural-Female', 'da-DK-JeppeNeural-Male', 'de-AT-IngridNeural-Female', 'de-AT-JonasNeural-Male', 'de-CH-JanNeural-Male', 'de-CH-LeniNeural-Female', 'de-DE-AmalaNeural-Female', 'de-DE-ConradNeural-Male', 'de-DE-KatjaNeural-Female', 'de-DE-KillianNeural-Male', 'el-GR-AthinaNeural-Female', 'el-GR-NestorasNeural-Male', 'en-AU-NatashaNeural-Female', 'en-AU-WilliamNeural-Male', 'en-CA-ClaraNeural-Female', 'en-CA-LiamNeural-Male', 'en-GB-LibbyNeural-Female', 'en-GB-MaisieNeural-Female', 'en-GB-RyanNeural-Male', 'en-GB-SoniaNeural-Female', 'en-GB-ThomasNeural-Male', 'en-HK-SamNeural-Male', 'en-HK-YanNeural-Female', 'en-IE-ConnorNeural-Male', 'en-IE-EmilyNeural-Female', 'en-IN-NeerjaExpressiveNeural-Female', 'en-IN-NeerjaNeural-Female', 'en-IN-PrabhatNeural-Male', 'en-KE-AsiliaNeural-Female', 'en-KE-ChilembaNeural-Male', 'en-NG-AbeoNeural-Male', 'en-NG-EzinneNeural-Female', 'en-NZ-MitchellNeural-Male', 'en-NZ-MollyNeural-Female', 'en-PH-JamesNeural-Male', 'en-PH-RosaNeural-Female', 'en-SG-LunaNeural-Female', 'en-SG-WayneNeural-Male', 'en-TZ-ElimuNeural-Male', 'en-TZ-ImaniNeural-Female', 'en-US-AnaNeural-Female', 'en-US-AriaNeural-Female', 'en-US-ChristopherNeural-Male', 'en-US-EricNeural-Male', 'en-US-GuyNeural-Male', 'en-US-JennyNeural-Female', 'en-US-MichelleNeural-Female', 'en-US-RogerNeural-Male', 'en-US-SteffanNeural-Male', 'en-ZA-LeahNeural-Female', 'en-ZA-LukeNeural-Male', 'es-AR-ElenaNeural-Female', 'es-AR-TomasNeural-Male', 'es-BO-MarceloNeural-Male', 'es-BO-SofiaNeural-Female', 'es-CL-CatalinaNeural-Female', 'es-CL-LorenzoNeural-Male', 'es-CO-GonzaloNeural-Male', 'es-CO-SalomeNeural-Female', 'es-CR-JuanNeural-Male', 'es-CR-MariaNeural-Female', 'es-CU-BelkysNeural-Female', 'es-CU-ManuelNeural-Male', 'es-DO-EmilioNeural-Male', 'es-DO-RamonaNeural-Female', 'es-EC-AndreaNeural-Female', 'es-EC-LuisNeural-Male', 'es-ES-AlvaroNeural-Male', 'es-ES-ElviraNeural-Female', 'es-GQ-JavierNeural-Male', 'es-GQ-TeresaNeural-Female', 'es-GT-AndresNeural-Male', 'es-GT-MartaNeural-Female', 'es-HN-CarlosNeural-Male', 'es-HN-KarlaNeural-Female', 'es-MX-DaliaNeural-Female', 'es-MX-JorgeNeural-Male', 'es-NI-FedericoNeural-Male', 'es-NI-YolandaNeural-Female', 'es-PA-MargaritaNeural-Female', 'es-PA-RobertoNeural-Male', 'es-PE-AlexNeural-Male', 'es-PE-CamilaNeural-Female', 'es-PR-KarinaNeural-Female', 'es-PR-VictorNeural-Male', 'es-PY-MarioNeural-Male', 'es-PY-TaniaNeural-Female', 'es-SV-LorenaNeural-Female', 'es-SV-RodrigoNeural-Male', 'es-US-AlonsoNeural-Male', 'es-US-PalomaNeural-Female', 'es-UY-MateoNeural-Male', 'es-UY-ValentinaNeural-Female', 'es-VE-PaolaNeural-Female', 'es-VE-SebastianNeural-Male', 'et-EE-AnuNeural-Female', 'et-EE-KertNeural-Male', 'fa-IR-DilaraNeural-Female', 'fa-IR-FaridNeural-Male', 'fi-FI-HarriNeural-Male', 'fi-FI-NooraNeural-Female', 'fil-PH-AngeloNeural-Male', 'fil-PH-BlessicaNeural-Female', 'fr-BE-CharlineNeural-Female', 'fr-BE-GerardNeural-Male', 'fr-CA-AntoineNeural-Male', 'fr-CA-JeanNeural-Male', 'fr-CA-SylvieNeural-Female', 'fr-CH-ArianeNeural-Female', 'fr-CH-FabriceNeural-Male', 'fr-FR-DeniseNeural-Female', 'fr-FR-EloiseNeural-Female', 'fr-FR-HenriNeural-Male', 'ga-IE-ColmNeural-Male', 'ga-IE-OrlaNeural-Female', 'gl-ES-RoiNeural-Male', 'gl-ES-SabelaNeural-Female', 'gu-IN-DhwaniNeural-Female', 'gu-IN-NiranjanNeural-Male', 'he-IL-AvriNeural-Male', 'he-IL-HilaNeural-Female', 'hi-IN-MadhurNeural-Male', 'hi-IN-SwaraNeural-Female', 'hr-HR-GabrijelaNeural-Female', 'hr-HR-SreckoNeural-Male', 'hu-HU-NoemiNeural-Female', 'hu-HU-TamasNeural-Male', 'id-ID-ArdiNeural-Male', 'id-ID-GadisNeural-Female', 'is-IS-GudrunNeural-Female', 'is-IS-GunnarNeural-Male', 'it-IT-DiegoNeural-Male', 'it-IT-ElsaNeural-Female', 'it-IT-IsabellaNeural-Female', 'ja-JP-KeitaNeural-Male', 'ja-JP-NanamiNeural-Female', 'jv-ID-DimasNeural-Male', 'jv-ID-SitiNeural-Female', 'ka-GE-EkaNeural-Female', 'ka-GE-GiorgiNeural-Male', 'kk-KZ-AigulNeural-Female', 'kk-KZ-DauletNeural-Male', 'km-KH-PisethNeural-Male', 'km-KH-SreymomNeural-Female', 'kn-IN-GaganNeural-Male', 'kn-IN-SapnaNeural-Female', 'ko-KR-InJoonNeural-Male', 'ko-KR-SunHiNeural-Female', 'lo-LA-ChanthavongNeural-Male', 'lo-LA-KeomanyNeural-Female', 'lt-LT-LeonasNeural-Male', 'lt-LT-OnaNeural-Female', 'lv-LV-EveritaNeural-Female', 'lv-LV-NilsNeural-Male', 'mk-MK-AleksandarNeural-Male', 'mk-MK-MarijaNeural-Female', 'ml-IN-MidhunNeural-Male', 'ml-IN-SobhanaNeural-Female', 'mn-MN-BataaNeural-Male', 'mn-MN-YesuiNeural-Female', 'mr-IN-AarohiNeural-Female', 'mr-IN-ManoharNeural-Male', 'ms-MY-OsmanNeural-Male', 'ms-MY-YasminNeural-Female', 'mt-MT-GraceNeural-Female', 'mt-MT-JosephNeural-Male', 'my-MM-NilarNeural-Female', 'my-MM-ThihaNeural-Male', 'nb-NO-FinnNeural-Male', 'nb-NO-PernilleNeural-Female', 'ne-NP-HemkalaNeural-Female', 'ne-NP-SagarNeural-Male', 'nl-BE-ArnaudNeural-Male', 'nl-BE-DenaNeural-Female', 'nl-NL-ColetteNeural-Female', 'nl-NL-FennaNeural-Female', 'nl-NL-MaartenNeural-Male', 'pl-PL-MarekNeural-Male', 'pl-PL-ZofiaNeural-Female', 'ps-AF-GulNawazNeural-Male', 'ps-AF-LatifaNeural-Female', 'pt-BR-AntonioNeural-Male', 'pt-BR-FranciscaNeural-Female', 'pt-PT-DuarteNeural-Male', 'pt-PT-RaquelNeural-Female', 'ro-RO-AlinaNeural-Female', 'ro-RO-EmilNeural-Male', 'ru-RU-DmitryNeural-Male', 'ru-RU-SvetlanaNeural-Female', 'si-LK-SameeraNeural-Male', 'si-LK-ThiliniNeural-Female', 'sk-SK-LukasNeural-Male', 'sk-SK-ViktoriaNeural-Female', 'sl-SI-PetraNeural-Female', 'sl-SI-RokNeural-Male', 'so-SO-MuuseNeural-Male', 'so-SO-UbaxNeural-Female', 'sq-AL-AnilaNeural-Female', 'sq-AL-IlirNeural-Male', 'sr-RS-NicholasNeural-Male', 'sr-RS-SophieNeural-Female', 'su-ID-JajangNeural-Male', 'su-ID-TutiNeural-Female', 'sv-SE-MattiasNeural-Male', 'sv-SE-SofieNeural-Female', 'sw-KE-RafikiNeural-Male', 'sw-KE-ZuriNeural-Female', 'sw-TZ-DaudiNeural-Male', 'sw-TZ-RehemaNeural-Female', 'ta-IN-PallaviNeural-Female', 'ta-IN-ValluvarNeural-Male', 'ta-LK-KumarNeural-Male', 'ta-LK-SaranyaNeural-Female', 'ta-MY-KaniNeural-Female', 'ta-MY-SuryaNeural-Male', 'ta-SG-AnbuNeural-Male', 'ta-SG-VenbaNeural-Female', 'te-IN-MohanNeural-Male', 'te-IN-ShrutiNeural-Female', 'th-TH-NiwatNeural-Male', 'th-TH-PremwadeeNeural-Female', 'tr-TR-AhmetNeural-Male', 'tr-TR-EmelNeural-Female', 'uk-UA-OstapNeural-Male', 'uk-UA-PolinaNeural-Female', 'ur-IN-GulNeural-Female', 'ur-IN-SalmanNeural-Male', 'ur-PK-AsadNeural-Male', 'ur-PK-UzmaNeural-Female', 'uz-UZ-MadinaNeural-Female', 'uz-UZ-SardorNeural-Male', 'vi-VN-HoaiMyNeural-Female', 'vi-VN-NamMinhNeural-Male', 'zh-CN-XiaoxiaoNeural-Female', 'zh-CN-XiaoyiNeural-Female', 'zh-CN-YunjianNeural-Male', 'zh-CN-YunxiNeural-Male', 'zh-CN-YunxiaNeural-Male', 'zh-CN-YunyangNeural-Male', 'zh-CN-liaoning-XiaobeiNeural-Female', 'zh-CN-shaanxi-XiaoniNeural-Female']
+list_vtts = [voice for voice in os.listdir(os.path.join("model","vietTTS")) if os.path.isdir(os.path.join("model","vietTTS", voice))]
+list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
+list_rvc = [voice for voice in os.listdir(os.path.join("model","weights")) if voice.endswith('.pth')]
 
 ### voices
 with capture.capture_output() as cap:
@@ -182,13 +185,13 @@ def print_tree_directory(root_dir, indent=''):
 
 
 def upload_model_list():
-    weight_root = os.path.join("model","weights")
+    weight_root = os.path.join("model","rvc")
     models = []
     for name in os.listdir(weight_root):
         if name.endswith(".pth"):
             models.append(name)
 
-    index_root = os.path.join("model","logs")
+    index_root = os.path.join("model","rvc")
     index_paths = []
     for name in os.listdir(index_root):
         if name.endswith(".index"):
@@ -283,22 +286,10 @@ def select_zip_and_rar_files(directory_path="downloads/"):
                     destination = os.path.join(destination_dir, file_name)
                     shutil.move(source_file, destination)
 
-    move_files_with_extension(directory_path, ".index", os.path.join("model","logs"))
-    move_files_with_extension(directory_path, ".pth", os.path.join("model","weights"))
+    move_files_with_extension(directory_path, ".index", os.path.join("model","svc"))
+    move_files_with_extension(directory_path, ".pth", os.path.join("model","svc"))
 
     return 'Download complete'
-
-def custom_rvc_model_voice_enable(enable_custom_voice):
-    if enable_custom_voice:
-        os.environ["RVC_VOICES_MODELS"] = 'ENABLE'
-    else:
-        os.environ["RVC_VOICES_MODELS"] = 'DISABLE'
-
-def custom_svc_model_voice_enable(enable_custom_voice):
-    if enable_custom_voice:
-        os.environ["SVC_VOICES_MODELS"] = 'ENABLE'
-    else:
-        os.environ["SVC_VOICES_MODELS"] = 'DISABLE'
            
 def new_dir_now():
     now = datetime.now() # current date and time
@@ -314,7 +305,7 @@ def segments_to_srt(segments, output_path):
       endTime = srt_time(str(0)+str(timedelta(seconds=segment['end'])))
       text = segment['text']
       segmentId = index+1
-      segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text[0] == ' ' else text}\n\n"
+      segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text and text[0] == ' ' else text}\n\n"
       with open(output_path, 'a', encoding='utf-8') as srtFile:
           srtFile.write(segment)
 
@@ -380,7 +371,7 @@ models, index_paths = upload_model_list()
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
 
 from voice_main import ClassVoices
-voices = ClassVoices()
+rvc_voices = ClassVoices()
 
 '''
 def translate_from_media(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
@@ -411,10 +402,11 @@ def batch_preprocess(
   s2t_method,
   t2t_method,
   t2s_method,
+  vc_method,
   disable_timeline,
   YOUR_HF_TOKEN,
   preview=False,
-  WHISPER_MODEL_SIZE="large-v1",
+  WHISPER_MODEL_SIZE="large-v2",
   batch_size=16,
   compute_type="float16",
   SOURCE_LANGUAGE= "Automatic detection",
@@ -427,11 +419,33 @@ def batch_preprocess(
   tts_voice03="en-GB-SoniaNeural-Female",
   tts_voice04="en-NZ-MitchellNeural-Male",
   tts_voice05="en-GB-MaisieNeural-Female",
+  rvc_voice00=None,
+  rvc_voice01=None,
+  rvc_voice02=None,
+  rvc_voice03=None,
+  rvc_voice04=None,
+  rvc_voice05=None,
+  svc_voice00=None,
+  svc_voice01=None,
+  svc_voice02=None,
+  svc_voice03=None,
+  svc_voice04=None,
+  svc_voice05=None,
   AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
   progress=gr.Progress(),
 ):
+  if vc_method == "RVC":
+    rvc_voices.apply_conf(f0method='harvest',
+                   model_voice_path00=rvc_voice00, transpose00=0, file_index2_00=rvc_voice00.replace('.pth','.index'),
+                   model_voice_path01=rvc_voice01, transpose01=0, file_index2_01=rvc_voice01.replace('.pth','.index'),
+                   model_voice_path02=rvc_voice02, transpose02=0, file_index2_02=rvc_voice02.replace('.pth','.index'),
+                   model_voice_path03=rvc_voice03, transpose03=0, file_index2_03=rvc_voice03.replace('.pth','.index'),
+                   model_voice_path04=rvc_voice04, transpose04=0, file_index2_04=rvc_voice04.replace('.pth','.index'),
+                   model_voice_path05=rvc_voice05, transpose05=0, file_index2_05=rvc_voice05.replace('.pth','.index'),
+                   model_voice_path99=None, transpose99=0, file_index2_99=None)
   ## Move all srt files to srt tempdir
   media_inputs = media_inputs if media_inputs is not None else []
+  media_inputs = media_inputs if isinstance(media_inputs, list) else [media_inputs]
   output = []
   srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
   Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
@@ -479,15 +493,67 @@ def batch_preprocess(
       os.system(f"mv {srt.name} {srt_temp_dir}/")
   if media_inputs is not None and len(media_inputs)> 0:
     for media in media_inputs:
-      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
+      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
       output.append(result)
   return output
 
+def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
+    text = segment['text']
+    start = segment['start']
+    end = segment['end']
+
+    try:
+        speaker = segment['speaker']
+    except KeyError:
+        segment['speaker'] = "SPEAKER_99"
+        speaker = segment['speaker']
+        print(f"NO SPEAKER DETECT IN SEGMENT: TTS auxiliary will be used in the segment time {segment['start'], segment['text']}")
+
+    # make the tts audio
+    filename = f"audio/{start}.ogg"
+
+    if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
+        make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
+    elif speaker == "SPEAKER_99":
+        try:
+            tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
+            tts.save(filename)
+            print('Using GTTS')
+        except:
+            tts = gTTS('a', lang=TRANSLATE_AUDIO_TO)
+            tts.save(filename)
+            print('Error: Audio will be replaced.')
+
+    # duration
+    duration_true = end - start
+    duration_tts = librosa.get_duration(filename=filename)
+
+    # porcentaje
+    porcentaje = duration_tts / duration_true
+
+    if porcentaje > 2.1:
+        porcentaje = 2.1
+    elif porcentaje <= 1.2 and porcentaje >= 0.8:
+        porcentaje = 1.0
+    elif porcentaje <= 0.79:
+        porcentaje = 0.8
+
+    # Smooth and round
+    porcentaje = round(porcentaje+0.0, 1)
+    porcentaje = 1.0 if disable_timeline else porcentaje     
+    
+    # apply aceleration or opposite to the audio file in audio2 folder
+    os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
+
+    # duration_create = librosa.get_duration(filename=f"audio2/{filename}")
+    return (filename, speaker) 
+  
 def translate_from_media(
     media_input,
     s2t_method,
     t2t_method,
     t2s_method,
+    vc_method,
     disable_timeline,
     YOUR_HF_TOKEN,
     preview=False,
@@ -747,62 +813,14 @@ def translate_from_media(
         'SPEAKER_05': tts_voice05
     }
     print("Start TTS::")
-
-    for segment in tqdm(result_diarize['segments']):
-
-        text = segment['text']
-        start = segment['start']
-        end = segment['end']
-
-        try:
-            speaker = segment['speaker']
-        except KeyError:
-            segment['speaker'] = "SPEAKER_99"
-            speaker = segment['speaker']
-            print(f"NO SPEAKER DETECT IN SEGMENT: TTS auxiliary will be used in the segment time {segment['start'], segment['text']}")
-
-        # make the tts audio
-        filename = f"audio/{start}.ogg"
-
-        if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-            make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
-        elif speaker == "SPEAKER_99":
-            try:
-                tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
-                tts.save(filename)
-                print('Using GTTS')
-            except:
-                tts = gTTS('a', lang=TRANSLATE_AUDIO_TO)
-                tts.save(filename)
-                print('Error: Audio will be replaced.')
-
-        # duration
-        duration_true = end - start
-        duration_tts = librosa.get_duration(filename=filename)
-
-        # porcentaje
-        porcentaje = duration_tts / duration_true
-
-        if porcentaje > 2.1:
-            porcentaje = 2.1
-        elif porcentaje <= 1.2 and porcentaje >= 0.8:
-            porcentaje = 1.0
-        elif porcentaje <= 0.79:
-            porcentaje = 0.8
-
-        # Smooth and round
-        porcentaje = round(porcentaje+0.0, 1)
-        porcentaje = 1.0 if disable_timeline else porcentaje     
-        
-        # apply aceleration or opposite to the audio file in audio2 folder
-        os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
-
-        duration_create = librosa.get_duration(filename=f"audio2/{filename}")
-        audio_files.append(filename)
-        speakers_list.append(speaker)
+    JOBS = os.cpu_count()/2 if t2s_method == "VietTTS" else 1
+    with joblib.parallel_config(backend="multiprocessing", prefer="threads", n_jobs=int(JOBS)):
+      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method) for (segment) in tqdm(result_diarize['segments']))
+    audio_files = [result[0] for result in tts_results]
+    speakers_list = [result[1] for result in tts_results]
 
     # custom voice
-    if os.getenv('SVC_VOICES_MODELS') == 'ENABLE':
+    if vc_method == 'SVC':
         progress(0.90, desc="Applying SVC customized voices...")
         print("start SVC::")
         input_dir = os.path.join('audio2','audio')
@@ -816,9 +834,9 @@ def translate_from_media(
         shutil.move(output_dir, input_dir)     
         
     # custom voice
-    if os.getenv('RVC_VOICES_MODELS') == 'ENABLE':
+    if vc_method == 'RVC':
         progress(0.90, desc="Applying RVC customized voices...")
-        voices(speakers_list, audio_files)
+        rvc_voices(speakers_list, audio_files)
 
     # replace files with the accelerates
     os.system("mv -f audio2/audio/*.ogg audio/")
@@ -847,7 +865,8 @@ def translate_from_media(
     if is_video:
       os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {media_output}")
     os.system(f"rm -rf {OutputFile}")
-    os.system(f"rm -rf {media_input}")
+    if media_input.startswith('/tmp'):
+      os.system(f"rm -rf {media_input}")
     ## Archve all files and return output
     archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output))[0])
     shutil.make_archive(archive_path, 'zip', temp_dir)
@@ -887,25 +906,25 @@ def submit_file_func(file):
 # max tts
 MAX_TTS = 6
 
+#### video
 # theme = gr.themes.Base.load(os.path.join('themes','taithrah-minimal@0.0.1.json')).set(
 #             background_fill_primary ="#171717",
 #             panel_background_fill = "#171717"
 #         )
 theme="Taithrah/Minimal"
-
-with gr.Blocks(theme=theme) as demo:
-    gr.Markdown(title)
-    gr.Markdown(description)
-
-#### video
+demo = gr.Blocks(theme=theme)
+with demo:
+  gr.Markdown(title)
+  gr.Markdown(description)
+  with gr.Tabs():
     with gr.Tab("Audio Translation for a Video"):
         with gr.Row():
             with gr.Column():
                 #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'], interactive=True)
+                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='single', file_types=['audio','video'])
                 path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
-                srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
+                srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='directory', file_types=['.srt'])
                 gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
                 ## media_input change function
@@ -915,23 +934,41 @@ with gr.Blocks(theme=theme) as demo:
                 SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
                 TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
 
-                line_ = gr.HTML("<hr></h2>")
+                line_ = gr.HTML("<hr>")
                 gr.Markdown("Select how many people are speaking in the video.")
                 min_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
                 max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
                 gr.Markdown("Select the voice you want for each speaker.")
-                def submit(value):
+                def update_speaker_visibility(value):
                     visibility_dict = {
-                        f'tts_voice{i:02d}': gr.update(visible=i < value) for i in range(6)
+                        f'tts_voice{i:02d}_row': gr.update(visible=i < value) for i in range(6)
                     }
                     return [value for value in visibility_dict.values()]
-                tts_voice00 = gr.Dropdown(list_tts, value='vi-VN-NamMinhNeural-Male', label = 'TTS Speaker 1', visible=True, interactive=True)
-                tts_voice01 = gr.Dropdown(list_tts, value='vi-VN-HoaiMyNeural-Female', label = 'TTS Speaker 2', visible=False, interactive=True)
-                tts_voice02 = gr.Dropdown(list_tts, value='en-GB-ThomasNeural-Male', label = 'TTS Speaker 3', visible=False, interactive=True)
-                tts_voice03 = gr.Dropdown(list_tts, value='en-GB-SoniaNeural-Female', label = 'TTS Speaker 4', visible=False, interactive=True)
-                tts_voice04 = gr.Dropdown(list_tts, value='en-NZ-MitchellNeural-Male', label = 'TTS Speaker 5', visible=False, interactive=True)
-                tts_voice05 = gr.Dropdown(list_tts, value='en-GB-MaisieNeural-Female', label = 'TTS Speaker 6', visible=False, interactive=True)
-                max_speakers.change(submit, max_speakers, [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
+                with gr.Row() as tts_voice00_row:
+                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 1', visible=True, interactive=True)
+                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 1', visible=True, interactive=True)
+                  rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 1', visible=False, interactive=True)
+                with gr.Row(visible=False) as tts_voice01_row:
+                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 2', visible=True, interactive=True)
+                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 2', visible=True, interactive=True)
+                  rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 2', visible=False, interactive=True)
+                with gr.Row(visible=False) as tts_voice02_row:
+                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 3', visible=True, interactive=True)
+                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 3', visible=True, interactive=True)
+                  rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 3', visible=False, interactive=True)
+                with gr.Row(visible=False) as tts_voice03_row:
+                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 4', visible=True, interactive=True)
+                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 4', visible=True, interactive=True)
+                  rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 4', visible=False, interactive=True)
+                with gr.Row(visible=False) as tts_voice04_row:
+                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 5', visible=True, interactive=True)
+                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 5', visible=True, interactive=True)
+                  rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 5', visible=False, interactive=True)
+                with gr.Row(visible=False) as tts_voice05_row:
+                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 6', visible=True, interactive=True)
+                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 6', visible=True, interactive=True)
+                  rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 6', visible=False, interactive=True)
+                max_speakers.change(update_speaker_visibility, max_speakers, [tts_voice00_row, tts_voice01_row, tts_voice02_row, tts_voice03_row, tts_voice04_row, tts_voice05_row])
 
                 with gr.Column():
                       with gr.Accordion("Advanced Settings", open=False):
@@ -1020,121 +1057,118 @@ with gr.Blocks(theme=theme) as demo:
         with gr.Column():
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
-              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True, interactive= True)
-              t2t_method = gr.Dropdown(["Google", "Meta", "VB", "T5"], label='T2T', value='VB', visible=True, interactive= True)
-              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "VietTTS"], label='T2S', value='VietTTS', visible=True, interactive= True)
-            # def update_models():
-            #   models, index_paths = upload_model_list()
-            #   for i in range(8):                      
-            #     dict_models = {
-            #         f'model_voice_path{i:02d}': gr.update(choices=models) for i in range(8)
-            #     }
-            #     dict_index = {
-            #         f'file_index2_{i:02d}': gr.update(choices=index_paths) for i in range(8)
-            #     }
-            #     dict_changes = {**dict_models, **dict_index}
-            #     return [value for value in dict_changes.values()]
-              
-        with gr.Column():
-          with gr.Accordion("Download RVC Models", open=False):
-            url_links = gr.Textbox(label="URLs", value="",info="Automatically download the RVC models from the URL. You can use links from HuggingFace or Drive, and you can include several links, each one separated by a comma. Example: https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.pth, https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.index", placeholder="urls here...", lines=1)
-            download_finish = gr.HTML()
-            download_button = gr.Button("DOWNLOAD MODELS")
+              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True, interactive=True)
+              t2t_method = gr.Dropdown(["Google", "Meta", "VB", "T5"], label='T2T', value='VB', visible=True, interactive=True)
+              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "VietTTS"], label='T2S', value='VietTTS', visible=True, interactive=True)
+              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value='SVC', visible=True, interactive=True)
+            
+            ## update t2s method
+            def update_t2s_list(method):
+              list_tts = list_vtts if method == 'VietTTS' else list_gtts
+              visibility_dict = {
+                  f'tts_voice{i:02d}': gr.update(choices=list_tts, value=list_tts[0]) for i in range(6)
+              }
+              return [value for value in visibility_dict.values()]
+            t2s_method.change(update_t2s_list, [t2s_method], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
 
-            def update_models():
-              models, index_paths = upload_model_list()
-              for i in range(8):                      
-                dict_models = {
-                    f'model_voice_path{i:02d}': gr.update(choices=models) for i in range(8)
-                }
-                dict_index = {
-                    f'file_index2_{i:02d}': gr.update(choices=index_paths) for i in range(8)
-                }
-                dict_changes = {**dict_models, **dict_index}
-                return [value for value in dict_changes.values()]
+        # with gr.Column():
+        #   with gr.Accordion("Download RVC Models", open=False):
+        #     url_links = gr.Textbox(label="URLs", value="",info="Automatically download the RVC models from the URL. You can use links from HuggingFace or Drive, and you can include several links, each one separated by a comma. Example: https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.pth, https://huggingface.co/sail-rvc/yoimiya-jp/blob/main/model.index", placeholder="urls here...", lines=1)
+        #     download_finish = gr.HTML()
+        #     download_button = gr.Button("DOWNLOAD MODELS")
 
-        with gr.Column():
-          with gr.Accordion("SVC Setting", open=False):
-            with gr.Column(variant='compact'):
-              with gr.Column():
-                gr.Markdown("### 1. To enable its use, mark it as enable.")
-                enable_svc_custom_voice = gr.Checkbox(label="ENABLE", value=True, info="Check this to enable the use of the models.", interactive=True)
-                enable_svc_custom_voice.change(custom_rvc_model_voice_enable, [enable_svc_custom_voice], [])
+        #     def update_models():
+        #       models, index_paths = upload_model_list()
+        #       for i in range(8):                      
+        #         dict_models = {
+        #             f'model_voice_path{i:02d}': gr.update(choices=models) for i in range(8)
+        #         }
+        #         dict_index = {
+        #             f'file_index2_{i:02d}': gr.update(choices=index_paths) for i in range(8)
+        #         }
+        #         dict_changes = {**dict_models, **dict_index}
+        #         return [value for value in dict_changes.values()]
 
-            #     gr.Markdown("### 2. Select a voice that will be applied to each TTS of each corresponding speaker and apply the configurations.")
-            #     gr.Markdown('Depending on how many "TTS Speaker" you will use, each one needs its respective model. Additionally, there is an auxiliary one if for some reason the speaker is not detected correctly.')
-            #     gr.Markdown("Voice to apply to the first speaker.")
-            #     with gr.Row():
-            #       model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True, interactive=True)
-            #       file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True, interactive=True)
-            #       name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     gr.Markdown("Voice to apply to the second speaker.")
-            #     with gr.Row():
-            #       model_voice_path01 = gr.Dropdown(models, label='Model-2', visible=True, interactive=True)
-            #       file_index2_01 = gr.Dropdown(index_paths, label='Index-2', visible=True, interactive=True)
-            #       name_transpose01 = gr.Number(label='Transpose-2', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     gr.Markdown("Voice to apply to the third speaker.")
-            #     with gr.Row():
-            #       model_voice_path02 = gr.Dropdown(models, label='Model-3', visible=True, interactive=True)
-            #       file_index2_02 = gr.Dropdown(index_paths, label='Index-3', visible=True, interactive=True)
-            #       name_transpose02 = gr.Number(label='Transpose-3', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     gr.Markdown("Voice to apply to the fourth speaker.")
-            #     with gr.Row():
-            #       model_voice_path03 = gr.Dropdown(models, label='Model-4', visible=True, interactive=True)
-            #       file_index2_03 = gr.Dropdown(index_paths, label='Index-4', visible=True, interactive=True)
-            #       name_transpose03 = gr.Number(label='Transpose-4', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     gr.Markdown("Voice to apply to the fifth speaker.")
-            #     with gr.Row():
-            #       model_voice_path04 = gr.Dropdown(models, label='Model-5', visible=True, interactive=True)
-            #       file_index2_04 = gr.Dropdown(index_paths, label='Index-5', visible=True, interactive=True)
-            #       name_transpose04 = gr.Number(label='Transpose-5', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     gr.Markdown("Voice to apply to the sixth speaker.")
-            #     with gr.Row():
-            #       model_voice_path05 = gr.Dropdown(models, label='Model-6', visible=True, interactive=True)
-            #       file_index2_05 = gr.Dropdown(index_paths, label='Index-6', visible=True, interactive=True)
-            #       name_transpose05 = gr.Number(label='Transpose-6', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     gr.Markdown("- Voice to apply in case a speaker is not detected successfully.")
-            #     with gr.Row():
-            #       model_voice_path06 = gr.Dropdown(models, label='Model-Aux', visible=True, interactive=True)
-            #       file_index2_06 = gr.Dropdown(index_paths, label='Index-Aux', visible=True, interactive=True)
-            #       name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True, interactive=True)
-            #     gr.HTML("<hr></h2>")
-            #     with gr.Row():
-            #       f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True, interactive= True)
+        # with gr.Column(visible=False) as svc_setting:
+        #   with gr.Accordion("SVC Setting", open=False):
+        #     with gr.Column(variant='compact'):
+        #       with gr.Column():
+        #         gr.Markdown("### 1. To enable its use, mark it as enable.")
+        #         # enable_svc_custom_voice = gr.Checkbox(label="ENABLE", value=True, info="Check this to enable the use of the models.", interactive=True)
+        #         # enable_svc_custom_voice.change(custom_rvc_model_voice_enable, [enable_svc_custom_voice], [])
 
-            # with gr.Row(variant='compact'):
-            #   button_config = gr.Button("APPLY CONFIGURATION")
+        #         gr.Markdown("### 2. Select a voice that will be applied to each TTS of each corresponding speaker and apply the configurations.")
+        #         gr.Markdown('Depending on how many "TTS Speaker" you will use, each one needs its respective model. Additionally, there is an auxiliary one if for some reason the speaker is not detected correctly.')
+        #         gr.Markdown("Voice to apply to the first speaker.")
+        #         with gr.Row():
+        #           model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True, interactive=True)
+        #           file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True, interactive=True)
+        #           name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         gr.Markdown("Voice to apply to the second speaker.")
+        #         with gr.Row():
+        #           model_voice_path01 = gr.Dropdown(models, label='Model-2', visible=True, interactive=True)
+        #           file_index2_01 = gr.Dropdown(index_paths, label='Index-2', visible=True, interactive=True)
+        #           name_transpose01 = gr.Number(label='Transpose-2', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         gr.Markdown("Voice to apply to the third speaker.")
+        #         with gr.Row():
+        #           model_voice_path02 = gr.Dropdown(models, label='Model-3', visible=True, interactive=True)
+        #           file_index2_02 = gr.Dropdown(index_paths, label='Index-3', visible=True, interactive=True)
+        #           name_transpose02 = gr.Number(label='Transpose-3', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         gr.Markdown("Voice to apply to the fourth speaker.")
+        #         with gr.Row():
+        #           model_voice_path03 = gr.Dropdown(models, label='Model-4', visible=True, interactive=True)
+        #           file_index2_03 = gr.Dropdown(index_paths, label='Index-4', visible=True, interactive=True)
+        #           name_transpose03 = gr.Number(label='Transpose-4', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         gr.Markdown("Voice to apply to the fifth speaker.")
+        #         with gr.Row():
+        #           model_voice_path04 = gr.Dropdown(models, label='Model-5', visible=True, interactive=True)
+        #           file_index2_04 = gr.Dropdown(index_paths, label='Index-5', visible=True, interactive=True)
+        #           name_transpose04 = gr.Number(label='Transpose-5', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         gr.Markdown("Voice to apply to the sixth speaker.")
+        #         with gr.Row():
+        #           model_voice_path05 = gr.Dropdown(models, label='Model-6', visible=True, interactive=True)
+        #           file_index2_05 = gr.Dropdown(index_paths, label='Index-6', visible=True, interactive=True)
+        #           name_transpose05 = gr.Number(label='Transpose-6', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         gr.Markdown("- Voice to apply in case a speaker is not detected successfully.")
+        #         with gr.Row():
+        #           model_voice_path06 = gr.Dropdown(models, label='Model-Aux', visible=True, interactive=True)
+        #           file_index2_06 = gr.Dropdown(index_paths, label='Index-Aux', visible=True, interactive=True)
+        #           name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True, interactive=True)
+        #         gr.HTML("<hr></h2>")
+        #         with gr.Row():
+        #           f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True, interactive= True)
 
-            #   confirm_conf = gr.HTML()
+        #     with gr.Row(variant='compact'):
+        #       button_config = gr.Button("APPLY CONFIGURATION")
 
-            # button_config.click(voices.apply_conf, inputs=[
-            #     f0_method_global,
-            #     s2t_method, t2t_method, t2s_method,
-            #     model_voice_path00, name_transpose00, file_index2_00,
-            #     model_voice_path01, name_transpose01, file_index2_01,
-            #     model_voice_path02, name_transpose02, file_index2_02,
-            #     model_voice_path03, name_transpose03, file_index2_03,
-            #     model_voice_path04, name_transpose04, file_index2_04,
-            #     model_voice_path05, name_transpose05, file_index2_05,
-            #     model_voice_path06, name_transpose06, file_index2_06,
-            #     ], outputs=[confirm_conf])
+        #       confirm_conf = gr.HTML()
 
+        #     button_config.click(rvc_voices.apply_conf, inputs=[
+        #         f0_method_global,
+        #         model_voice_path00, name_transpose00, file_index2_00,
+        #         model_voice_path01, name_transpose01, file_index2_01,
+        #         model_voice_path02, name_transpose02, file_index2_02,
+        #         model_voice_path03, name_transpose03, file_index2_03,
+        #         model_voice_path04, name_transpose04, file_index2_04,
+        #         model_voice_path05, name_transpose05, file_index2_05,
+        #         model_voice_path06, name_transpose06, file_index2_06,
+        #         ], outputs=[confirm_conf])
 
-        with gr.Column():
+        with gr.Column(visible=False) as rvc_setting:
           with gr.Accordion("RVC Setting", open=False):
             with gr.Column(variant='compact'):
               with gr.Column():
-                gr.Markdown("### 1. To enable its use, mark it as enable.")
-                enable_rvc_custom_voice = gr.Checkbox(label="ENABLE", info="Check this to enable the use of the models.")
-                enable_rvc_custom_voice.change(custom_rvc_model_voice_enable, [enable_rvc_custom_voice], [])
+                # gr.Markdown("### 1. To enable its use, mark it as enable.")
+                # enable_rvc_custom_voice = gr.Checkbox(label="ENABLE", info="Check this to enable the use of the models.")
+                # enable_rvc_custom_voice.change(custom_rvc_model_voice_enable, [enable_rvc_custom_voice], [])
 
-                gr.Markdown("### 2. Select a voice that will be applied to each TTS of each corresponding speaker and apply the configurations.")
+                gr.Markdown("### 1. Select a voice that will be applied to each TTS of each corresponding speaker and apply the configurations.")
                 gr.Markdown('Depending on how many "TTS Speaker" you will use, each one needs its respective model. Additionally, there is an auxiliary one if for some reason the speaker is not detected correctly.')
                 gr.Markdown("Voice to apply to the first speaker.")
                 with gr.Row():
@@ -1186,9 +1220,8 @@ with gr.Blocks(theme=theme) as demo:
 
               confirm_conf = gr.HTML()
 
-            button_config.click(voices.apply_conf, inputs=[
+            button_config.click(rvc_voices.apply_conf, inputs=[
                 f0_method_global,
-                s2t_method, t2t_method, t2s_method,
                 model_voice_path00, name_transpose00, file_index2_00,
                 model_voice_path01, name_transpose01, file_index2_01,
                 model_voice_path02, name_transpose02, file_index2_02,
@@ -1199,39 +1232,49 @@ with gr.Blocks(theme=theme) as demo:
                 ], outputs=[confirm_conf])
 
 
-          with gr.Column():
-                with gr.Accordion("Test RVC", open=False):
+          # with gr.Column():
+          #       with gr.Accordion("Test RVC", open=False):
 
-                  with gr.Row(variant='compact'):
-                    text_test = gr.Textbox(label="Text", value="This is an example",info="write a text", placeholder="...", lines=5)
-                    with gr.Column(): 
-                      tts_test = gr.Dropdown(list_tts, value='en-GB-ThomasNeural-Male', label = 'TTS', visible=True, interactive= True)
-                      model_voice_path07 = gr.Dropdown(models, label = 'Model', visible=True, interactive= True) #value=''
-                      file_index2_07 = gr.Dropdown(index_paths, label = 'Index', visible=True, interactive= True) #value=''
-                      transpose_test = gr.Number(label = 'Transpose', value=0, visible=True, interactive= True, info="integer, number of semitones, raise by an octave: 12, lower by an octave: -12")
-                      f0method_test = gr.Dropdown(f0_methods_voice, value='harvest', label = 'F0 method', visible=True, interactive= True) 
-                  with gr.Row(variant='compact'):
-                    button_test = gr.Button("Test audio")
+          #         with gr.Row(variant='compact'):
+          #           text_test = gr.Textbox(label="Text", value="This is an example",info="write a text", placeholder="...", lines=5)
+          #           with gr.Column(): 
+          #             tts_test = gr.Dropdown(list_gtts, value='en-GB-ThomasNeural-Male', label = 'TTS', visible=True, interactive= True)
+          #             model_voice_path07 = gr.Dropdown(models, label = 'Model', visible=True, interactive= True) #value=''
+          #             file_index2_07 = gr.Dropdown(index_paths, label = 'Index', visible=True, interactive= True) #value=''
+          #             transpose_test = gr.Number(label = 'Transpose', value=0, visible=True, interactive= True, info="integer, number of semitones, raise by an octave: 12, lower by an octave: -12")
+          #             f0method_test = gr.Dropdown(f0_methods_voice, value='harvest', label = 'F0 method', visible=True, interactive= True) 
+          #         with gr.Row(variant='compact'):
+          #           button_test = gr.Button("Test audio")
 
-                  with gr.Column():
-                    with gr.Row():
-                      original_ttsvoice = gr.Audio()
-                      ttsvoice = gr.Audio()
+          #         with gr.Column():
+          #           with gr.Row():
+          #             original_ttsvoice = gr.Audio()
+          #             ttsvoice = gr.Audio()
 
-                    button_test.click(voices.make_test, inputs=[
-                        text_test,
-                        tts_test,
-                        model_voice_path07,
-                        file_index2_07,
-                        transpose_test,
-                        f0method_test,
-                        ], outputs=[ttsvoice, original_ttsvoice])
+          #           button_test.click(rvc_voices.make_test, inputs=[
+          #               text_test,
+          #               tts_test,
+          #               model_voice_path07,
+          #               file_index2_07,
+          #               transpose_test,
+          #               f0method_test,
+          #               ], outputs=[ttsvoice, original_ttsvoice])
 
-                download_button.click(download_list, [url_links], [download_finish]).then(update_models, [], 
-                                  [
-                                    model_voice_path00, model_voice_path01, model_voice_path02, model_voice_path03, model_voice_path04, model_voice_path05, model_voice_path06, model_voice_path07,
-                                    file_index2_00, file_index2_01, file_index2_02, file_index2_03, file_index2_04, file_index2_05, file_index2_06, file_index2_07
-                                  ])
+                # download_button.click(download_list, [url_links], [download_finish]).then(update_models, [], 
+                #                   [
+                #                     model_voice_path00, model_voice_path01, model_voice_path02, model_voice_path03, model_voice_path04, model_voice_path05, model_voice_path06, model_voice_path07,
+                #                     file_index2_00, file_index2_01, file_index2_02, file_index2_03, file_index2_04, file_index2_05, file_index2_06, file_index2_07
+                #                   ])
+        ## Update VC method
+        def update_voice_conversion(method):
+          svc_visibility_dict = {
+              f'svc_voice{i:02d}_row': gr.update(visible=method=='SVC') for i in range(6)
+          }
+          rvc_visibility_dict = {
+              f'rvc_voice{i:02d}_row': gr.update(visible=method=='RVC') for i in range(6)
+          }
+          return list(svc_visibility_dict.values()) + list(rvc_visibility_dict.values())
+        vc_method.change(update_voice_conversion, [vc_method], [svc_voice00,svc_voice01,svc_voice02,svc_voice03,svc_voice04,svc_voice05,rvc_voice00,rvc_voice01,rvc_voice02,rvc_voice03,rvc_voice04,rvc_voice05])
 
 
     with gr.Tab("Help"):
@@ -1251,6 +1294,7 @@ with gr.Blocks(theme=theme) as demo:
         s2t_method,
         t2t_method,
         t2s_method,
+        vc_method,
         disable_timeline,
         HFKEY,
         PREVIEW,
@@ -1267,19 +1311,31 @@ with gr.Blocks(theme=theme) as demo:
         tts_voice03,
         tts_voice04,
         tts_voice05,
+        rvc_voice00,
+        rvc_voice01,
+        rvc_voice02,
+        rvc_voice03,
+        rvc_voice04,
+        rvc_voice05,
+        svc_voice00,
+        svc_voice01,
+        svc_voice02,
+        svc_voice03,
+        svc_voice04,
+        svc_voice05,
         AUDIO_MIX,
         ], outputs=media_output)
 
 if __name__ == "__main__":
   # os.system('rm -rf /tmp/gradio/*')
-  #demo.launch(debug=True, enable_queue=True)
   auth_user = os.getenv('AUTH_USER', '')
   auth_pass = os.getenv('AUTH_PASS', '')
-  demo.launch(
-    auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-    share=False,
+  demo.queue(concurrency_count=1).launch(
+    # auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
+    show_api=False,
+    debug=False,
+    inbrowser=True,
+    # show_error=True,
     server_name="0.0.0.0",
     server_port=6860,
-    enable_queue=True,
-    quiet=True,
-    debug=False)
+    share=False)

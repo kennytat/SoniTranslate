@@ -285,7 +285,7 @@ class VC(object):
         protect,
         f0_file=None,
     ):
-        index_root = os.path.join("model","logs")
+        index_root = os.path.join("model","rvc")
         file_index = os.path.join(index_root, file_index)
         # print("file_index::",file_index)
         if (
