@@ -14,5 +14,6 @@ dictOfStrings = {
     'w': 'qu',
     'f': 'ph',
     'j': 'd',
-    'z': 'g'
+    'z': 'g',
+    '♪': ' sil '
 }
