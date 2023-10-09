@@ -147,15 +147,14 @@ print('Working in: ', device)
 list_gtts = ['af-ZA-AdriNeural-Female', 'af-ZA-WillemNeural-Male', 'am-ET-AmehaNeural-Male', 'am-ET-MekdesNeural-Female', 'ar-AE-FatimaNeural-Female', 'ar-AE-HamdanNeural-Male', 'ar-BH-AliNeural-Male', 'ar-BH-LailaNeural-Female', 'ar-DZ-AminaNeural-Female', 'ar-DZ-IsmaelNeural-Male', 'ar-EG-SalmaNeural-Female', 'ar-EG-ShakirNeural-Male', 'ar-IQ-BasselNeural-Male', 'ar-IQ-RanaNeural-Female', 'ar-JO-SanaNeural-Female', 'ar-JO-TaimNeural-Male', 'ar-KW-FahedNeural-Male', 'ar-KW-NouraNeural-Female', 'ar-LB-LaylaNeural-Female', 'ar-LB-RamiNeural-Male', 'ar-LY-ImanNeural-Female', 'ar-LY-OmarNeural-Male', 'ar-MA-JamalNeural-Male', 'ar-MA-MounaNeural-Female', 'ar-OM-AbdullahNeural-Male', 'ar-OM-AyshaNeural-Female', 'ar-QA-AmalNeural-Female', 'ar-QA-MoazNeural-Male', 'ar-SA-HamedNeural-Male', 'ar-SA-ZariyahNeural-Female', 'ar-SY-AmanyNeural-Female', 'ar-SY-LaithNeural-Male', 'ar-TN-HediNeural-Male', 'ar-TN-ReemNeural-Female', 'ar-YE-MaryamNeural-Female', 'ar-YE-SalehNeural-Male', 'az-AZ-BabekNeural-Male', 'az-AZ-BanuNeural-Female', 'bg-BG-BorislavNeural-Male', 'bg-BG-KalinaNeural-Female', 'bn-BD-NabanitaNeural-Female', 'bn-BD-PradeepNeural-Male', 'bn-IN-BashkarNeural-Male', 'bn-IN-TanishaaNeural-Female', 'bs-BA-GoranNeural-Male', 'bs-BA-VesnaNeural-Female', 'ca-ES-EnricNeural-Male', 'ca-ES-JoanaNeural-Female', 'cs-CZ-AntoninNeural-Male', 'cs-CZ-VlastaNeural-Female', 'cy-GB-AledNeural-Male', 'cy-GB-NiaNeural-Female', 'da-DK-ChristelNeural-Female', 'da-DK-JeppeNeural-Male', 'de-AT-IngridNeural-Female', 'de-AT-JonasNeural-Male', 'de-CH-JanNeural-Male', 'de-CH-LeniNeural-Female', 'de-DE-AmalaNeural-Female', 'de-DE-ConradNeural-Male', 'de-DE-KatjaNeural-Female', 'de-DE-KillianNeural-Male', 'el-GR-AthinaNeural-Female', 'el-GR-NestorasNeural-Male', 'en-AU-NatashaNeural-Female', 'en-AU-WilliamNeural-Male', 'en-CA-ClaraNeural-Female', 'en-CA-LiamNeural-Male', 'en-GB-LibbyNeural-Female', 'en-GB-MaisieNeural-Female', 'en-GB-RyanNeural-Male', 'en-GB-SoniaNeural-Female', 'en-GB-ThomasNeural-Male', 'en-HK-SamNeural-Male', 'en-HK-YanNeural-Female', 'en-IE-ConnorNeural-Male', 'en-IE-EmilyNeural-Female', 'en-IN-NeerjaExpressiveNeural-Female', 'en-IN-NeerjaNeural-Female', 'en-IN-PrabhatNeural-Male', 'en-KE-AsiliaNeural-Female', 'en-KE-ChilembaNeural-Male', 'en-NG-AbeoNeural-Male', 'en-NG-EzinneNeural-Female', 'en-NZ-MitchellNeural-Male', 'en-NZ-MollyNeural-Female', 'en-PH-JamesNeural-Male', 'en-PH-RosaNeural-Female', 'en-SG-LunaNeural-Female', 'en-SG-WayneNeural-Male', 'en-TZ-ElimuNeural-Male', 'en-TZ-ImaniNeural-Female', 'en-US-AnaNeural-Female', 'en-US-AriaNeural-Female', 'en-US-ChristopherNeural-Male', 'en-US-EricNeural-Male', 'en-US-GuyNeural-Male', 'en-US-JennyNeural-Female', 'en-US-MichelleNeural-Female', 'en-US-RogerNeural-Male', 'en-US-SteffanNeural-Male', 'en-ZA-LeahNeural-Female', 'en-ZA-LukeNeural-Male', 'es-AR-ElenaNeural-Female', 'es-AR-TomasNeural-Male', 'es-BO-MarceloNeural-Male', 'es-BO-SofiaNeural-Female', 'es-CL-CatalinaNeural-Female', 'es-CL-LorenzoNeural-Male', 'es-CO-GonzaloNeural-Male', 'es-CO-SalomeNeural-Female', 'es-CR-JuanNeural-Male', 'es-CR-MariaNeural-Female', 'es-CU-BelkysNeural-Female', 'es-CU-ManuelNeural-Male', 'es-DO-EmilioNeural-Male', 'es-DO-RamonaNeural-Female', 'es-EC-AndreaNeural-Female', 'es-EC-LuisNeural-Male', 'es-ES-AlvaroNeural-Male', 'es-ES-ElviraNeural-Female', 'es-GQ-JavierNeural-Male', 'es-GQ-TeresaNeural-Female', 'es-GT-AndresNeural-Male', 'es-GT-MartaNeural-Female', 'es-HN-CarlosNeural-Male', 'es-HN-KarlaNeural-Female', 'es-MX-DaliaNeural-Female', 'es-MX-JorgeNeural-Male', 'es-NI-FedericoNeural-Male', 'es-NI-YolandaNeural-Female', 'es-PA-MargaritaNeural-Female', 'es-PA-RobertoNeural-Male', 'es-PE-AlexNeural-Male', 'es-PE-CamilaNeural-Female', 'es-PR-KarinaNeural-Female', 'es-PR-VictorNeural-Male', 'es-PY-MarioNeural-Male', 'es-PY-TaniaNeural-Female', 'es-SV-LorenaNeural-Female', 'es-SV-RodrigoNeural-Male', 'es-US-AlonsoNeural-Male', 'es-US-PalomaNeural-Female', 'es-UY-MateoNeural-Male', 'es-UY-ValentinaNeural-Female', 'es-VE-PaolaNeural-Female', 'es-VE-SebastianNeural-Male', 'et-EE-AnuNeural-Female', 'et-EE-KertNeural-Male', 'fa-IR-DilaraNeural-Female', 'fa-IR-FaridNeural-Male', 'fi-FI-HarriNeural-Male', 'fi-FI-NooraNeural-Female', 'fil-PH-AngeloNeural-Male', 'fil-PH-BlessicaNeural-Female', 'fr-BE-CharlineNeural-Female', 'fr-BE-GerardNeural-Male', 'fr-CA-AntoineNeural-Male', 'fr-CA-JeanNeural-Male', 'fr-CA-SylvieNeural-Female', 'fr-CH-ArianeNeural-Female', 'fr-CH-FabriceNeural-Male', 'fr-FR-DeniseNeural-Female', 'fr-FR-EloiseNeural-Female', 'fr-FR-HenriNeural-Male', 'ga-IE-ColmNeural-Male', 'ga-IE-OrlaNeural-Female', 'gl-ES-RoiNeural-Male', 'gl-ES-SabelaNeural-Female', 'gu-IN-DhwaniNeural-Female', 'gu-IN-NiranjanNeural-Male', 'he-IL-AvriNeural-Male', 'he-IL-HilaNeural-Female', 'hi-IN-MadhurNeural-Male', 'hi-IN-SwaraNeural-Female', 'hr-HR-GabrijelaNeural-Female', 'hr-HR-SreckoNeural-Male', 'hu-HU-NoemiNeural-Female', 'hu-HU-TamasNeural-Male', 'id-ID-ArdiNeural-Male', 'id-ID-GadisNeural-Female', 'is-IS-GudrunNeural-Female', 'is-IS-GunnarNeural-Male', 'it-IT-DiegoNeural-Male', 'it-IT-ElsaNeural-Female', 'it-IT-IsabellaNeural-Female', 'ja-JP-KeitaNeural-Male', 'ja-JP-NanamiNeural-Female', 'jv-ID-DimasNeural-Male', 'jv-ID-SitiNeural-Female', 'ka-GE-EkaNeural-Female', 'ka-GE-GiorgiNeural-Male', 'kk-KZ-AigulNeural-Female', 'kk-KZ-DauletNeural-Male', 'km-KH-PisethNeural-Male', 'km-KH-SreymomNeural-Female', 'kn-IN-GaganNeural-Male', 'kn-IN-SapnaNeural-Female', 'ko-KR-InJoonNeural-Male', 'ko-KR-SunHiNeural-Female', 'lo-LA-ChanthavongNeural-Male', 'lo-LA-KeomanyNeural-Female', 'lt-LT-LeonasNeural-Male', 'lt-LT-OnaNeural-Female', 'lv-LV-EveritaNeural-Female', 'lv-LV-NilsNeural-Male', 'mk-MK-AleksandarNeural-Male', 'mk-MK-MarijaNeural-Female', 'ml-IN-MidhunNeural-Male', 'ml-IN-SobhanaNeural-Female', 'mn-MN-BataaNeural-Male', 'mn-MN-YesuiNeural-Female', 'mr-IN-AarohiNeural-Female', 'mr-IN-ManoharNeural-Male', 'ms-MY-OsmanNeural-Male', 'ms-MY-YasminNeural-Female', 'mt-MT-GraceNeural-Female', 'mt-MT-JosephNeural-Male', 'my-MM-NilarNeural-Female', 'my-MM-ThihaNeural-Male', 'nb-NO-FinnNeural-Male', 'nb-NO-PernilleNeural-Female', 'ne-NP-HemkalaNeural-Female', 'ne-NP-SagarNeural-Male', 'nl-BE-ArnaudNeural-Male', 'nl-BE-DenaNeural-Female', 'nl-NL-ColetteNeural-Female', 'nl-NL-FennaNeural-Female', 'nl-NL-MaartenNeural-Male', 'pl-PL-MarekNeural-Male', 'pl-PL-ZofiaNeural-Female', 'ps-AF-GulNawazNeural-Male', 'ps-AF-LatifaNeural-Female', 'pt-BR-AntonioNeural-Male', 'pt-BR-FranciscaNeural-Female', 'pt-PT-DuarteNeural-Male', 'pt-PT-RaquelNeural-Female', 'ro-RO-AlinaNeural-Female', 'ro-RO-EmilNeural-Male', 'ru-RU-DmitryNeural-Male', 'ru-RU-SvetlanaNeural-Female', 'si-LK-SameeraNeural-Male', 'si-LK-ThiliniNeural-Female', 'sk-SK-LukasNeural-Male', 'sk-SK-ViktoriaNeural-Female', 'sl-SI-PetraNeural-Female', 'sl-SI-RokNeural-Male', 'so-SO-MuuseNeural-Male', 'so-SO-UbaxNeural-Female', 'sq-AL-AnilaNeural-Female', 'sq-AL-IlirNeural-Male', 'sr-RS-NicholasNeural-Male', 'sr-RS-SophieNeural-Female', 'su-ID-JajangNeural-Male', 'su-ID-TutiNeural-Female', 'sv-SE-MattiasNeural-Male', 'sv-SE-SofieNeural-Female', 'sw-KE-RafikiNeural-Male', 'sw-KE-ZuriNeural-Female', 'sw-TZ-DaudiNeural-Male', 'sw-TZ-RehemaNeural-Female', 'ta-IN-PallaviNeural-Female', 'ta-IN-ValluvarNeural-Male', 'ta-LK-KumarNeural-Male', 'ta-LK-SaranyaNeural-Female', 'ta-MY-KaniNeural-Female', 'ta-MY-SuryaNeural-Male', 'ta-SG-AnbuNeural-Male', 'ta-SG-VenbaNeural-Female', 'te-IN-MohanNeural-Male', 'te-IN-ShrutiNeural-Female', 'th-TH-NiwatNeural-Male', 'th-TH-PremwadeeNeural-Female', 'tr-TR-AhmetNeural-Male', 'tr-TR-EmelNeural-Female', 'uk-UA-OstapNeural-Male', 'uk-UA-PolinaNeural-Female', 'ur-IN-GulNeural-Female', 'ur-IN-SalmanNeural-Male', 'ur-PK-AsadNeural-Male', 'ur-PK-UzmaNeural-Female', 'uz-UZ-MadinaNeural-Female', 'uz-UZ-SardorNeural-Male', 'vi-VN-HoaiMyNeural-Female', 'vi-VN-NamMinhNeural-Male', 'zh-CN-XiaoxiaoNeural-Female', 'zh-CN-XiaoyiNeural-Female', 'zh-CN-YunjianNeural-Male', 'zh-CN-YunxiNeural-Male', 'zh-CN-YunxiaNeural-Male', 'zh-CN-YunyangNeural-Male', 'zh-CN-liaoning-XiaobeiNeural-Female', 'zh-CN-shaanxi-XiaoniNeural-Female']
 list_vtts = [voice for voice in os.listdir(os.path.join("model","vietTTS")) if os.path.isdir(os.path.join("model","vietTTS", voice))]
 list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
-list_rvc = [voice for voice in os.listdir(os.path.join("model","weights")) if voice.endswith('.pth')]
+list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
 
 ### voices
 with capture.capture_output() as cap:
     os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
     os.system('mkdir -p downloads')
-    os.system('mkdir -p model/logs')
-    os.system('mkdir -p model/weights')
     os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
+    os.system(f'rm -rf audio2/SPEAKER_*')
     del cap
 
 
@@ -235,8 +234,7 @@ def download_list(text_downloads):
       return 'No valid link'
 
     os.system('mkdir -p downloads')
-    os.system('mkdir -p model/logs')
-    os.system('mkdir -p model/weights')
+    os.system('mkdir -p model/rvc')
     path_download = "downloads/"
     for url in urls:
       manual_download(url, path_download)
@@ -370,8 +368,11 @@ models, index_paths = upload_model_list()
 
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
 
-from voice_main import ClassVoices
-rvc_voices = ClassVoices()
+from rvc_voice_main import RVCClassVoices
+rvc_voices = RVCClassVoices()
+
+from svc_voice_main import SVCClassVoices
+svc_voices = SVCClassVoices()
 
 '''
 def translate_from_media(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
@@ -436,13 +437,22 @@ def batch_preprocess(
 ):
   if vc_method == "RVC":
     rvc_voices.apply_conf(f0method='harvest',
-                   model_voice_path00=rvc_voice00, transpose00=0, file_index2_00=rvc_voice00.replace('.pth','.index'),
-                   model_voice_path01=rvc_voice01, transpose01=0, file_index2_01=rvc_voice01.replace('.pth','.index'),
-                   model_voice_path02=rvc_voice02, transpose02=0, file_index2_02=rvc_voice02.replace('.pth','.index'),
-                   model_voice_path03=rvc_voice03, transpose03=0, file_index2_03=rvc_voice03.replace('.pth','.index'),
-                   model_voice_path04=rvc_voice04, transpose04=0, file_index2_04=rvc_voice04.replace('.pth','.index'),
-                   model_voice_path05=rvc_voice05, transpose05=0, file_index2_05=rvc_voice05.replace('.pth','.index'),
-                   model_voice_path99=None, transpose99=0, file_index2_99=None)
+      model_voice_path00=rvc_voice00, transpose00=0, file_index2_00=rvc_voice00.replace('.pth','.index'),
+      model_voice_path01=rvc_voice01, transpose01=0, file_index2_01=rvc_voice01.replace('.pth','.index'),
+      model_voice_path02=rvc_voice02, transpose02=0, file_index2_02=rvc_voice02.replace('.pth','.index'),
+      model_voice_path03=rvc_voice03, transpose03=0, file_index2_03=rvc_voice03.replace('.pth','.index'),
+      model_voice_path04=rvc_voice04, transpose04=0, file_index2_04=rvc_voice04.replace('.pth','.index'),
+      model_voice_path05=rvc_voice05, transpose05=0, file_index2_05=rvc_voice05.replace('.pth','.index'),
+      model_voice_path99=None, transpose99=0, file_index2_99=None)
+  if vc_method == "SVC":
+    svc_voices.apply_conf(
+      model_voice_path00=svc_voice00,
+      model_voice_path01=svc_voice01, 
+      model_voice_path02=svc_voice02,
+      model_voice_path03=svc_voice03,
+      model_voice_path04=svc_voice04, 
+      model_voice_path05=svc_voice05,
+    )
   ## Move all srt files to srt tempdir
   media_inputs = media_inputs if media_inputs is not None else []
   media_inputs = media_inputs if isinstance(media_inputs, list) else [media_inputs]
@@ -504,6 +514,7 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
 
     try:
         speaker = segment['speaker']
+        print("speaker::", speaker)
     except KeyError:
         segment['speaker'] = "SPEAKER_99"
         speaker = segment['speaker']
@@ -818,24 +829,18 @@ def translate_from_media(
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method) for (segment) in tqdm(result_diarize['segments']))
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
-
+    print("audio_files:",len(audio_files),audio_files)
+    print("speakers_list:",len(speakers_list),speakers_list)
     # custom voice
     if vc_method == 'SVC':
         progress(0.90, desc="Applying SVC customized voices...")
         print("start SVC::")
-        input_dir = os.path.join('audio2','audio')
-        model_name = 'vn_han_male'
-        SVC_MODEL_DIR = os.path.join(os.getcwd(),"model","svc", model_name)
-        model_path = os.path.join(SVC_MODEL_DIR, "G.pth")
-        config_path = os.path.join(SVC_MODEL_DIR, "config.json")
-        output_dir = f'{input_dir}.out'
-        os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
-        if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
-        shutil.move(output_dir, input_dir)     
+        svc_voices(speakers_list, audio_files)
         
     # custom voice
     if vc_method == 'RVC':
         progress(0.90, desc="Applying RVC customized voices...")
+        print("start RVC::")
         rvc_voices(speakers_list, audio_files)
 
     # replace files with the accelerates

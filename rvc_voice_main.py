@@ -299,7 +299,7 @@ class Config:
         return x_pad, x_query, x_center, x_max
 
 # call inference
-class ClassVoices:
+class RVCClassVoices:
     def __init__(self):
         self.file_index = "" # root
 
