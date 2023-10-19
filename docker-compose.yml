@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/mdds-labs/sonitranslate:v1.1.0
+    image: ghcr.io/mdds-labs/sonitranslate:v1.2.0
     container_name: soni
     deploy:
       resources:
@@ -21,7 +21,6 @@ services:
     environment:
       YOUR_HF_TOKEN: "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"
       YOUR_AUTH_TOKEN: "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"
-      SVC_VOICES_MODELS: "ENABLE"
       # AUTH_USER='test'
       # AUTH_PASS='test'
 

@@ -929,7 +929,7 @@ with demo:
                 media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='multiple', file_types=['audio','video'])
                 # path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
-                srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='directory', file_types=['.srt'])
+                srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='multiple', file_types=['.srt'])
                 gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
                 ## media_input change function
