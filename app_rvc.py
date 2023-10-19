@@ -397,7 +397,7 @@ def translate_from_media(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
 
 def batch_preprocess(
   media_inputs,
-  path_inputs,
+  # path_inputs,
   link_inputs,
   srt_inputs,
   s2t_method,
@@ -464,27 +464,27 @@ def batch_preprocess(
   Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True)
   os.system(f"rm -rf {youtube_temp_dir}/*")
   
-  path_inputs = [item.strip() for item in path_inputs.split(',')]
-  print("path_inputs::", path_inputs)
-  if path_inputs is not None and len(path_inputs) > 0 and path_inputs[0] != '':
-    for media_path in path_inputs:
-      media_path = media_path.strip()
-      print("media_path::", media_path)
-      if is_windows_path(media_path):
-        window_path = PureWindowsPath(media_path)
-        path_arr = [item for item in window_path.parts]
-        path_arr[0] = re.sub(r'\:\\','',path_arr[0].lower())
-        wsl_path = str(PurePosixPath('/mnt', *path_arr))
-        print("wsl_path::", wsl_path)
-        if os.path.exists(wsl_path):
-          media_inputs.append(wsl_path)
-        else:
-          raise Exception(f"Path not exist:: {wsl_path}")
-      else:
-        if os.path.exists(media_path):
-          media_inputs.append(media_path)
-        else:
-          raise Exception(f"Path not exist:: {media_path}")
+  # path_inputs = [item.strip() for item in path_inputs.split(',')]
+  # print("path_inputs::", path_inputs)
+  # if path_inputs is not None and len(path_inputs) > 0 and path_inputs[0] != '':
+  #   for media_path in path_inputs:
+  #     media_path = media_path.strip()
+  #     print("media_path::", media_path)
+  #     if is_windows_path(media_path):
+  #       window_path = PureWindowsPath(media_path)
+  #       path_arr = [item for item in window_path.parts]
+  #       path_arr[0] = re.sub(r'\:\\','',path_arr[0].lower())
+  #       wsl_path = str(PurePosixPath('/mnt', *path_arr))
+  #       print("wsl_path::", wsl_path)
+  #       if os.path.exists(wsl_path):
+  #         media_inputs.append(wsl_path)
+  #       else:
+  #         raise Exception(f"Path not exist:: {wsl_path}")
+  #     else:
+  #       if os.path.exists(media_path):
+  #         media_inputs.append(media_path)
+  #       else:
+  #         raise Exception(f"Path not exist:: {media_path}")
           
   link_inputs = link_inputs.split(',')
   # print("link_inputs::", link_inputs)
@@ -926,8 +926,8 @@ with demo:
         with gr.Row():
             with gr.Column():
                 #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='single', file_types=['audio','video'])
-                path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
+                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='multiple', file_types=['audio','video'])
+                # path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
                 srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='directory', file_types=['.srt'])
                 gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
@@ -1286,14 +1286,14 @@ with demo:
         gr.Markdown(tutorial)
         gr.Markdown(news)
 
-    with gr.Accordion("Logs", open = False):
-        logs = gr.Textbox()
-        demo.load(read_logs, None, logs, every=1)
+    # with gr.Accordion("Logs", open = False):
+    #     logs = gr.Textbox()
+    #     demo.load(read_logs, None, logs, every=1)
 
     # run
     video_button.click(batch_preprocess, inputs=[
         media_input,
-        path_input,
+        # path_input,
         link_input,
         srt_input,
         s2t_method,
@@ -1338,9 +1338,11 @@ if __name__ == "__main__":
   demo.queue(concurrency_count=1).launch(
     # auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
     show_api=False,
-    debug=False,
+    debug=True,
     inbrowser=True,
-    # show_error=True,
+    show_error=True,
     server_name="0.0.0.0",
     server_port=6860,
+    enable_queue=True,
+    # quiet=True,
     share=False)
