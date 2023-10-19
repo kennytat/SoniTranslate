@@ -20,6 +20,7 @@ jax==0.4.1
 jaxlib==0.4.1
 cryptography
 optax==0.1.4
+langdetect
 # so-vits-svc-fork
 so-vits-svc-fork
 #

@@ -134,7 +134,7 @@ if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
-    whisper_model_default = 'large-v2' if CUDA_MEM > 13000000000 else 'medium'
+    whisper_model_default = 'large-v2' if CUDA_MEM > 9000000000 else 'medium'
 else:
     device = "cpu"
     list_compute_type = ['float32']
@@ -868,7 +868,7 @@ def translate_from_media(
 
     os.system(f"rm -rf {media_output}")
     if is_video:
-      os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {media_output}")
+      os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a aac -map 0:v -map 1:a -shortest {media_output}")
     os.system(f"rm -rf {OutputFile}")
     if media_input.startswith('/tmp'):
       os.system(f"rm -rf {media_input}")
@@ -917,7 +917,7 @@ MAX_TTS = 6
 #             panel_background_fill = "#171717"
 #         )
 theme="Taithrah/Minimal"
-demo = gr.Blocks(theme=theme)
+demo = gr.Blocks(title="VGM Translate",theme=theme)
 with demo:
   gr.Markdown(title)
   gr.Markdown(description)

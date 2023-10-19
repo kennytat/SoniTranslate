@@ -26,5 +26,5 @@ services:
       # AUTH_PASS='test'
 
     volumes:
-      # - /mnt/backup/AI/sonitranslate/cache:/root/.cache
+      - /mnt/backup/AI/sonitranslate/cache:/root/.cache
       - /mnt/backup/AI/sonitranslate/model:/app/model
