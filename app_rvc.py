@@ -628,7 +628,7 @@ def translate_from_media(
     OutputFile = os.path.join(temp_dir, 'Video.mp4') if is_video else os.path.join(temp_dir, 'Audio.mp3')
     audio_wav = os.path.join(temp_dir, "audio_origin.wav")
     audio_webm = os.path.join(temp_dir, "audio_origin.webm")  
-    translated_output_file = os.path.join(temp_dir, "audio_translated.ogg")
+    translated_output_file = os.path.join(temp_dir, "audio_translated.wav")
     mix_audio = os.path.join(temp_dir, "audio_mix.mp3") 
     file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
     media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
