@@ -20,6 +20,7 @@ import librosa
 import ffmpeg
 import edge_tts
 import asyncio
+import math
 import gc
 from pydub import AudioSegment
 from tqdm import tqdm
@@ -541,12 +542,11 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
 
     # porcentaje
     porcentaje = duration_tts / duration_true
-
     if porcentaje <= 0.79:
         porcentaje = 0.8
 
     # Smooth and round
-    porcentaje = round(porcentaje+0.0, 4)
+    porcentaje = math.floor(porcentaje * 10000) / 10000
     porcentaje = 1.0 if disable_timeline else porcentaje     
     
     # apply aceleration or opposite to the audio file in audio2 folder
