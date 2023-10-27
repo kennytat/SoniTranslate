@@ -542,11 +542,10 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
 
     # porcentaje
     porcentaje = duration_tts / duration_true
-    if porcentaje <= 0.79:
-        porcentaje = 0.8
-
     # Smooth and round
     porcentaje = math.floor(porcentaje * 10000) / 10000
+    porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
+    porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
     porcentaje = 1.0 if disable_timeline else porcentaje     
     
     # apply aceleration or opposite to the audio file in audio2 folder
