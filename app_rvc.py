@@ -295,21 +295,22 @@ def new_dir_now():
     date_time = now.strftime("%Y%m%d%H%M")
     return date_time
   
-def concise_srt(srt_list):
+def concise_srt(srt_list, max_word_length=500):
+    if isinstance(srt_list[0], srt.Subtitle):
+      srt_list = list([vars(obj) for obj in srt_list])
+      for item in srt_list:
+        item["text"] = item.pop("content")
     modified_paras = []
-    for i, para in enumerate(srt_list):
+    print(srt_list)
+    for i, para in enumerate(srt_list):    
       try:
         if len(modified_paras) == 0:
           modified_paras.append(para)
-        para_text = srt_list[i]['content'] if "content" in para else srt_list[i]['text']
-        if i > 0 and para_text != "":
+        # print("processing::", i)
+        if i > 0 and srt_list[i]['text'] != "":
           last_para = modified_paras[-1]
-          # print("processing::", i)
-          test_combined_text = last_para['content'] + " " + para_text if "content" in last_para else last_para['text'] + " " + para_text
-          if len(test_combined_text) < 500 and last_para['end'] == para['start']:
-            if "content" in last_para:
-              srt_list[i]['content'] = ""
-              last_para['content'] = test_combined_text
+          test_combined_text = last_para['text'] + " " + srt_list[i]['text']
+          if len(test_combined_text) < max_word_length and last_para['end'] == para['start']:
             if "text" in last_para:
               srt_list[i]['text'] = ""
               last_para['text'] = test_combined_text
@@ -832,6 +833,7 @@ def translate_from_media(
       # Start convert from srt if srt found
       print("srt file exist::", target_srt_inputpath)
       result_diarize['segments'] = srt_to_segments(result_diarize['segments'], target_srt_inputpath)
+      result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
       result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
