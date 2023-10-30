@@ -61,7 +61,7 @@ description = """
 
 🎥 Upload a video or provide a video link. 📽️
 🎥 Upload SRT File for skiping S2T & T2T 📽️
- - SRT Format: "<video|audio name>-<language>.srt" - Example: "video-vi.srt"
+ - SRT Format: "<video|audio name>-<target-language>.srt" - Example: "video-vi.srt"
  - See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
 """
 
@@ -295,6 +295,41 @@ def new_dir_now():
     date_time = now.strftime("%Y%m%d%H%M")
     return date_time
   
+def concise_srt(srt_list):
+    modified_paras = []
+    for i, para in enumerate(srt_list):
+      try:
+        if len(modified_paras) == 0:
+          modified_paras.append(para)
+        para_text = srt_list[i]['content'] if "content" in para else srt_list[i]['text']
+        if i > 0 and para_text != "":
+          last_para = modified_paras[-1]
+          # print("processing::", i)
+          test_combined_text = last_para['content'] + " " + para_text if "content" in last_para else last_para['text'] + " " + para_text
+          if len(test_combined_text) < 500 and last_para['end'] == para['start']:
+            if "content" in last_para:
+              srt_list[i]['content'] = ""
+              last_para['content'] = test_combined_text
+            if "text" in last_para:
+              srt_list[i]['text'] = ""
+              last_para['text'] = test_combined_text
+            if "words" in last_para:
+              last_para['words'].extend(srt_list[i]['words'])
+            if "chars" in last_para:
+              last_para['chars'].extend(srt_list[i]['chars'])
+            last_para['end'] = srt_list[i]['end'] 
+            modified_paras[-1] = last_para
+          else:
+            modified_paras.append(para)
+      except Exception as error:
+        print("error::", i, error)
+        pass
+    for i, para in enumerate(modified_paras):
+      if "index" in para:
+        para['index'] = i + 1
+    # print("modified_paras::", len(modified_paras), modified_paras)
+    return modified_paras
+  
 def segments_to_srt(segments, output_path):
   # print("segments_to_srt::", type(segments[0]), segments)
   def srt_time(str):
@@ -508,7 +543,7 @@ def batch_preprocess(
       output.append(result)
   return output
 
-def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
+def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline):
     text = segment['text']
     start = segment['start']
     end = segment['end']
@@ -542,12 +577,12 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method):
 
     # porcentaje
     porcentaje = duration_tts / duration_true
+    print("change speed::", porcentaje, duration_tts, duration_true)
     # Smooth and round
     porcentaje = math.floor(porcentaje * 10000) / 10000
     porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
     porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
     porcentaje = 1.0 if disable_timeline else porcentaje     
-    
     # apply aceleration or opposite to the audio file in audio2 folder
     os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
 
@@ -787,6 +822,7 @@ def translate_from_media(
     print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
     ## Write source segment and srt,txt to file
     media_output_basename = os.path.join(temp_dir, file_name)
+    result_diarize['segments'] = concise_srt(result_diarize['segments'])
     segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.srt')
     segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
     with open(f'{media_output_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
@@ -821,7 +857,7 @@ def translate_from_media(
     print("Start TTS::")
     JOBS = os.cpu_count()/2 if t2s_method == "VietTTS" else 1
     with joblib.parallel_config(backend="multiprocessing", prefer="threads", n_jobs=int(JOBS)):
-      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method) for (segment) in tqdm(result_diarize['segments']))
+      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
     print("audio_files:",len(audio_files),audio_files)
