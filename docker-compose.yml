@@ -19,8 +19,8 @@ services:
     ports:
       - 6860:6860
     environment:
-      YOUR_HF_TOKEN: "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"
-      YOUR_AUTH_TOKEN: "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"
+      YOUR_HF_TOKEN: "YOUR_HF_TOKEN"
+      YOUR_AUTH_TOKEN: "YOUR_AUTH_TOKEN"
       # AUTH_USER='test'
       # AUTH_PASS='test'
 

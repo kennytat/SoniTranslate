@@ -304,13 +304,13 @@ class RVCClassVoices:
         self.file_index = "" # root
 
     def apply_conf(self, f0method,
-                   model_voice_path00, transpose00, file_index2_00,
-                   model_voice_path01, transpose01, file_index2_01,
-                   model_voice_path02, transpose02, file_index2_02,
-                   model_voice_path03, transpose03, file_index2_03,
-                   model_voice_path04, transpose04, file_index2_04,
-                   model_voice_path05, transpose05, file_index2_05,
-                   model_voice_path99, transpose99, file_index2_99):
+                   model_voice_path00=None, transpose00=0, file_index2_00=None,
+                   model_voice_path01=None, transpose01=0, file_index2_01=None,
+                   model_voice_path02=None, transpose02=0, file_index2_02=None,
+                   model_voice_path03=None, transpose03=0, file_index2_03=None,
+                   model_voice_path04=None, transpose04=0, file_index2_04=None,
+                   model_voice_path05=None, transpose05=0, file_index2_05=None,
+                   model_voice_path99=None, transpose99=0, file_index2_99=None):
 
         #self.filename = filename
         self.f0method = f0method # pm
@@ -553,3 +553,11 @@ class RVCClassVoices:
                 )
             else:
                 pass
+
+if __name__ == "__main__":
+  audio_files = ['audio/test2.wav']
+  speakers_list = ['SPEAKER_00']
+  rvc_voices = RVCClassVoices()
+  rvc_voice00 = "AG2014.pth"
+  rvc_voices.apply_conf(f0method='harvest', model_voice_path00=rvc_voice00, transpose00=0, file_index2_00=rvc_voice00.replace('.pth','.index'))
+  rvc_voices(speakers_list, audio_files)

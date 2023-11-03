@@ -33,14 +33,6 @@ Any answers other than "YES" [case-insensitive] skip the standarisation.
 """
 
 import os
-
-# File "config.py" is essential for running module "config"
-# Create file "config.py" if it is missing.
-# The following two lines are written for use of this parser outside UniqueBible.app
-# if not os.path.isfile("config.py"):
-# 		open("config.py", "a").close()
-
-# import modules, which are ESSENTIAL for running BibleVerseParser
 import re
 # from ast import literal_eval
 from vietTTS.BibleBooks import BibleBooks

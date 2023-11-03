@@ -12,15 +12,10 @@ scipy
 langdetect
 -e git+https://github.com/pytorch/fairseq.git@v0.12.1#egg=fairseq
 # vietTTS
-numpy==1.24.3
-numba==0.57.0
-vietnam_number
-dm-haiku
-jax==0.4.1
-jaxlib==0.4.1
+regex
 cryptography
-optax==0.1.4
 langdetect
+vietnam_number
 # so-vits-svc-fork
 so-vits-svc-fork
 #
