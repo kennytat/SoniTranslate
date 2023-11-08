@@ -334,6 +334,7 @@ def concise_srt(srt_list, max_word_length=500):
   
 def segments_to_srt(segments, output_path):
   # print("segments_to_srt::", type(segments[0]), segments)
+  shutil.rmtree(output_path, ignore_errors=True)
   def srt_time(str):
     return re.sub(r"\.",",",re.sub(r"0{3}$","",str)) if re.search(r"\.\d{6}", str) else f'{str},000'
   for index, segment in enumerate(segments):
@@ -766,9 +767,9 @@ def translate_from_media(
     print("Transcript complete::")
 
     
-    # 2. Align whisper output
-    print("Start aligning::")
-    progress(0.45, desc="Aligning...")
+    # 2. Align whisper output for source language
+    print("Start aligning source language::")
+    progress(0.45, desc="Aligning source language...")
     DAMHF.update(DAMT) #lang align
     EXTRA_ALIGN = {
         "hi": "theainerd/Wav2Vec2-large-xlsr-hindi"
@@ -795,7 +796,7 @@ def translate_from_media(
         return_char_alignments=True,
         )
     gc.collect(); torch.cuda.empty_cache(); del model_a
-    print("Align complete::")
+    print("Align source language complete::")
 
     if result['segments'] == []:
         print('No active speech found in audio')
@@ -814,9 +815,10 @@ def translate_from_media(
     result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
     gc.collect(); torch.cuda.empty_cache(); del diarize_model
     print("Diarize complete")
-    
+
+    # 4. Translate to target language
     print("Start translating::")
-    progress(0.75, desc="Translating...")
+    progress(0.65, desc="Translating...")
     if TRANSLATE_AUDIO_TO == "zh":
         TRANSLATE_AUDIO_TO = "zh-CN"
     if TRANSLATE_AUDIO_TO == "he":
@@ -825,11 +827,11 @@ def translate_from_media(
     ## Write source segment and srt,txt to file
     media_output_basename = os.path.join(temp_dir, file_name)
     print("result_diarize['segments'] length",len(result_diarize['segments']))
-    result_diarize['segments'] = concise_srt(result_diarize['segments'])
     segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.srt')
-    segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
     with open(f'{media_output_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
+    result_diarize['segments'] = concise_srt(result_diarize['segments'])
+    segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
     target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{os.path.splitext(media_output_name)[0]}.srt')
     if os.path.exists(target_srt_inputpath):
       # Start convert from srt if srt found
@@ -845,7 +847,8 @@ def translate_from_media(
       srtFile.write(json.dumps(result_diarize['segments']))
     print("Translation complete")
 
-    progress(0.85, desc="Text_to_speech...")
+    # 5. TTS target language
+    progress(0.75, desc="Text_to_speech...")
     audio_files = []
     speakers_list = []
 
@@ -865,15 +868,15 @@ def translate_from_media(
     speakers_list = [result[1] for result in tts_results]
     print("audio_files:",len(audio_files),audio_files)
     print("speakers_list:",len(speakers_list),speakers_list)
-    # custom voice
+    
+    # 6. Convert to target voices
     if vc_method == 'SVC':
-        progress(0.90, desc="Applying SVC customized voices...")
+        progress(0.80, desc="Applying SVC customized voices...")
         print("start SVC::")
         svc_voices(speakers_list, audio_files)
         
-    # custom voice
     if vc_method == 'RVC':
-        progress(0.90, desc="Applying RVC customized voices...")
+        progress(0.80, desc="Applying RVC customized voices...")
         print("start RVC::")
         rvc_voices(speakers_list, audio_files)
 
@@ -881,13 +884,37 @@ def translate_from_media(
     os.system("mv -f audio2/audio/*.ogg audio/")
 
     os.system(f"rm -rf {translated_output_file}")
-
-    progress(0.95, desc="Creating final translated media...")
-
+    
+    # 7. Join target language audio files
+    progress(0.85, desc="Creating final translated media...")
     create_translated_audio(result_diarize, audio_files, translated_output_file, disable_timeline)
 
-    os.system(f"rm -rf {mix_audio}")
+    # 8. Align whisper output for source language
+    print("Start aligning target language::")
+    progress(0.90, desc="Aligning target language...")
 
+    translated_audio = whisperx.load_audio(translated_output_file)
+    model_a, metadata = whisperx.load_align_model(
+        language_code=TRANSLATE_AUDIO_TO,
+        device=device,
+        model_name = None
+        )
+    result = whisperx.align(
+        result_diarize['segments'],
+        model_a,
+        metadata,
+        translated_audio,
+        device,
+        return_char_alignments=True,
+        )
+    segments_to_srt(result['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
+    gc.collect(); torch.cuda.empty_cache(); del model_a
+    print("Align target language complete::")
+
+    # 8. Combine final audio and video
+    print("Mixing source and target voices::")
+    progress(0.95, desc="Mixing final video...")
+    os.system(f"rm -rf {mix_audio}")  
     # TYPE MIX AUDIO
     if AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
         # volume mix
@@ -900,6 +927,7 @@ def translate_from_media(
             # volume mix except
             os.system(f'ffmpeg -y -i {audio_wav} -i {translated_output_file} -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
 
+    print("Mixing target audio and video::")
     os.system(f"rm -rf {media_output}")
     if is_video:
       os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a aac -map 0:v -map 1:a -shortest {media_output}")
