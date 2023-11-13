@@ -8,21 +8,22 @@ from datetime import timedelta, datetime
 from pathlib import Path,PureWindowsPath, PurePosixPath
 import joblib
 from joblib import Parallel, delayed
-import numpy as np
+# import numpy as np
 import gradio as gr
 import whisperx
 from whisperx.utils import LANGUAGES as LANG_TRANSCRIPT
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
 from IPython.utils import capture
 import torch
+import torch.multiprocessing as mp
 from gtts import gTTS
 import librosa
 import ffmpeg
-import edge_tts
-import asyncio
+# import edge_tts
+# import asyncio
 import math
 import gc
-from pydub import AudioSegment
+# from pydub import AudioSegment
 from tqdm import tqdm
 from deep_translator import GoogleTranslator
 import os
@@ -31,7 +32,7 @@ from text_to_speech import make_voice_gradio
 from translate_segments import translate_text
 import time
 import shutil
-from urllib.parse import unquote
+# from urllib.parse import unquote
 import zipfile
 import rarfile
 import logging
@@ -44,18 +45,6 @@ load_dotenv()
 
 title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
 
-news = """ ## 📖 News
-        🔥 2023/07/26: New UI and add mix options.
-
-        🔥 2023/07/27: Fix some bug processing the video and audio.
-
-        🔥 2023/08/01: Add options for use RVC models.
-
-        🔥 2023/08/02: Added support for Arabic, Czech, Danish, Finnish, Greek, Hebrew, Hungarian, Korean, Persian, Polish, Russian, Turkish, Urdu, Hindi, and Vietnamese languages. 🌐
-
-        🔥 2023/08/03: Changed default options and added directory view of downloads..
-        """
-
 description = """
 ### 🎥 **Translate videos easily with VGM Translate!** 📽️
 
@@ -64,8 +53,6 @@ description = """
  - SRT Format: "<video|audio name>-<target-language>.srt" - Example: "video-vi.srt"
  - See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
 """
-
-
 
 tutorial = """
 
@@ -127,10 +114,8 @@ LANGUAGES = {
     'Hindi (hi)': 'hi',
 }
 
-ydl = yt_dlp.YoutubeDL()
 # Check GPU
 CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-print("CUDA_MEM::", CUDA_MEM)
 if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
@@ -141,23 +126,11 @@ else:
     list_compute_type = ['float32']
     compute_type_default = 'float32'
     whisper_model_default = 'medium'
-print('Working in: ', device)
-
-
 
 list_gtts = ['af-ZA-AdriNeural-Female', 'af-ZA-WillemNeural-Male', 'am-ET-AmehaNeural-Male', 'am-ET-MekdesNeural-Female', 'ar-AE-FatimaNeural-Female', 'ar-AE-HamdanNeural-Male', 'ar-BH-AliNeural-Male', 'ar-BH-LailaNeural-Female', 'ar-DZ-AminaNeural-Female', 'ar-DZ-IsmaelNeural-Male', 'ar-EG-SalmaNeural-Female', 'ar-EG-ShakirNeural-Male', 'ar-IQ-BasselNeural-Male', 'ar-IQ-RanaNeural-Female', 'ar-JO-SanaNeural-Female', 'ar-JO-TaimNeural-Male', 'ar-KW-FahedNeural-Male', 'ar-KW-NouraNeural-Female', 'ar-LB-LaylaNeural-Female', 'ar-LB-RamiNeural-Male', 'ar-LY-ImanNeural-Female', 'ar-LY-OmarNeural-Male', 'ar-MA-JamalNeural-Male', 'ar-MA-MounaNeural-Female', 'ar-OM-AbdullahNeural-Male', 'ar-OM-AyshaNeural-Female', 'ar-QA-AmalNeural-Female', 'ar-QA-MoazNeural-Male', 'ar-SA-HamedNeural-Male', 'ar-SA-ZariyahNeural-Female', 'ar-SY-AmanyNeural-Female', 'ar-SY-LaithNeural-Male', 'ar-TN-HediNeural-Male', 'ar-TN-ReemNeural-Female', 'ar-YE-MaryamNeural-Female', 'ar-YE-SalehNeural-Male', 'az-AZ-BabekNeural-Male', 'az-AZ-BanuNeural-Female', 'bg-BG-BorislavNeural-Male', 'bg-BG-KalinaNeural-Female', 'bn-BD-NabanitaNeural-Female', 'bn-BD-PradeepNeural-Male', 'bn-IN-BashkarNeural-Male', 'bn-IN-TanishaaNeural-Female', 'bs-BA-GoranNeural-Male', 'bs-BA-VesnaNeural-Female', 'ca-ES-EnricNeural-Male', 'ca-ES-JoanaNeural-Female', 'cs-CZ-AntoninNeural-Male', 'cs-CZ-VlastaNeural-Female', 'cy-GB-AledNeural-Male', 'cy-GB-NiaNeural-Female', 'da-DK-ChristelNeural-Female', 'da-DK-JeppeNeural-Male', 'de-AT-IngridNeural-Female', 'de-AT-JonasNeural-Male', 'de-CH-JanNeural-Male', 'de-CH-LeniNeural-Female', 'de-DE-AmalaNeural-Female', 'de-DE-ConradNeural-Male', 'de-DE-KatjaNeural-Female', 'de-DE-KillianNeural-Male', 'el-GR-AthinaNeural-Female', 'el-GR-NestorasNeural-Male', 'en-AU-NatashaNeural-Female', 'en-AU-WilliamNeural-Male', 'en-CA-ClaraNeural-Female', 'en-CA-LiamNeural-Male', 'en-GB-LibbyNeural-Female', 'en-GB-MaisieNeural-Female', 'en-GB-RyanNeural-Male', 'en-GB-SoniaNeural-Female', 'en-GB-ThomasNeural-Male', 'en-HK-SamNeural-Male', 'en-HK-YanNeural-Female', 'en-IE-ConnorNeural-Male', 'en-IE-EmilyNeural-Female', 'en-IN-NeerjaExpressiveNeural-Female', 'en-IN-NeerjaNeural-Female', 'en-IN-PrabhatNeural-Male', 'en-KE-AsiliaNeural-Female', 'en-KE-ChilembaNeural-Male', 'en-NG-AbeoNeural-Male', 'en-NG-EzinneNeural-Female', 'en-NZ-MitchellNeural-Male', 'en-NZ-MollyNeural-Female', 'en-PH-JamesNeural-Male', 'en-PH-RosaNeural-Female', 'en-SG-LunaNeural-Female', 'en-SG-WayneNeural-Male', 'en-TZ-ElimuNeural-Male', 'en-TZ-ImaniNeural-Female', 'en-US-AnaNeural-Female', 'en-US-AriaNeural-Female', 'en-US-ChristopherNeural-Male', 'en-US-EricNeural-Male', 'en-US-GuyNeural-Male', 'en-US-JennyNeural-Female', 'en-US-MichelleNeural-Female', 'en-US-RogerNeural-Male', 'en-US-SteffanNeural-Male', 'en-ZA-LeahNeural-Female', 'en-ZA-LukeNeural-Male', 'es-AR-ElenaNeural-Female', 'es-AR-TomasNeural-Male', 'es-BO-MarceloNeural-Male', 'es-BO-SofiaNeural-Female', 'es-CL-CatalinaNeural-Female', 'es-CL-LorenzoNeural-Male', 'es-CO-GonzaloNeural-Male', 'es-CO-SalomeNeural-Female', 'es-CR-JuanNeural-Male', 'es-CR-MariaNeural-Female', 'es-CU-BelkysNeural-Female', 'es-CU-ManuelNeural-Male', 'es-DO-EmilioNeural-Male', 'es-DO-RamonaNeural-Female', 'es-EC-AndreaNeural-Female', 'es-EC-LuisNeural-Male', 'es-ES-AlvaroNeural-Male', 'es-ES-ElviraNeural-Female', 'es-GQ-JavierNeural-Male', 'es-GQ-TeresaNeural-Female', 'es-GT-AndresNeural-Male', 'es-GT-MartaNeural-Female', 'es-HN-CarlosNeural-Male', 'es-HN-KarlaNeural-Female', 'es-MX-DaliaNeural-Female', 'es-MX-JorgeNeural-Male', 'es-NI-FedericoNeural-Male', 'es-NI-YolandaNeural-Female', 'es-PA-MargaritaNeural-Female', 'es-PA-RobertoNeural-Male', 'es-PE-AlexNeural-Male', 'es-PE-CamilaNeural-Female', 'es-PR-KarinaNeural-Female', 'es-PR-VictorNeural-Male', 'es-PY-MarioNeural-Male', 'es-PY-TaniaNeural-Female', 'es-SV-LorenaNeural-Female', 'es-SV-RodrigoNeural-Male', 'es-US-AlonsoNeural-Male', 'es-US-PalomaNeural-Female', 'es-UY-MateoNeural-Male', 'es-UY-ValentinaNeural-Female', 'es-VE-PaolaNeural-Female', 'es-VE-SebastianNeural-Male', 'et-EE-AnuNeural-Female', 'et-EE-KertNeural-Male', 'fa-IR-DilaraNeural-Female', 'fa-IR-FaridNeural-Male', 'fi-FI-HarriNeural-Male', 'fi-FI-NooraNeural-Female', 'fil-PH-AngeloNeural-Male', 'fil-PH-BlessicaNeural-Female', 'fr-BE-CharlineNeural-Female', 'fr-BE-GerardNeural-Male', 'fr-CA-AntoineNeural-Male', 'fr-CA-JeanNeural-Male', 'fr-CA-SylvieNeural-Female', 'fr-CH-ArianeNeural-Female', 'fr-CH-FabriceNeural-Male', 'fr-FR-DeniseNeural-Female', 'fr-FR-EloiseNeural-Female', 'fr-FR-HenriNeural-Male', 'ga-IE-ColmNeural-Male', 'ga-IE-OrlaNeural-Female', 'gl-ES-RoiNeural-Male', 'gl-ES-SabelaNeural-Female', 'gu-IN-DhwaniNeural-Female', 'gu-IN-NiranjanNeural-Male', 'he-IL-AvriNeural-Male', 'he-IL-HilaNeural-Female', 'hi-IN-MadhurNeural-Male', 'hi-IN-SwaraNeural-Female', 'hr-HR-GabrijelaNeural-Female', 'hr-HR-SreckoNeural-Male', 'hu-HU-NoemiNeural-Female', 'hu-HU-TamasNeural-Male', 'id-ID-ArdiNeural-Male', 'id-ID-GadisNeural-Female', 'is-IS-GudrunNeural-Female', 'is-IS-GunnarNeural-Male', 'it-IT-DiegoNeural-Male', 'it-IT-ElsaNeural-Female', 'it-IT-IsabellaNeural-Female', 'ja-JP-KeitaNeural-Male', 'ja-JP-NanamiNeural-Female', 'jv-ID-DimasNeural-Male', 'jv-ID-SitiNeural-Female', 'ka-GE-EkaNeural-Female', 'ka-GE-GiorgiNeural-Male', 'kk-KZ-AigulNeural-Female', 'kk-KZ-DauletNeural-Male', 'km-KH-PisethNeural-Male', 'km-KH-SreymomNeural-Female', 'kn-IN-GaganNeural-Male', 'kn-IN-SapnaNeural-Female', 'ko-KR-InJoonNeural-Male', 'ko-KR-SunHiNeural-Female', 'lo-LA-ChanthavongNeural-Male', 'lo-LA-KeomanyNeural-Female', 'lt-LT-LeonasNeural-Male', 'lt-LT-OnaNeural-Female', 'lv-LV-EveritaNeural-Female', 'lv-LV-NilsNeural-Male', 'mk-MK-AleksandarNeural-Male', 'mk-MK-MarijaNeural-Female', 'ml-IN-MidhunNeural-Male', 'ml-IN-SobhanaNeural-Female', 'mn-MN-BataaNeural-Male', 'mn-MN-YesuiNeural-Female', 'mr-IN-AarohiNeural-Female', 'mr-IN-ManoharNeural-Male', 'ms-MY-OsmanNeural-Male', 'ms-MY-YasminNeural-Female', 'mt-MT-GraceNeural-Female', 'mt-MT-JosephNeural-Male', 'my-MM-NilarNeural-Female', 'my-MM-ThihaNeural-Male', 'nb-NO-FinnNeural-Male', 'nb-NO-PernilleNeural-Female', 'ne-NP-HemkalaNeural-Female', 'ne-NP-SagarNeural-Male', 'nl-BE-ArnaudNeural-Male', 'nl-BE-DenaNeural-Female', 'nl-NL-ColetteNeural-Female', 'nl-NL-FennaNeural-Female', 'nl-NL-MaartenNeural-Male', 'pl-PL-MarekNeural-Male', 'pl-PL-ZofiaNeural-Female', 'ps-AF-GulNawazNeural-Male', 'ps-AF-LatifaNeural-Female', 'pt-BR-AntonioNeural-Male', 'pt-BR-FranciscaNeural-Female', 'pt-PT-DuarteNeural-Male', 'pt-PT-RaquelNeural-Female', 'ro-RO-AlinaNeural-Female', 'ro-RO-EmilNeural-Male', 'ru-RU-DmitryNeural-Male', 'ru-RU-SvetlanaNeural-Female', 'si-LK-SameeraNeural-Male', 'si-LK-ThiliniNeural-Female', 'sk-SK-LukasNeural-Male', 'sk-SK-ViktoriaNeural-Female', 'sl-SI-PetraNeural-Female', 'sl-SI-RokNeural-Male', 'so-SO-MuuseNeural-Male', 'so-SO-UbaxNeural-Female', 'sq-AL-AnilaNeural-Female', 'sq-AL-IlirNeural-Male', 'sr-RS-NicholasNeural-Male', 'sr-RS-SophieNeural-Female', 'su-ID-JajangNeural-Male', 'su-ID-TutiNeural-Female', 'sv-SE-MattiasNeural-Male', 'sv-SE-SofieNeural-Female', 'sw-KE-RafikiNeural-Male', 'sw-KE-ZuriNeural-Female', 'sw-TZ-DaudiNeural-Male', 'sw-TZ-RehemaNeural-Female', 'ta-IN-PallaviNeural-Female', 'ta-IN-ValluvarNeural-Male', 'ta-LK-KumarNeural-Male', 'ta-LK-SaranyaNeural-Female', 'ta-MY-KaniNeural-Female', 'ta-MY-SuryaNeural-Male', 'ta-SG-AnbuNeural-Male', 'ta-SG-VenbaNeural-Female', 'te-IN-MohanNeural-Male', 'te-IN-ShrutiNeural-Female', 'th-TH-NiwatNeural-Male', 'th-TH-PremwadeeNeural-Female', 'tr-TR-AhmetNeural-Male', 'tr-TR-EmelNeural-Female', 'uk-UA-OstapNeural-Male', 'uk-UA-PolinaNeural-Female', 'ur-IN-GulNeural-Female', 'ur-IN-SalmanNeural-Male', 'ur-PK-AsadNeural-Male', 'ur-PK-UzmaNeural-Female', 'uz-UZ-MadinaNeural-Female', 'uz-UZ-SardorNeural-Male', 'vi-VN-HoaiMyNeural-Female', 'vi-VN-NamMinhNeural-Male', 'zh-CN-XiaoxiaoNeural-Female', 'zh-CN-XiaoyiNeural-Female', 'zh-CN-YunjianNeural-Male', 'zh-CN-YunxiNeural-Male', 'zh-CN-YunxiaNeural-Male', 'zh-CN-YunyangNeural-Male', 'zh-CN-liaoning-XiaobeiNeural-Female', 'zh-CN-shaanxi-XiaoniNeural-Female']
-list_vtts = [voice for voice in os.listdir(os.path.join("model","vietTTS")) if os.path.isdir(os.path.join("model","vietTTS", voice))]
+list_vtts = [voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))]
 list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
 list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
-
-### voices
-with capture.capture_output() as cap:
-    os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
-    os.system('mkdir -p downloads')
-    os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-    os.system(f'rm -rf audio2/SPEAKER_*')
-    del cap
-
 
 def print_tree_directory(root_dir, indent=''):
     if not os.path.exists(root_dir):
@@ -197,8 +170,7 @@ def upload_model_list():
         if name.endswith(".index"):
             index_paths.append(name)
             # index_paths.append(os.path.join(index_root, name))
-
-    print("rvc models::", len(models))
+    # print("rvc models::", len(models))
     return models, index_paths
 
 def manual_download(url, dst):
@@ -403,7 +375,7 @@ def youtube_download(url, output_path):
         ydl_download.download([url])
 
      
-models, index_paths = upload_model_list()
+# models, index_paths = upload_model_list()
 
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
 
@@ -448,6 +420,7 @@ def batch_preprocess(
   preview=False,
   WHISPER_MODEL_SIZE="large-v2",
   batch_size=16,
+  chunk_size=5,
   compute_type="float16",
   SOURCE_LANGUAGE= "Automatic detection",
   TRANSLATE_AUDIO_TO="English (en)",
@@ -532,7 +505,7 @@ def batch_preprocess(
       url = url.strip()
       # print('testing url::', url.startswith( 'https://www.youtube.com' ))
       if url.startswith('https://www.youtube.com'):
-        media_info =  ydl.extract_info(url, download=False)
+        media_info = yt_dlp.YoutubeDL().extract_info(url, download=False)
         download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
         youtube_download(url, download_path)
         media_inputs.append(download_path) 
@@ -542,7 +515,7 @@ def batch_preprocess(
       os.system(f"mv {srt.name} {srt_temp_dir}/")
   if media_inputs is not None and len(media_inputs)> 0:
     for media in media_inputs:
-      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
+      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
       output.append(result)
   return output
 
@@ -588,7 +561,7 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timel
     porcentaje = 1.0 if disable_timeline else porcentaje     
     # apply aceleration or opposite to the audio file in audio2 folder
     os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
-
+    gc.collect(); torch.cuda.empty_cache()    
     # duration_create = librosa.get_duration(filename=f"audio2/{filename}")
     return (filename, speaker) 
   
@@ -603,6 +576,7 @@ def translate_from_media(
     preview=False,
     WHISPER_MODEL_SIZE="large-v2",
     batch_size=16,
+    chunk_size=5,
     compute_type="float16",
     SOURCE_LANGUAGE= "Automatic detection",
     TRANSLATE_AUDIO_TO="English (en)",
@@ -751,9 +725,8 @@ def translate_from_media(
     SOURCE_LANGUAGE = None if SOURCE_LANGUAGE == 'Automatic detection' else SOURCE_LANGUAGE
 
     # 1. Transcribe with original whisper (batched)
-    print("Start transcribing::")
+    print("Start transcribing source language::")
     with capture.capture_output() as cap:
-
       model = whisperx.load_model(
           WHISPER_MODEL_SIZE,
           device,
@@ -764,39 +737,41 @@ def translate_from_media(
     audio = whisperx.load_audio(audio_wav)
     result = model.transcribe(audio, batch_size=batch_size)
     gc.collect(); torch.cuda.empty_cache(); del model
-    print("Transcript complete::")
+    print("Transcript complete::", len(result["segments"]), result["segments"])
 
     
-    # 2. Align whisper output for source language
-    print("Start aligning source language::")
-    progress(0.45, desc="Aligning source language...")
-    DAMHF.update(DAMT) #lang align
-    EXTRA_ALIGN = {
-        "hi": "theainerd/Wav2Vec2-large-xlsr-hindi"
-    } # add new align models here
-    #print(result['language'], DAM.keys(), EXTRA_ALIGN.keys())
-    SOURCE_LANGUAGE = result['language']
-    if not result['language'] in DAMHF.keys() and not result['language'] in EXTRA_ALIGN.keys():
-        audio = result = None
-        print("Automatic detection: Source language not compatible")
-        print(f"Detected language {result['language']}  incompatible, you can select the source language to avoid this error.")
-        return
-
-    model_a, metadata = whisperx.load_align_model(
-        language_code=result["language"],
-        device=device,
-        model_name = None if result["language"] in DAMHF.keys() else EXTRA_ALIGN[result["language"]]
-        )
-    result = whisperx.align(
-        result["segments"],
-        model_a,
-        metadata,
-        audio,
-        device,
-        return_char_alignments=True,
-        )
-    gc.collect(); torch.cuda.empty_cache(); del model_a
-    print("Align source language complete::")
+    # # 2. Align whisper output for source language
+    # print("Start aligning source language::")
+    # progress(0.45, desc="Aligning source language...")
+    # DAMHF.update(DAMT) #lang align
+    # EXTRA_ALIGN = {
+    #     "hi": "theainerd/Wav2Vec2-large-xlsr-hindi"
+    # } # add new align models here
+    # #print(result['language'], DAM.keys(), EXTRA_ALIGN.keys())
+    # SOURCE_LANGUAGE = result['language']
+    # if not result['language'] in DAMHF.keys() and not result['language'] in EXTRA_ALIGN.keys():
+    #     audio = result = None
+    #     print("Automatic detection: Source language not compatible")
+    #     print(f"Detected language {result['language']}  incompatible, you can select the source language to avoid this error.")
+    #     return
+      
+    ## Start aligning source language
+    # model_a, metadata = whisperx.load_align_model(
+    #     language_code=result["language"],
+    #     device=device,
+    #     model_name = None if result["language"] in DAMHF.keys() else EXTRA_ALIGN[result["language"]]
+    #     )
+    # print("whisperx align model loaded::")
+    # result = whisperx.align(
+    #     result["segments"],
+    #     model_a,
+    #     metadata,
+    #     audio,
+    #     device,
+    #     return_char_alignments=True,
+    #     )
+    # print("Align source language complete::", result["segments"])
+    # gc.collect(); torch.cuda.empty_cache(); del model_a
 
     if result['segments'] == []:
         print('No active speech found in audio')
@@ -804,21 +779,25 @@ def translate_from_media(
 
     # 3. Assign speaker labels
     print("Start Diarizing::")
-    progress(0.60, desc="Diarizing...")
-    with capture.capture_output() as cap:
-      diarize_model = whisperx.DiarizationPipeline(use_auth_token=YOUR_HF_TOKEN, device=device)
-      del cap
-    diarize_segments = diarize_model(
-        audio_wav,
-        min_speakers=min_speakers,
-        max_speakers=max_speakers)
-    result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
-    gc.collect(); torch.cuda.empty_cache(); del diarize_model
-    print("Diarize complete")
+    progress(0.50, desc="Diarizing...")
+    if max_speakers > 1:
+      with capture.capture_output() as cap:
+        diarize_model = whisperx.DiarizationPipeline(use_auth_token=YOUR_HF_TOKEN, device=device)
+        del cap
+      diarize_segments = diarize_model(
+          audio_wav,
+          min_speakers=min_speakers,
+          max_speakers=max_speakers)
+      result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
+      gc.collect(); torch.cuda.empty_cache(); del diarize_model
+    else:
+      result_diarize = result
+      result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
+    print("Diarize complete::")
 
     # 4. Translate to target language
     print("Start translating::")
-    progress(0.65, desc="Translating...")
+    progress(0.6, desc="Translating...")
     if TRANSLATE_AUDIO_TO == "zh":
         TRANSLATE_AUDIO_TO = "zh-CN"
     if TRANSLATE_AUDIO_TO == "he":
@@ -841,6 +820,7 @@ def translate_from_media(
     else:
       # Start translate if srt not found
       result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
+      gc.collect(); torch.cuda.empty_cache()
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
     with open(f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.json', 'a', encoding='utf-8') as srtFile:
@@ -848,7 +828,7 @@ def translate_from_media(
     print("Translation complete")
 
     # 5. TTS target language
-    progress(0.75, desc="Text_to_speech...")
+    progress(0.7, desc="Text_to_speech...")
     audio_files = []
     speakers_list = []
 
@@ -861,8 +841,9 @@ def translate_from_media(
         'SPEAKER_04': tts_voice04,
         'SPEAKER_05': tts_voice05
     }
-    print("Start TTS::")
-    with joblib.parallel_config(backend="multiprocessing", prefer="threads", n_jobs=1):
+    N_JOBS = round(CUDA_MEM*0.7/1000000000)
+    print("Start TTS:: concurrency =", N_JOBS)
+    with joblib.parallel_config(backend="multiprocessing", prefer="threads", n_jobs=N_JOBS):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
@@ -889,27 +870,23 @@ def translate_from_media(
     progress(0.85, desc="Creating final translated media...")
     create_translated_audio(result_diarize, audio_files, translated_output_file, disable_timeline)
 
-    # 8. Align whisper output for source language
-    print("Start aligning target language::")
-    progress(0.90, desc="Aligning target language...")
-
-    translated_audio = whisperx.load_audio(translated_output_file)
-    model_a, metadata = whisperx.load_align_model(
-        language_code=TRANSLATE_AUDIO_TO,
-        device=device,
-        model_name = None
-        )
-    result = whisperx.align(
-        result_diarize['segments'],
-        model_a,
-        metadata,
-        translated_audio,
-        device,
-        return_char_alignments=True,
-        )
-    segments_to_srt(result['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
-    gc.collect(); torch.cuda.empty_cache(); del model_a
-    print("Align target language complete::")
+    # # 8. Transribe target language for smaller chunk
+    # print("Start transcribing target language::")
+    # progress(0.90, desc="Transcribing target language...")
+    # with capture.capture_output() as cap:
+    #   model = whisperx.load_model(
+    #       WHISPER_MODEL_SIZE,
+    #       device,
+    #       compute_type=compute_type,
+    #       language= SOURCE_LANGUAGE,
+    #       )
+    #   del cap
+    # audio = whisperx.load_audio(translated_output_file)
+    # result = model.transcribe(audio, batch_size=batch_size, chunk_size=chunk_size)
+    # ## Write target segment and srt to file
+    # segments_to_srt(result['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
+    # gc.collect(); torch.cuda.empty_cache(); del model
+    # print("Transcribe target language complete::", len(result["segments"]),result["segments"])
 
     # 8. Combine final audio and video
     print("Mixing source and target voices::")
@@ -998,10 +975,11 @@ with demo:
                 # link = gr.HTML()
                 # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
 
-                SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video")
-                TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Translate audio to', info="Select the target language, and make sure to select the language corresponding to the speakers of the target language to avoid errors in the process.")
+                with gr.Row():
+                  SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Automatic detection',label = 'Source language', info="This is the original language of the video", scale=1)
+                  TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', info="Select the target language for translation", scale=1)
 
-                line_ = gr.HTML("<hr>")
+                # line_ = gr.HTML("<hr>")
                 gr.Markdown("Select how many people are speaking in the video.")
                 min_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
                 max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
@@ -1042,15 +1020,17 @@ with demo:
 
                           AUDIO_MIX = gr.Dropdown(['Mixing audio with sidechain compression', 'Adjusting volumes and mixing audio'], value='Adjusting volumes and mixing audio', label = 'Audio Mixing Method', info="Mix original and translated audio files to create a customized, balanced output with two available mixing modes.")
 
-                          gr.HTML("<hr></h2>")
+                          # gr.HTML("<hr>")
                           gr.Markdown("Default configuration of Whisper.")
-                          WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2'], value=whisper_model_default, label="Whisper model", interactive=True)
-                          batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, interactive=True)
-                          compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type", interactive=True)
-
-                          gr.HTML("<hr></h2>")
+                          with gr.Row():
+                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2'], value=whisper_model_default, label="Whisper model", interactive=True, scale=1)
+                            compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type", interactive=True, scale=1)
+                          with gr.Row():
+                            batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, interactive=True)
+                            chunk_size = gr.Slider(2, 30, value=5, label="Chuck size", step=1, interactive=True)
+                          # gr.HTML("<hr>")
                           # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
-                          PREVIEW = gr.Checkbox(label="Preview", info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
+                          PREVIEW = gr.Checkbox(label="Preview", visible=False, info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
                 
                 ## update_output_filename if media_input or TRANSLATE_AUDIO_TO change
                 # def update_output_filename(file,lang):
@@ -1066,7 +1046,7 @@ with demo:
                 with gr.Row():
                     media_output = gr.Files(label="DOWNLOAD TRANSLATED VIDEO") #gr.Video()
 
-                line_ = gr.HTML("<hr></h2>")
+                line_ = gr.HTML("<hr>")
                 if os.getenv("YOUR_HF_TOKEN") == None or os.getenv("YOUR_HF_TOKEN") == "":
                   HFKEY = gr.Textbox(visible= True, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
                 else:
@@ -1346,7 +1326,7 @@ with demo:
 
     with gr.Tab("Help"):
         gr.Markdown(tutorial)
-        gr.Markdown(news)
+        # gr.Markdown(news)
 
     # with gr.Accordion("Logs", open = False):
     #     logs = gr.Textbox()
@@ -1367,6 +1347,7 @@ with demo:
         PREVIEW,
         WHISPER_MODEL_SIZE,
         batch_size,
+        chunk_size,
         compute_type,
         SOURCE_LANGUAGE,
         TRANSLATE_AUDIO_TO,
@@ -1394,7 +1375,15 @@ with demo:
         ], outputs=media_output)
 
 if __name__ == "__main__":
-  # os.system('rm -rf /tmp/gradio/*')
+  mp.set_start_method('spawn', force=True)
+  
+  # os.system('rm -rf /tmp/gradio/*') os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
+  os.system('mkdir -p downloads')
+  os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
+  os.system(f'rm -rf audio2/SPEAKER_*')
+  print("CUDA_MEM::", CUDA_MEM)
+  print('Working in:: ', device)
+  
   auth_user = os.getenv('AUTH_USER', '')
   auth_pass = os.getenv('AUTH_PASS', '')
   demo.queue(concurrency_count=1).launch(
