@@ -21,7 +21,6 @@ class SVCClassVoices:
       self.model_voice_path05 = model_voice_path05
       
     def __call__(self, speaker_list, audio_files):
-      print("start SVC::")
       try:
         speaker_to_model = {
             'SPEAKER_00': self.model_voice_path00,

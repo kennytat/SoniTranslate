@@ -6,6 +6,7 @@ from vb_translate import vb_translate
 from deep_translator import GoogleTranslator
 
 import torch
+import gc
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from peft import PeftModel
 
@@ -56,4 +57,5 @@ def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method):
         print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
         segments[line]['text'] = translated_line
     # print("translate_text_out::", segments)
+    gc.collect(); torch.cuda.empty_cache(); del t5_model
     return segments
