@@ -26,12 +26,12 @@ def vb_translate(raw_input):
     shutil.rmtree(tmp_dir)
   os.makedirs(tmp_dir, exist_ok=False)
 	
-  g = open(os.path.join(tmp_dir,"para_2_raw_count.json"), 'w')
+  g = open(os.path.join(tmp_dir,"para_2_raw_count.json"), 'w', encoding='utf-8')
   json.dump(para_2_list_raw_sent, g, indent=3)
   g.close()
 
-  g = open(os.path.join(tmp_dir, "text.en"), 'w')
-  g.write("\n".join(list_raw_sent))
+  g = open(os.path.join(tmp_dir, "text.en"), 'w', encoding="utf-8")
+  g.write(str("\n".join(list_raw_sent)))
   g.close()
 
   file = os.path.join(tmp_dir, "text.en")
@@ -51,13 +51,13 @@ def vb_translate(raw_input):
 
   os.system(f"python {BPEROOT}/apply_bpe.py --input {lower_file} --output {bpe_file} -c {TRANS_TOOL_DIR}/bpe_code/code.en --num-workers {int(os.cpu_count()/2)}")
 
-  f = open(bpe_file, 'r')
+  f = open(bpe_file, 'r', encoding='utf-8')
   list_sent = [l.strip() for l in f]
   f.close()
   gram = translate_text_processor.generate_gram(list_sent)
 
   assert len(list_sent) == len(gram)
-  g = open(gram_file, 'w')
+  g = open(gram_file, 'w', encoding='utf-8')
   g.write("\n".join(gram))
   g.close()
 
@@ -84,7 +84,7 @@ def vb_translate(raw_input):
     --batch-size 60 --beam 4 --remove-bpe > {trans_file}"
   )
 
-  f = open(trans_file, 'r')
+  f = open(trans_file, 'r', encoding='utf-8')
   lines = f.readlines()
   f.close()
 
@@ -141,7 +141,7 @@ def vb_translate(raw_input):
       list_vi_trans.append(" &#91; câu chưa dịch &#93; ")
       print("TRANSLATION FAILED")
 
-  g = open(os.path.join(tmp_dir, 'vi_text.txt'), 'w')
+  g = open(os.path.join(tmp_dir, 'vi_text.txt'), 'w', encoding='utf-8')
   g.write("\n".join(list_vi_trans))
   g.close()
 
@@ -169,7 +169,7 @@ def vb_translate(raw_input):
     --batch-size 128 --beam 4 --remove-bpe > {tmp_dir}/vi_lc.txt"
   )
 
-  f = open(os.path.join(tmp_dir, 'vi_lc.txt'))
+  f = open(os.path.join(tmp_dir, 'vi_lc.txt'), encoding='utf-8')
   lines = f.readlines()
   f.close()
 
@@ -193,7 +193,7 @@ def vb_translate(raw_input):
         print("warning: id appear more than 1 time: ", line)
       vi_idx_2_text[num] = text
 
-  f = open(os.path.join(tmp_dir, 'vi_text.txt') , 'r')
+  f = open(os.path.join(tmp_dir, 'vi_text.txt') , 'r', encoding='utf-8')
   list_vi_trans = [l.strip() for l in f]
   f.close()
 
@@ -201,19 +201,19 @@ def vb_translate(raw_input):
   for i in range(len(list_vi_trans)):
     list_vi_up.append(vi_idx_2_text[i])
 
-  g = open(os.path.join(tmp_dir, 'vi_trans.txt'), 'w')
+  g = open(os.path.join(tmp_dir, 'vi_trans.txt'), 'w', encoding='utf-8')
   g.write('\n'.join(list_vi_up))
   g.close()
 
-  f = open(os.path.join(tmp_dir,'vi_trans.txt'))
+  f = open(os.path.join(tmp_dir,'vi_trans.txt'), encoding='utf-8')
   vi_lines = [l.strip() for l in f]
   f.close()
 
-  f = open(os.path.join(tmp_dir, 'text.en'))
+  f = open(os.path.join(tmp_dir, 'text.en'), encoding='utf-8')
   raw_en_lines = [l.strip() for l in f]
   f.close()
 
-  en_para_json = json.load(open(os.path.join(tmp_dir, "para_2_raw_count.json")))
+  en_para_json = json.load(open(os.path.join(tmp_dir, "para_2_raw_count.json"), encoding='utf-8'))
 
   vi_pos = 4
   en_para_list = list()

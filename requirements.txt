@@ -7,8 +7,8 @@ gTTS
 pydub==0.25.1
 edge_tts==6.1.7
 deep_translator==1.11.4
-git+https://github.com/m-bain/whisperx.git
 python-dotenv
 datetime
 pathlib
 srt
+whisperx @ git+https://github.com/kennytat/whisperx.git@large-v3

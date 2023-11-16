@@ -88,6 +88,7 @@ Tip: You can use `Test RVC` to experiment and find the best TTS or configuration
 LANGUAGES = {
     'Automatic detection': 'Automatic detection',
     'Arabic (ar)': 'ar',
+    'Cantonese (yue)': 'yue',
     'Chinese (zh)': 'zh',
     'Czech (cs)': 'cs',
     'Danish (da)': 'da',
@@ -120,7 +121,7 @@ if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
-    whisper_model_default = 'large-v2' if CUDA_MEM > 9000000000 else 'medium'
+    whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
 else:
     device = "cpu"
     list_compute_type = ['float32']
@@ -735,7 +736,7 @@ def translate_from_media(
           )
       del cap
     audio = whisperx.load_audio(audio_wav)
-    result = model.transcribe(audio, batch_size=batch_size)
+    result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size)
     gc.collect(); torch.cuda.empty_cache(); del model
     print("Transcript complete::", len(result["segments"]), result["segments"])
 
@@ -840,9 +841,9 @@ def translate_from_media(
         'SPEAKER_04': tts_voice04,
         'SPEAKER_05': tts_voice05
     }
-    N_JOBS = round(CUDA_MEM*0.7/1000000000)
+    N_JOBS = round(CUDA_MEM*0.5/1000000000)
     print("Start TTS:: concurrency =", N_JOBS)
-    with joblib.parallel_config(backend="multiprocessing", prefer="threads", n_jobs=N_JOBS):
+    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
@@ -975,7 +976,7 @@ with demo:
                 # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
 
                 with gr.Row():
-                  SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='English (en)',label = 'Source language', info="This is the original language of the video", scale=1)
+                  SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Cantonese (yue)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='English (en)',label = 'Source language', info="This is the original language of the video", scale=1)
                   TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', info="Select the target language for translation", scale=1)
 
                 # line_ = gr.HTML("<hr>")
@@ -1022,7 +1023,7 @@ with demo:
                           # gr.HTML("<hr>")
                           gr.Markdown("Default configuration of Whisper.")
                           with gr.Row():
-                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2'], value=whisper_model_default, label="Whisper model", interactive=True, scale=1)
+                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model", interactive=True, scale=1)
                             compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type", interactive=True, scale=1)
                           with gr.Row():
                             batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1, interactive=True)
@@ -1379,7 +1380,8 @@ if __name__ == "__main__":
   # os.system('rm -rf /tmp/gradio/*') os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  os.system(f'rm -rf audio2/SPEAKER_*')
+  
+  os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print("CUDA_MEM::", CUDA_MEM)
   print('Working in:: ', device)
   

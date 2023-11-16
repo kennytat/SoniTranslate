@@ -8,7 +8,7 @@ import unicodedata
 from types import SimpleNamespace
 from pydub import AudioSegment
 from langdetect import detect
-
+import gc
 import numpy as np
 import regex
 from vietTTS.models import DurationNet, SynthesizerTrn
@@ -162,6 +162,7 @@ def text_to_speech(text, output_file, model_name,speed = 1):
       wav = np.concatenate([tts_result])
       sf.write(output_file, wav, samplerate=sample_rate)
       print("Wav segment written at: {}".format(output_file))
+    gc.collect(); torch.cuda.empty_cache(); del duration_net; del generator
     return "Done"
   
 # if __name__ == '__main__':
