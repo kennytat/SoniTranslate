@@ -25,7 +25,7 @@ def vb_translate(raw_input):
   if os.path.exists(tmp_dir) and os.path.isdir(tmp_dir):
     shutil.rmtree(tmp_dir)
   os.makedirs(tmp_dir, exist_ok=False)
-	
+  
   g = open(os.path.join(tmp_dir,"para_2_raw_count.json"), 'w', encoding='utf-8')
   json.dump(para_2_list_raw_sent, g, indent=3)
   g.close()
@@ -45,11 +45,11 @@ def vb_translate(raw_input):
 
   os.system(f"cat {file} \
   | perl {TRANS_TOOL_DIR}/mosesdecoder/scripts/tokenizer/remove-non-printing-char.perl \
-  | perl {TRANS_TOOL_DIR}/mosesdecoder/scripts/tokenizer/tokenizer.perl -threads {int(os.cpu_count()/2)} -l en > {new_file}")
+  | perl {TRANS_TOOL_DIR}/mosesdecoder/scripts/tokenizer/tokenizer.perl -threads 8 -l en > {new_file}")
 
   os.system(f"perl {TRANS_TOOL_DIR}/mosesdecoder/scripts/tokenizer/lowercase.perl <{new_file}> {lower_file}")
 
-  os.system(f"python {BPEROOT}/apply_bpe.py --input {lower_file} --output {bpe_file} -c {TRANS_TOOL_DIR}/bpe_code/code.en --num-workers {int(os.cpu_count()/2)}")
+  os.system(f"python {BPEROOT}/apply_bpe.py --input {lower_file} --output {bpe_file} -c {TRANS_TOOL_DIR}/bpe_code/code.en --num-workers 8")
 
   f = open(bpe_file, 'r', encoding='utf-8')
   list_sent = [l.strip() for l in f]
@@ -72,7 +72,7 @@ def vb_translate(raw_input):
         --tgtdict {TRANS_TOOL_DIR}/dict/dict.vi.txt \
         --testpref {testpref} \
         --destdir {destdir} \
-        --workers {int(os.cpu_count()/2)}"
+        --workers 8"
   )
 
   os.system(f"cp {TRANS_TOOL_DIR}/dict/dict.vi.txt {destdir}")
@@ -81,7 +81,7 @@ def vb_translate(raw_input):
     f"fairseq-generate {destdir} \
     --path {os.path.join(MODEL_DIR,'vb_model','checkpoint_last.pt')} \
     --max-len-b 300 \
-    --batch-size 60 --beam 4 --remove-bpe > {trans_file}"
+    --batch-size 80 --beam 4 --remove-bpe --fp16 --empty-cache-freq 10 > {trans_file}"
   )
 
   f = open(trans_file, 'r', encoding='utf-8')
@@ -147,7 +147,7 @@ def vb_translate(raw_input):
 
   os.system(
     f"python {BPEROOT}/apply_bpe.py -c {TRANS_TOOL_DIR}/bpe_code_lc/code \
-    -i {tmp_dir}/vi_text.txt -o {tmp_dir}/lc.clean.bpe.en --num-workers {int(os.cpu_count()/2)}"
+    -i {tmp_dir}/vi_text.txt -o {tmp_dir}/lc.clean.bpe.en --num-workers 8"
   )
 
   os.system(
@@ -158,7 +158,7 @@ def vb_translate(raw_input):
         --tgtdict {TRANS_TOOL_DIR}/dict_lc/dict.vi.txt \
         --testpref {tmp_dir}/lc.clean.bpe \
         --destdir {tmp_dir}/lc.en.pre \
-        --workers {int(os.cpu_count()/2)}"
+        --workers 8"
   )
 
   os.system(f"cp {TRANS_TOOL_DIR}/dict_lc/dict.vi.txt {tmp_dir}/lc.en.pre")
@@ -166,7 +166,7 @@ def vb_translate(raw_input):
   os.system(
     f"fairseq-generate {tmp_dir}/lc.en.pre \
     --path {os.path.join(MODEL_DIR,'vb_model_lc','checkpoint_last.pt')} \
-    --batch-size 128 --beam 4 --remove-bpe > {tmp_dir}/vi_lc.txt"
+    --batch-size 100 --beam 4 --remove-bpe > {tmp_dir}/vi_lc.txt"
   )
 
   f = open(os.path.join(tmp_dir, 'vi_lc.txt'), encoding='utf-8')
@@ -259,18 +259,20 @@ def vb_translate(raw_input):
   return vi_para_list
 
 
-# if __name__ == '__main__':
-#   raw_str = """At the first God made the heaven and the earth.
-#             And the earth was waste and without form; and it was dark on the face of the deep: and the Spirit of God was moving on the face of the waters.
-#             And God said, Let there be light: and there was light.
-#             And God, looking on the light, saw that it was good: and God made a division between the light and the dark,
-#             Naming the light, Day, and the dark, Night. And there was evening and there was morning, the first day.
-#             And God said, Let there be a solid arch stretching over the waters, parting the waters from the waters.
-#             And God made the arch for a division between the waters which were under the arch and those which were over it: and it was so.
-#             And God gave the arch the name of Heaven. And there was evening and there was morning, the second day.
-#             And God said, Let the waters under the heaven come together in one place, and let the dry land be seen: and it was so.
-#             And God gave the dry land the name of Earth; and the waters together in their place were named Seas: and God saw that it was good.
-#             And God said, Let grass come up on the earth, and plants producing seed, and fruit-trees giving fruit, in which is their seed, after their sort: and it was so."""
-#   result = vb_translate(raw_str)
-#   print("result::", result)
+if __name__ == '__main__':
+  # raw_str = """At the first God made the heaven and the earth.
+  #           And the earth was waste and without form; and it was dark on the face of the deep: and the Spirit of God was moving on the face of the waters.
+  #           And God said, Let there be light: and there was light.
+  #           And God, looking on the light, saw that it was good: and God made a division between the light and the dark,
+  #           Naming the light, Day, and the dark, Night. And there was evening and there was morning, the first day.
+  #           And God said, Let there be a solid arch stretching over the waters, parting the waters from the waters.
+  #           And God made the arch for a division between the waters which were under the arch and those which were over it: and it was so.
+  #           And God gave the arch the name of Heaven. And there was evening and there was morning, the second day.
+  #           And God said, Let the waters under the heaven come together in one place, and let the dry land be seen: and it was so.
+  #           And God gave the dry land the name of Earth; and the waters together in their place were named Seas: and God saw that it was good.
+  #           And God said, Let grass come up on the earth, and plants producing seed, and fruit-trees giving fruit, in which is their seed, after their sort: and it was so."""
+  
+  with open('/home/vgm/Desktop/test/test.txt', 'r') as f:
+    result = vb_translate(f.read())
+  print("result::", result)
 

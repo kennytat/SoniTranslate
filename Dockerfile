@@ -29,4 +29,4 @@ COPY . .
 
 EXPOSE 6860
 
-CMD python app_rvc.py
+CMD python app.py

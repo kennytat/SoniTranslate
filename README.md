@@ -38,7 +38,7 @@ git submodule update --init --recursive
 pip install -r requirements.txt
 pip install -r requirements_extra.txt
 conda install -y libcusparse=11.7.3.50 -c nvidia
-python app_rvc.py
+python app.py
 ```
 
 ## Example:
