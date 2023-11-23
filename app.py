@@ -721,7 +721,7 @@ def translate_from_media(
                   return
 
     print("Set file complete.")
-    progress(0.30, desc="Transcribing...")
+    progress(0.30, desc="Speech to Text...")
 
     SOURCE_LANGUAGE = None if SOURCE_LANGUAGE == 'Automatic detection' else SOURCE_LANGUAGE
 
@@ -845,6 +845,12 @@ def translate_from_media(
     print("Start TTS:: concurrency =", N_JOBS)
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
+    
+    # tts_results = []
+    # for segment in tqdm(result_diarize['segments']):
+    #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline)
+    #   tts_results.append(tts_result)
+      
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
     print("audio_files:",len(audio_files))

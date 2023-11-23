@@ -23,6 +23,7 @@ num_re = regex.compile(r"([0-9.,]*[0-9])")
 alphabet = "aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵbcdđghklmnpqrstvx"
 keep_text_and_num_re = regex.compile(rf"[^\s{alphabet}.,0-9]")
 keep_text_re = regex.compile(rf"[^\s{alphabet}]")
+voice_data = {}
 
 def text_to_phone_idx(text, phone_set, sil_idx):
     # lowercase
@@ -65,12 +66,7 @@ def text_to_phone_idx(text, phone_set, sil_idx):
         tokens = tokens + [0, sil_idx]
     return tokens
 
-def inference(duration_net, generator, text, model_path, hps, speed, max_word_length=750):
-    phone_set_file = os.path.join(model_path,"phone_set.json")
-    # load phone set json file
-    with open(phone_set_file, "r") as f:
-        phone_set = json.load(f)
-
+def inference(duration_net, generator, text, phone_set, hps, speed, max_word_length=750):
     assert phone_set[0][1:-1] == "SEP"
     assert "sil" in phone_set
     sil_idx = phone_set.index("sil")
@@ -136,13 +132,23 @@ def load_models(model_path, hps):
     return duration_net, generator
         
 def text_to_speech(text, output_file, model_name,speed = 1):
+    global voice_data
+    if model_name not in voice_data:
+      voice_data[model_name] = {"config": None, "phone_set": None}
     tts_voice_ckpt_dir = os.path.join(TTS_MODEL_DIR, model_name)
     print("Starting TTS {}".format(output_file))
-    ### Get hifigan path
+    ### load hifigan config
     config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
-    with open(config_file, "rb") as f:
-      hps = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
-    sample_rate = hps.data.sampling_rate
+    if not voice_data[model_name]["config"]:
+      with open(config_file, "rb") as f:
+        voice_data[model_name]["config"] = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
+    sample_rate = voice_data[model_name]["config"].data.sampling_rate
+    ### load phoneset
+    phone_set_file = os.path.join(tts_voice_ckpt_dir,"phone_set.json")
+    if not voice_data[model_name]["phone_set"]:
+      with open(phone_set_file, "r") as f:
+        voice_data[model_name]["phone_set"] = json.load(f)
+        
     print("tts text::", text)
     if re.sub(r'^sil\s+','',text).isnumeric():
         silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
@@ -156,9 +162,9 @@ def text_to_speech(text, output_file, model_name,speed = 1):
         second_of_silence = second_of_silence.set_frame_rate(sample_rate)
         second_of_silence.export(output_file, format="wav")
     else:
-      duration_net, generator = load_models(tts_voice_ckpt_dir, hps)
+      duration_net, generator = load_models(tts_voice_ckpt_dir, voice_data[model_name]["config"])
       text = text if detect(text) == 'vi' else ' . '
-      tts_result = inference(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
+      tts_result = inference(duration_net, generator, text, voice_data[model_name]["phone_set"], voice_data[model_name]["config"], speed)
       wav = np.concatenate([tts_result])
       sf.write(output_file, wav, samplerate=sample_rate)
       print("Wav segment written at: {}".format(output_file))

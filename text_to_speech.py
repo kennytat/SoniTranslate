@@ -22,7 +22,12 @@ from vietTTS.vietTTS import text_to_speech
 def make_voice_gradio(tts_text, tts_voice, filename, language, t2s_method):
     print("make_voice_gradio::",tts_text, tts_voice, filename, language, t2s_method)
     if t2s_method == "VietTTS" and language == "vi" :
-      text_to_speech(tts_text, filename, tts_voice)
+      try:
+        text_to_speech(tts_text, filename, tts_voice)
+      except Exception as error:
+        print("tts error:", error, tts_text)
+        tts = gTTS('a', lang=language)
+        tts.save(filename)
     else:
       try:
         asyncio.run(edge_tts.Communicate(tts_text, "-".join(tts_voice.split('-')[:-1])).save(filename))
