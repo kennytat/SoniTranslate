@@ -888,7 +888,7 @@ def translate_from_media(
     #       )
     #   del cap
     # audio = whisperx.load_audio(translated_output_file)
-    # result = model.transcribe(audio, batch_size=batch_size, chunk_size=chunk_size)
+    # result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
     # ## Write target segment and srt to file
     # segments_to_srt(result['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
     # gc.collect(); torch.cuda.empty_cache(); del model

@@ -22,7 +22,8 @@ def t5_translator(input_text: str, tokenizer, model):
         output_texts = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
         # print("output_texts::::", sentences, output_texts)
         output_texts = [re.sub(r"^(vi|vn|en)\:? ", "", text) for text in output_texts]
-        return post_process_text_vi(output_texts)
+        output_texts = [post_process_text_vi(text) for text in output_texts]
+        return output_texts
     result = process_batch(input_text.split("\n"))
     return "\n".join(result)
 
@@ -41,13 +42,16 @@ def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method):
       t5_model = AutoModelForSeq2SeqLM.from_pretrained(BASE_MODEL).to(device)
       t5_model = PeftModel.from_pretrained(t5_model, LORA_WEIGHT).cuda()
       t5_model.eval()
-      for line in tqdm(range(len(segments))):
-        text = segments[line]['text']
-        print("t5_translator::")
-        translated_line = t5_translator(text.strip(), t5_tokenizer, t5_model)
-        print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
-        segments[line]['text'] = translated_line
-        gc.collect(); torch.cuda.empty_cache(); del t5_model
+      if isinstance(segments, str):
+        segments = t5_translator(segments.strip(), t5_tokenizer, t5_model)
+      else:
+        for line in tqdm(range(len(segments))):
+          text = segments[line]['text']
+          print("t5_translator::")
+          translated_line = t5_translator(text.strip(), t5_tokenizer, t5_model)
+          print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
+          segments[line]['text'] = translated_line
+      gc.collect(); torch.cuda.empty_cache(); del t5_tokenizer; del t5_model
     else:
       ## Google translator
       google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
