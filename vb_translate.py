@@ -259,9 +259,14 @@ def vb_translate(raw_input):
   print("vi_para_list::",len(vi_para_list),vi_para_list)
   from translate_segments import translate_text
   for index, sentence in enumerate(vi_para_list):
-    if detect(sentence) != "vi":
-      vi_para_list[index] = translate_text(sentence, "vi", "T5")
-    print(index, sentence)
+    try:
+      lang = detect(sentence)
+      if lang != "vi":
+        print('non translated sentence, try again::', sentence)
+        vi_para_list[index] = translate_text(sentence, "vi", "T5")
+    except Exception as e:
+      print('detect sentence language failed: skip translating sentence:', e, index, sentence)
+      # print(index, sentence)
   return vi_para_list
 
 

@@ -42,7 +42,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
 
 load_dotenv()
-
+total_input = []
+total_output = []
 title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
 
 description = """
@@ -514,9 +515,13 @@ def batch_preprocess(
   if srt_inputs is not None and len(srt_inputs)> 0:
     for srt in srt_inputs:
       os.system(f"mv {srt.name} {srt_temp_dir}/")
+  global total_input
+  global total_output
   if media_inputs is not None and len(media_inputs)> 0:
+    total_input = media_inputs
     for media in media_inputs:
       result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
+      total_output.append(result)
       output.append(result)
   return output
 
@@ -922,6 +927,16 @@ def translate_from_media(
     shutil.make_archive(archive_path, 'zip', temp_dir)
     os.system(f"rm -rf {temp_dir}")
     final_output = f"{archive_path}.zip"
+    
+    ### Copy to temporary directory
+    try:
+      target_dir = os.getenv('COPY_OUTPUT_DIR', '')
+      if target_dir and os.path.isdir(target_dir):
+        os.system(f"cp '{final_output}' '{target_dir}'")
+    except:
+      print('copy to target dir failed')
+    
+  
     return final_output
 
 import sys
@@ -975,7 +990,7 @@ with demo:
                 # path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
                 srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='multiple', file_types=['.srt'])
-                gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
+                # gr.ClearButton(components=[media_input,link_input,srt_input,tmp_output], size='sm')
                 disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
                 ## media_input change function
                 # link = gr.HTML()
@@ -1047,11 +1062,26 @@ with demo:
                 # TRANSLATE_AUDIO_TO.change(update_output_filename, [media_input,TRANSLATE_AUDIO_TO], [MEDIA_OUTPUT_NAME])
                 
             with gr.Column(variant='compact'):
+                def update_output_list():
+                  global total_input
+                  global total_output
+                  return total_output if len(total_output) < len(total_input) else []
                 with gr.Row():
                     video_button = gr.Button("TRANSLATE", )
+                with gr.Row():    
+                    media_output = gr.Files(label="PROGRESS BAR") #gr.Video()
                 with gr.Row():
-                    media_output = gr.Files(label="DOWNLOAD TRANSLATED VIDEO") #gr.Video()
-
+                    tmp_output = gr.Files(label="TRANSLATED VIDEO", every=10, value=update_output_list) #gr.Video()
+                    
+                ## Clear Button
+                def reset_param():
+                  global total_input
+                  global total_output
+                  total_input = []
+                  total_output = []
+                  return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
+                clear_btn = gr.ClearButton(components=[media_input,link_input,srt_input,media_output,tmp_output], size='sm')
+                clear_btn.click(reset_param,[],[media_output,tmp_output])
                 line_ = gr.HTML("<hr>")
                 if os.getenv("YOUR_HF_TOKEN") == None or os.getenv("YOUR_HF_TOKEN") == "":
                   HFKEY = gr.Textbox(visible= True, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
@@ -1337,7 +1367,8 @@ with demo:
     # with gr.Accordion("Logs", open = False):
     #     logs = gr.Textbox()
     #     demo.load(read_logs, None, logs, every=1)
-
+    def update_output_visibility():
+      return gr.update(label="TRANSLATED VIDEO"),gr.update(visible=False)
     # run
     video_button.click(batch_preprocess, inputs=[
         media_input,
@@ -1378,7 +1409,12 @@ with demo:
         svc_voice04,
         svc_voice05,
         AUDIO_MIX,
-        ], outputs=media_output)
+        ], outputs=media_output).then(
+        #time.sleep(2),
+        fn=update_output_visibility,
+        inputs=[],
+        outputs=[media_output,tmp_output]
+        )
 
 if __name__ == "__main__":
   mp.set_start_method('spawn', force=True)
