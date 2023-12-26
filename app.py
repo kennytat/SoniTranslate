@@ -846,7 +846,7 @@ def translate_from_media(
         'SPEAKER_04': tts_voice04,
         'SPEAKER_05': tts_voice05
     }
-    N_JOBS = round(CUDA_MEM*0.5/1000000000)
+    N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
     print("Start TTS:: concurrency =", N_JOBS)
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
@@ -985,13 +985,12 @@ with demo:
     with gr.Tab("Audio Translation for a Video"):
         with gr.Row():
             with gr.Column():
-                #media_input = gr.UploadButton("Click to Upload a video", file_types=["video"], file_count="single") #gr.Video() # height=300,width=300
-                media_input = gr.File(label="VIDEO|AUDIO", interactive=True, file_count='multiple', file_types=['audio','video'])
+                media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'])
                 # path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
-                srt_input = gr.File(label="SRT(Optional)", interactive=True, file_count='multiple', file_types=['.srt'])
-                # gr.ClearButton(components=[media_input,link_input,srt_input,tmp_output], size='sm')
-                disable_timeline = gr.Checkbox(label="Disable",container=False, interative=True, info='Disable timeline matching with origin language?')
+                srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
+                # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
+                disable_timeline = gr.Checkbox(label="Disable",container=False, info='Disable timeline matching with origin language?')
                 ## media_input change function
                 # link = gr.HTML()
                 # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
@@ -1002,8 +1001,8 @@ with demo:
 
                 # line_ = gr.HTML("<hr>")
                 gr.Markdown("Select how many people are speaking in the video.")
-                min_speakers = gr.Slider(1, MAX_TTS, default=1, label="min_speakers", step=1, visible=False)
-                max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", interative=True)
+                min_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="min_speakers", visible=False)
+                max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers")
                 gr.Markdown("Select the voice you want for each speaker.")
                 def update_speaker_visibility(value):
                     visibility_dict = {
@@ -1011,29 +1010,29 @@ with demo:
                     }
                     return [value for value in visibility_dict.values()]
                 with gr.Row() as tts_voice00_row:
-                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 1', visible=True, interactive=True)
-                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 1', visible=True, interactive=True)
-                  rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 1', visible=False, interactive=True)
+                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 1', visible=True)
+                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 1', visible=True)
+                  rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 1', visible=False)
                 with gr.Row(visible=False) as tts_voice01_row:
-                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 2', visible=True, interactive=True)
-                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 2', visible=True, interactive=True)
-                  rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 2', visible=False, interactive=True)
+                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 2', visible=True)
+                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 2', visible=True)
+                  rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 2', visible=False)
                 with gr.Row(visible=False) as tts_voice02_row:
-                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 3', visible=True, interactive=True)
-                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 3', visible=True, interactive=True)
-                  rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 3', visible=False, interactive=True)
+                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 3', visible=True)
+                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 3', visible=True)
+                  rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 3', visible=False)
                 with gr.Row(visible=False) as tts_voice03_row:
-                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 4', visible=True, interactive=True)
-                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 4', visible=True, interactive=True)
-                  rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 4', visible=False, interactive=True)
+                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 4', visible=True)
+                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 4', visible=True)
+                  rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 4', visible=False)
                 with gr.Row(visible=False) as tts_voice04_row:
-                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 5', visible=True, interactive=True)
-                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 5', visible=True, interactive=True)
-                  rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 5', visible=False, interactive=True)
+                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 5', visible=True)
+                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 5', visible=True)
+                  rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 5', visible=False)
                 with gr.Row(visible=False) as tts_voice05_row:
-                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 6', visible=True, interactive=True)
-                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 6', visible=True, interactive=True)
-                  rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 6', visible=False, interactive=True)
+                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 6', visible=True)
+                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 6', visible=True)
+                  rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 6', visible=False)
                 max_speakers.change(update_speaker_visibility, max_speakers, [tts_voice00_row, tts_voice01_row, tts_voice02_row, tts_voice03_row, tts_voice04_row, tts_voice05_row])
 
                 with gr.Column():
@@ -1044,11 +1043,11 @@ with demo:
                           # gr.HTML("<hr>")
                           gr.Markdown("Default configuration of Whisper.")
                           with gr.Row():
-                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model", interactive=True, scale=1)
-                            compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type", interactive=True, scale=1)
+                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                            compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
                           with gr.Row():
-                            batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1, interactive=True)
-                            chunk_size = gr.Slider(2, 30, value=5, label="Chuck size", step=1, interactive=True)
+                            batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1)
+                            chunk_size = gr.Slider(2, 30, value=5, label="Chuck size", step=1)
                           # gr.HTML("<hr>")
                           # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
                           PREVIEW = gr.Checkbox(label="Preview", visible=False, info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
@@ -1140,10 +1139,10 @@ with demo:
         with gr.Column():
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
-              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True, interactive=True)
-              t2t_method = gr.Dropdown(["Google", "Meta", "VB", "T5"], label='T2T', value='VB', visible=True, interactive=True)
-              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "VietTTS"], label='T2S', value='VietTTS', visible=True, interactive=True)
-              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value='SVC', visible=True, interactive=True)
+              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True)
+              t2t_method = gr.Dropdown(["Google", "Meta", "VB", "T5"], label='T2T', value='VB', visible=True)
+              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "VietTTS"], label='T2S', value='VietTTS', visible=True)
+              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value='SVC', visible=True)
             
             ## update t2s method
             def update_t2s_list(method):
@@ -1177,55 +1176,55 @@ with demo:
         #     with gr.Column(variant='compact'):
         #       with gr.Column():
         #         gr.Markdown("### 1. To enable its use, mark it as enable.")
-        #         # enable_svc_custom_voice = gr.Checkbox(label="ENABLE", value=True, info="Check this to enable the use of the models.", interactive=True)
+        #         # enable_svc_custom_voice = gr.Checkbox(label="ENABLE", value=True, info="Check this to enable the use of the models.")
         #         # enable_svc_custom_voice.change(custom_rvc_model_voice_enable, [enable_svc_custom_voice], [])
 
         #         gr.Markdown("### 2. Select a voice that will be applied to each TTS of each corresponding speaker and apply the configurations.")
         #         gr.Markdown('Depending on how many "TTS Speaker" you will use, each one needs its respective model. Additionally, there is an auxiliary one if for some reason the speaker is not detected correctly.')
         #         gr.Markdown("Voice to apply to the first speaker.")
         #         with gr.Row():
-        #           model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True, interactive=True)
-        #           file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True, interactive=True)
-        #           name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True, interactive=True)
+        #           model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True)
+        #           file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True)
+        #           name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the second speaker.")
         #         with gr.Row():
-        #           model_voice_path01 = gr.Dropdown(models, label='Model-2', visible=True, interactive=True)
-        #           file_index2_01 = gr.Dropdown(index_paths, label='Index-2', visible=True, interactive=True)
-        #           name_transpose01 = gr.Number(label='Transpose-2', value=0, visible=True, interactive=True)
+        #           model_voice_path01 = gr.Dropdown(models, label='Model-2', visible=True)
+        #           file_index2_01 = gr.Dropdown(index_paths, label='Index-2', visible=True)
+        #           name_transpose01 = gr.Number(label='Transpose-2', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the third speaker.")
         #         with gr.Row():
-        #           model_voice_path02 = gr.Dropdown(models, label='Model-3', visible=True, interactive=True)
-        #           file_index2_02 = gr.Dropdown(index_paths, label='Index-3', visible=True, interactive=True)
-        #           name_transpose02 = gr.Number(label='Transpose-3', value=0, visible=True, interactive=True)
+        #           model_voice_path02 = gr.Dropdown(models, label='Model-3', visible=True)
+        #           file_index2_02 = gr.Dropdown(index_paths, label='Index-3', visible=True)
+        #           name_transpose02 = gr.Number(label='Transpose-3', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the fourth speaker.")
         #         with gr.Row():
-        #           model_voice_path03 = gr.Dropdown(models, label='Model-4', visible=True, interactive=True)
-        #           file_index2_03 = gr.Dropdown(index_paths, label='Index-4', visible=True, interactive=True)
-        #           name_transpose03 = gr.Number(label='Transpose-4', value=0, visible=True, interactive=True)
+        #           model_voice_path03 = gr.Dropdown(models, label='Model-4', visible=True)
+        #           file_index2_03 = gr.Dropdown(index_paths, label='Index-4', visible=True)
+        #           name_transpose03 = gr.Number(label='Transpose-4', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the fifth speaker.")
         #         with gr.Row():
-        #           model_voice_path04 = gr.Dropdown(models, label='Model-5', visible=True, interactive=True)
-        #           file_index2_04 = gr.Dropdown(index_paths, label='Index-5', visible=True, interactive=True)
-        #           name_transpose04 = gr.Number(label='Transpose-5', value=0, visible=True, interactive=True)
+        #           model_voice_path04 = gr.Dropdown(models, label='Model-5', visible=True)
+        #           file_index2_04 = gr.Dropdown(index_paths, label='Index-5', visible=True)
+        #           name_transpose04 = gr.Number(label='Transpose-5', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the sixth speaker.")
         #         with gr.Row():
-        #           model_voice_path05 = gr.Dropdown(models, label='Model-6', visible=True, interactive=True)
-        #           file_index2_05 = gr.Dropdown(index_paths, label='Index-6', visible=True, interactive=True)
-        #           name_transpose05 = gr.Number(label='Transpose-6', value=0, visible=True, interactive=True)
+        #           model_voice_path05 = gr.Dropdown(models, label='Model-6', visible=True)
+        #           file_index2_05 = gr.Dropdown(index_paths, label='Index-6', visible=True)
+        #           name_transpose05 = gr.Number(label='Transpose-6', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("- Voice to apply in case a speaker is not detected successfully.")
         #         with gr.Row():
-        #           model_voice_path06 = gr.Dropdown(models, label='Model-Aux', visible=True, interactive=True)
-        #           file_index2_06 = gr.Dropdown(index_paths, label='Index-Aux', visible=True, interactive=True)
-        #           name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True, interactive=True)
+        #           model_voice_path06 = gr.Dropdown(models, label='Model-Aux', visible=True)
+        #           file_index2_06 = gr.Dropdown(index_paths, label='Index-Aux', visible=True)
+        #           name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         with gr.Row():
-        #           f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True, interactive= True)
+        #           f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True)
 
         #     with gr.Row(variant='compact'):
         #       button_config = gr.Button("APPLY CONFIGURATION")
@@ -1255,48 +1254,48 @@ with demo:
         #         gr.Markdown('Depending on how many "TTS Speaker" you will use, each one needs its respective model. Additionally, there is an auxiliary one if for some reason the speaker is not detected correctly.')
         #         gr.Markdown("Voice to apply to the first speaker.")
         #         with gr.Row():
-        #           model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True, interactive=True)
-        #           file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True, interactive=True)
-        #           name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True, interactive=True)
+        #           model_voice_path00 = gr.Dropdown(models, label = 'Model-1', visible=True)
+        #           file_index2_00 = gr.Dropdown(index_paths, label = 'Index-1', visible=True)
+        #           name_transpose00 = gr.Number(label = 'Transpose-1', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the second speaker.")
         #         with gr.Row():
-        #           model_voice_path01 = gr.Dropdown(models, label='Model-2', visible=True, interactive=True)
-        #           file_index2_01 = gr.Dropdown(index_paths, label='Index-2', visible=True, interactive=True)
-        #           name_transpose01 = gr.Number(label='Transpose-2', value=0, visible=True, interactive=True)
+        #           model_voice_path01 = gr.Dropdown(models, label='Model-2', visible=True)
+        #           file_index2_01 = gr.Dropdown(index_paths, label='Index-2', visible=True)
+        #           name_transpose01 = gr.Number(label='Transpose-2', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the third speaker.")
         #         with gr.Row():
-        #           model_voice_path02 = gr.Dropdown(models, label='Model-3', visible=True, interactive=True)
-        #           file_index2_02 = gr.Dropdown(index_paths, label='Index-3', visible=True, interactive=True)
-        #           name_transpose02 = gr.Number(label='Transpose-3', value=0, visible=True, interactive=True)
+        #           model_voice_path02 = gr.Dropdown(models, label='Model-3', visible=True)
+        #           file_index2_02 = gr.Dropdown(index_paths, label='Index-3', visible=True)
+        #           name_transpose02 = gr.Number(label='Transpose-3', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the fourth speaker.")
         #         with gr.Row():
-        #           model_voice_path03 = gr.Dropdown(models, label='Model-4', visible=True, interactive=True)
-        #           file_index2_03 = gr.Dropdown(index_paths, label='Index-4', visible=True, interactive=True)
-        #           name_transpose03 = gr.Number(label='Transpose-4', value=0, visible=True, interactive=True)
+        #           model_voice_path03 = gr.Dropdown(models, label='Model-4', visible=True)
+        #           file_index2_03 = gr.Dropdown(index_paths, label='Index-4', visible=True)
+        #           name_transpose03 = gr.Number(label='Transpose-4', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the fifth speaker.")
         #         with gr.Row():
-        #           model_voice_path04 = gr.Dropdown(models, label='Model-5', visible=True, interactive=True)
-        #           file_index2_04 = gr.Dropdown(index_paths, label='Index-5', visible=True, interactive=True)
-        #           name_transpose04 = gr.Number(label='Transpose-5', value=0, visible=True, interactive=True)
+        #           model_voice_path04 = gr.Dropdown(models, label='Model-5', visible=True)
+        #           file_index2_04 = gr.Dropdown(index_paths, label='Index-5', visible=True)
+        #           name_transpose04 = gr.Number(label='Transpose-5', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("Voice to apply to the sixth speaker.")
         #         with gr.Row():
-        #           model_voice_path05 = gr.Dropdown(models, label='Model-6', visible=True, interactive=True)
-        #           file_index2_05 = gr.Dropdown(index_paths, label='Index-6', visible=True, interactive=True)
-        #           name_transpose05 = gr.Number(label='Transpose-6', value=0, visible=True, interactive=True)
+        #           model_voice_path05 = gr.Dropdown(models, label='Model-6', visible=True)
+        #           file_index2_05 = gr.Dropdown(index_paths, label='Index-6', visible=True)
+        #           name_transpose05 = gr.Number(label='Transpose-6', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         gr.Markdown("- Voice to apply in case a speaker is not detected successfully.")
         #         with gr.Row():
-        #           model_voice_path06 = gr.Dropdown(models, label='Model-Aux', visible=True, interactive=True)
-        #           file_index2_06 = gr.Dropdown(index_paths, label='Index-Aux', visible=True, interactive=True)
-        #           name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True, interactive=True)
+        #           model_voice_path06 = gr.Dropdown(models, label='Model-Aux', visible=True)
+        #           file_index2_06 = gr.Dropdown(index_paths, label='Index-Aux', visible=True)
+        #           name_transpose06 = gr.Number(label='Transpose-Aux', value=0, visible=True)
         #         gr.HTML("<hr></h2>")
         #         with gr.Row():
-        #           f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True, interactive= True)
+        #           f0_method_global = gr.Dropdown(f0_methods_voice, value='harvest', label = 'Global F0 method', visible=True)
 
         #     with gr.Row(variant='compact'):
         #       button_config = gr.Button("APPLY CONFIGURATION")
@@ -1321,11 +1320,11 @@ with demo:
           #         with gr.Row(variant='compact'):
           #           text_test = gr.Textbox(label="Text", value="This is an example",info="write a text", placeholder="...", lines=5)
           #           with gr.Column(): 
-          #             tts_test = gr.Dropdown(list_gtts, value='en-GB-ThomasNeural-Male', label = 'TTS', visible=True, interactive= True)
-          #             model_voice_path07 = gr.Dropdown(models, label = 'Model', visible=True, interactive= True) #value=''
-          #             file_index2_07 = gr.Dropdown(index_paths, label = 'Index', visible=True, interactive= True) #value=''
-          #             transpose_test = gr.Number(label = 'Transpose', value=0, visible=True, interactive= True, info="integer, number of semitones, raise by an octave: 12, lower by an octave: -12")
-          #             f0method_test = gr.Dropdown(f0_methods_voice, value='harvest', label = 'F0 method', visible=True, interactive= True) 
+          #             tts_test = gr.Dropdown(list_gtts, value='en-GB-ThomasNeural-Male', label = 'TTS', visible=True)
+          #             model_voice_path07 = gr.Dropdown(models, label = 'Model', visible=True) #value=''
+          #             file_index2_07 = gr.Dropdown(index_paths, label = 'Index', visible=True) #value=''
+          #             transpose_test = gr.Number(label = 'Transpose', value=0, visible=True, info="integer, number of semitones, raise by an octave: 12, lower by an octave: -12")
+          #             f0method_test = gr.Dropdown(f0_methods_voice, value='harvest', label = 'F0 method', visible=True) 
           #         with gr.Row(variant='compact'):
           #           button_test = gr.Button("Test audio")
 
@@ -1409,7 +1408,7 @@ with demo:
         svc_voice04,
         svc_voice05,
         AUDIO_MIX,
-        ], outputs=media_output).then(
+        ], outputs=media_output, concurrency_limit=1).then(
         #time.sleep(2),
         fn=update_output_visibility,
         inputs=[],
@@ -1419,7 +1418,8 @@ with demo:
 if __name__ == "__main__":
   mp.set_start_method('spawn', force=True)
   
-  # os.system('rm -rf /tmp/gradio/*') os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
+  # os.system('rm -rf /tmp/gradio/*')
+  # os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
   
@@ -1429,7 +1429,7 @@ if __name__ == "__main__":
   
   auth_user = os.getenv('AUTH_USER', '')
   auth_pass = os.getenv('AUTH_PASS', '')
-  demo.queue(concurrency_count=1).launch(
+  demo.queue().launch(
     # auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
     show_api=False,
     debug=True,
@@ -1437,6 +1437,5 @@ if __name__ == "__main__":
     show_error=True,
     server_name="0.0.0.0",
     server_port=6860,
-    enable_queue=True,
     # quiet=True,
     share=False)

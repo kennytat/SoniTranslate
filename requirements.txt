@@ -2,7 +2,7 @@ IPython
 nest_asyncio
 --extra-index-url https://download.pytorch.org/whl/cu117 torch==2.0.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2+cu117
 yt-dlp 
-gradio==3.50.2
+gradio==4.11.0
 gTTS
 pydub==0.25.1
 edge_tts==6.1.7
