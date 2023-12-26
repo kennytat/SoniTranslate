@@ -16,6 +16,7 @@ regex
 cryptography
 langdetect
 vietnam_number
+docx2txt
 # so-vits-svc-fork
 so-vits-svc-fork
 #
