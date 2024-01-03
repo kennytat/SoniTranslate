@@ -489,7 +489,7 @@ def translate_from_media(
           )
       del cap
     audio = whisperx.load_audio(audio_wav)
-    result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size)
+    result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
     gc.collect(); torch.cuda.empty_cache(); del model
     print("Transcript complete::", len(result["segments"]), result["segments"])
 
@@ -565,6 +565,7 @@ def translate_from_media(
       srtFile.write(json.dumps(result_diarize['segments']))
     result_diarize['segments'] = concise_srt(result_diarize['segments'])
     segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
+    # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
     target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{os.path.splitext(media_output_name)[0]}.srt')
     if os.path.exists(target_srt_inputpath):
       # Start convert from srt if srt found

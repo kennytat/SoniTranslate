@@ -169,7 +169,11 @@ def concise_srt(srt_list, max_word_length=500):
         item["text"] = item.pop("content")
     modified_paras = []
     print(srt_list)
-    for i, para in enumerate(srt_list):   
+    ## Remove non text segment
+    srt_list = [para for para in srt_list if "♪" not in para['text']]
+    ## concat para
+    for i, para in enumerate(srt_list):
+      print(" para['start']::",  para['start']) 
       try:
         if len(modified_paras) == 0:
           modified_paras.append(para)
@@ -178,7 +182,7 @@ def concise_srt(srt_list, max_word_length=500):
           last_para = modified_paras[-1]
           test_combined_text = last_para['text'] + " " + srt_list[i]['text']
           # print("test_combined_text length::", len(test_combined_text))
-          if len(test_combined_text) < max_word_length and last_para['end'] == para['start']:
+          if len(test_combined_text) < max_word_length and para['start'] - last_para['end'] <= 0.5:
             if "text" in last_para:
               srt_list[i]['text'] = ""
               last_para['text'] = test_combined_text
@@ -193,6 +197,7 @@ def concise_srt(srt_list, max_word_length=500):
       except Exception as error:
         print("error::", i, error)
         pass
+    ## Input index number
     for i, para in enumerate(modified_paras):
       if "index" in para:
         para['index'] = i + 1
