@@ -162,7 +162,7 @@ def combine_sentences(sentences_list, max_word_length=750):
     combined_sentences_list = [item for item in combined_sentences_list if item != ""]
     return combined_sentences_list
   
-def concise_srt(srt_list, max_word_length=750):
+def concise_srt(srt_list, max_word_length=500):
     if isinstance(srt_list[0], srt.Subtitle):
       srt_list = list([vars(obj) for obj in srt_list])
       for item in srt_list:
