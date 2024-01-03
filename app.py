@@ -563,7 +563,8 @@ def translate_from_media(
     segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.srt')
     with open(f'{media_output_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
-    result_diarize['segments'] = concise_srt(result_diarize['segments'])
+    if not t2t_method.startswith("LLM"):
+      result_diarize['segments'] = concise_srt(result_diarize['segments'])
     segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
     # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
     target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{os.path.splitext(media_output_name)[0]}.srt')
@@ -575,6 +576,8 @@ def translate_from_media(
     else:
       # Start translate if srt not found
       result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
+      if t2t_method.startswith("LLM"):
+        result_diarize['segments'] = concise_srt(result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
     with open(f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.json', 'a', encoding='utf-8') as srtFile:
@@ -889,8 +892,8 @@ with demo:
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
               s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True)
-              t2t_method = gr.Dropdown(["Google", "Meta", "VB", "T5"], label='T2T', value='VB', visible=True)
-              t2s_method = gr.Dropdown(["Google", "Edge", "Meta", "VietTTS"], label='T2S', value='VietTTS', visible=True)
+              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM|nampdn-ai/vietmistral-bible-translation-v1"], label='T2T', value='VB', visible=True)
+              t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value='VietTTS', visible=True)
               vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value='SVC', visible=True)
             
             ## update t2s method

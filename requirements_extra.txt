@@ -11,6 +11,9 @@ scipy
 # VB translate
 langdetect
 -e git+https://github.com/pytorch/fairseq.git@v0.12.1#egg=fairseq
+# LLM translate
+openai
+langchain
 # vietTTS
 regex
 cryptography
