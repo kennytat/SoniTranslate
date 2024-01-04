@@ -3,6 +3,9 @@ import os
 import shutil
 import json
 from tqdm import tqdm
+import joblib
+from joblib import Parallel, delayed
+
 load_dotenv()
 
 from langchain.chat_models import ChatOpenAI
@@ -36,12 +39,12 @@ def llm_translate(segments, model):
     )
     memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=10)
     conversation = LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=True)
-    
-    for line in tqdm(range(len(segments))):
-      text = segments[line]['text']
-      print("llm_translator::")
-      translated_line = conversation.predict(input=text)
-      segments[line]['text'] = translated_line
+    N_JOBS = os.cpu_count()
+    print("Start LLM Translate:: concurrency =", N_JOBS)
+    with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=N_JOBS):
+      t2t_results = Parallel(verbose=100)(delayed(conversation.predict)(input=segments[line]['text']) for (line) in tqdm(range(len(segments))))
+    for index in tqdm(range(len(segments))):
+      segments[index]['text'] = t2t_results[index]
     return segments
   
 

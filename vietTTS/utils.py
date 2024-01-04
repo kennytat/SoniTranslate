@@ -179,7 +179,7 @@ def concise_srt(srt_list, max_word_length=500):
         # print("processing::", i)
         if i > 0 and srt_list[i]['text'] != "":
           last_para = modified_paras[-1]
-          test_combined_text = last_para['text'] + " " + srt_list[i]['text']
+          test_combined_text = last_para['text'] + " , " + srt_list[i]['text']
           # print("test_combined_text length::", len(test_combined_text))
           if len(test_combined_text) < max_word_length and para['start'] - last_para['end'] <= 0.5:
             if "text" in last_para:
