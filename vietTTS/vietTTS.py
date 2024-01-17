@@ -32,6 +32,7 @@ def text_to_phone_idx(text, phone_set, sil_idx):
     text = normalize(text)
     text = unicodedata.normalize("NFKC", text)
     text = num_to_str(text)
+    text = re.sub(r"[\s\.]+(?=\s)", " . ", text)
     text = text.replace(".", " . ")
     text = text.replace(",", " , ")
     text = text.replace(";", " ; ")

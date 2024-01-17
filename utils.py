@@ -152,33 +152,52 @@ def new_dir_now():
     now = datetime.now() # current date and time
     date_time = now.strftime("%Y%m%d%H%M")
     return date_time  
-  
+
 def segments_to_srt(segments, output_path):
   # print("segments_to_srt::", type(segments[0]), segments)
+  segments = [ segment for segment in segments if 'speaker' in segment ]
   shutil.rmtree(output_path, ignore_errors=True)
   def srt_time(str):
     return re.sub(r"\.",",",re.sub(r"0{3}$","",str)) if re.search(r"\.\d{6}", str) else f'{str},000'
+  
   for index, segment in enumerate(segments):
+      basename, ext = os.path.splitext(output_path)
       startTime = srt_time(str(0)+str(timedelta(seconds=segment['start'])))
       endTime = srt_time(str(0)+str(timedelta(seconds=segment['end'])))
       text = segment['text']
       segmentId = index+1
+      speaker = segment['speaker'] if 'speaker' in segment else segments[index - 1]['speaker']
       segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text and text[0] == ' ' else text}\n\n"
       with open(output_path, 'a', encoding='utf-8') as srtFile:
           srtFile.write(segment)
+      segment = f"{segmentId}\n{startTime} --> {endTime}\n{speaker}: {text[1:] if text and text[0] == ' ' else text}\n\n"
+      with open(f'{basename}-SPEAKER{ext}', 'a', encoding='utf-8') as srtFile:
+          srtFile.write(segment)
 
-def srt_to_segments(segments, srt_input_path):
+def srt_to_segments(srt_input_path):
   srt_input = open(srt_input_path, 'r').read()
   srt_list = list(srt.parse(srt_input))
   srt_segments = list([vars(obj) for obj in srt_list])
-  for i, segment in enumerate(segments):
-    segments[i]['start'] = srt_segments[i]['start'].total_seconds()
-    segments[i]['end'] = srt_segments[i]['end'].total_seconds()
-    segments[i]['text'] = str(srt_segments[i]['content'])
-    del segments[i]['words']
-    del segments[i]['chars']
+  
+  for i, segment in enumerate(srt_segments):
+    text = str(srt_segments[i]['content'])
+    speaker = re.findall(r"SPEAKER_\d+", text)[0] if re.search(r"SPEAKER_\d+", text) else None
+    if speaker:
+      srt_segments[i]['speaker'] = speaker
+    srt_segments[i]['start'] = srt_segments[i]['start'].total_seconds()
+    srt_segments[i]['end'] = srt_segments[i]['end'].total_seconds()
+    srt_segments[i]['text'] = re.sub(r"SPEAKER_\d+\:", "", text)
+    srt_segments[i]['index'] = i + 1
+    del srt_segments[i]['content']
+    
+  # for i, segment in enumerate(segments):
+  #   segments[i]['start'] = srt_segments[i]['start'].total_seconds()
+  #   segments[i]['end'] = srt_segments[i]['end'].total_seconds()
+  #   segments[i]['text'] = str(srt_segments[i]['content'])
+  #   if 'words' in segments[i]: del segments[i]['words']
+  #   if 'chars' in segments[i]: del segments[i]['chars']
   # print("srt_to_segments::", type(segments), segments)
-  return segments
+  return srt_segments
           
 def segments_to_txt(segments, output_path):
   for segment in segments:

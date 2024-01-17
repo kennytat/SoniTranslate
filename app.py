@@ -394,7 +394,8 @@ def translate_from_media(
     file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
     media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
     media_output = os.path.join(temp_dir, media_output_name)
-    
+    source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{SOURCE_LANGUAGE}')
+    target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
     
     # os.system("rm -rf Video.mp4")
     # os.system("rm -rf audio_origin.webm")
@@ -556,22 +557,22 @@ def translate_from_media(
         TRANSLATE_AUDIO_TO = "zh-CN"
     if TRANSLATE_AUDIO_TO == "he":
         TRANSLATE_AUDIO_TO = "iw"
-    print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
+    # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
     ## Write source segment and srt,txt to file
-    media_output_basename = os.path.join(temp_dir, file_name)
+
     print("result_diarize['segments'] length",len(result_diarize['segments']))
-    segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.srt')
-    with open(f'{media_output_basename}-{SOURCE_LANGUAGE}.json', 'a', encoding='utf-8') as srtFile:
+    with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
+    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
     if not t2t_method.startswith("LLM"):
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
-    segments_to_txt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}.txt')
+    segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
     # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
-    target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{os.path.splitext(media_output_name)[0]}.srt')
+    target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{target_media_output_basename}-SPEAKER.srt')
     if os.path.exists(target_srt_inputpath):
       # Start convert from srt if srt found
       print("srt file exist::", target_srt_inputpath)
-      result_diarize['segments'] = srt_to_segments(result_diarize['segments'], target_srt_inputpath)
+      result_diarize['segments'] = srt_to_segments(target_srt_inputpath)
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
@@ -579,9 +580,11 @@ def translate_from_media(
       if t2t_method.startswith("LLM"):
         result_diarize['segments'] = concise_srt(result_diarize['segments'])
     ## Write target segment and srt to file
-    segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
-    with open(f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.json', 'a', encoding='utf-8') as srtFile:
+    segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
+    with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
+		# ## Sort segments by speaker
+    # result_diarize['segments'] = sorted(result_diarize['segments'], key=lambda x: x['speaker'])
     print("Translation complete")
 
     # 5. TTS target language
@@ -598,9 +601,11 @@ def translate_from_media(
         'SPEAKER_04': tts_voice04,
         'SPEAKER_05': tts_voice05
     }
+    
     N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
     print("Start TTS:: concurrency =", N_JOBS)
-    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS):
+    
+    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS if max_speakers == 1 else 1):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
     
     # tts_results = []
@@ -647,7 +652,7 @@ def translate_from_media(
     # audio = whisperx.load_audio(translated_output_file)
     # result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
     # ## Write target segment and srt to file
-    # segments_to_srt(result['segments'], f'{media_output_basename}-{TRANSLATE_AUDIO_TO}.srt')
+    # segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
     # gc.collect(); torch.cuda.empty_cache(); del model
     # print("Transcribe target language complete::", len(result["segments"]),result["segments"])
 
@@ -892,7 +897,7 @@ with demo:
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
               s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True)
-              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM|nampdn-ai/vietmistral-bible-translation-v1"], label='T2T', value='VB', visible=True)
+              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM|nampdn-ai/qlora-vietmistral-vgm-bible-translation-v4"], label='T2T', value='VB', visible=True)
               t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value='VietTTS', visible=True)
               vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value='SVC', visible=True)
             
