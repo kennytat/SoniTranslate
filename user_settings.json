@@ -1,0 +1,8 @@
+{
+  "S2T": "Whisper",
+  "T2T": "VB",
+  "T2S": "VietTTS",
+  "VC": "SVC",
+  "LLM_ENDPOINT": "https://serve-903.app.btngiadinh.com/v1",
+  "LLM_MODEL": "nampdn-ai/qlora-vietmistral-vgm-bible-translation-v4"
+}

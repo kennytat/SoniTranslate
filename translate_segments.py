@@ -29,7 +29,8 @@ def t5_translator(input_text: str, tokenizer, model):
     return "\n".join(result)
 
 ## Translate text using Google Translator
-def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method):
+def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method, llm_endpoint, llm_model):
+    print("start translate_text::")
     if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
       print("vb_translator::", len(segments), "segments")
       source_text = "\n".join([ segment['text'] for segment in segments])
@@ -53,8 +54,8 @@ def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method):
           print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
           segments[line]['text'] = translated_line
       gc.collect(); torch.cuda.empty_cache(); del t5_tokenizer; del t5_model
-    elif t2t_method.startswith("LLM") and TRANSLATE_AUDIO_TO == "vi":
-      segments = llm_translate(segments, t2t_method.split("|")[1])
+    elif t2t_method == "LLM" and TRANSLATE_AUDIO_TO == "vi":
+      segments = llm_translate(segments, llm_endpoint, llm_model)
     else:
       ## Google translator
       google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)

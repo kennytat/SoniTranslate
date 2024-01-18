@@ -17,8 +17,9 @@ from langchain.prompts import (
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
-def llm_translate(segments, model):
-    server = "https://serve-903.app.btngiadinh.com/v1"
+def llm_translate(segments, endpoint, model):
+    print("start llm_translate::")
+    server = endpoint
     llm = ChatOpenAI(
         model=model,
         openai_api_key="EMPTY",
@@ -41,7 +42,7 @@ def llm_translate(segments, model):
     conversation = LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=True)
     N_JOBS = os.cpu_count()
     print("Start LLM Translate:: concurrency =", N_JOBS)
-    with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=N_JOBS):
+    with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
       t2t_results = Parallel(verbose=100)(delayed(conversation.predict)(input=segments[line]['text']) for (line) in tqdm(range(len(segments))))
     for index in tqdm(range(len(segments))):
       segments[index]['text'] = t2t_results[index]

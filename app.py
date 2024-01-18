@@ -156,6 +156,21 @@ def translate_from_media(video, WHISPER_MODEL_SIZE, batch_size, compute_type,
     return media_output
 '''
 
+# Function to save settings to a JSON file
+def save_settings(settings, filename='user_settings.json'):
+    with open(filename, 'w') as f:
+        json.dump(settings, f)
+
+# Function to load settings from a JSON file
+def load_settings(filename='user_settings.json'):
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+user_settings=load_settings()
+ 
 def batch_preprocess(
   media_inputs,
   # path_inputs,
@@ -576,14 +591,14 @@ def translate_from_media(
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
-      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method)
+      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['LLM_ENDPOINT'],user_settings['LLM_MODEL'])
       if t2t_method.startswith("LLM"):
         result_diarize['segments'] = concise_srt(result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
     with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
-		# ## Sort segments by speaker
+    # ## Sort segments by speaker
     # result_diarize['segments'] = sorted(result_diarize['segments'], key=lambda x: x['speaker'])
     print("Translation complete")
 
@@ -605,7 +620,7 @@ def translate_from_media(
     N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
     print("Start TTS:: concurrency =", N_JOBS)
     
-    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS if max_speakers == 1 else 1):
+    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS) if max_speakers == 1 else 1):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
     
     # tts_results = []
@@ -896,11 +911,10 @@ with demo:
         with gr.Column():
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
-              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value='Whisper', visible=True)
-              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM|nampdn-ai/qlora-vietmistral-vgm-bible-translation-v4"], label='T2T', value='VB', visible=True)
-              t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value='VietTTS', visible=True)
-              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value='SVC', visible=True)
-            
+              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['S2T'], visible=True, elem_id="s2t")
+              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['T2T'], visible=True, elem_id="t2t")
+              t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value=user_settings['T2S'], visible=True, elem_id="t2s")
+              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value=user_settings['VC'], visible=True, elem_id="vc")
             ## update t2s method
             def update_t2s_list(method):
               list_tts = list_vtts if method == 'VietTTS' else list_gtts
@@ -909,6 +923,24 @@ with demo:
               }
               return [value for value in visibility_dict.values()]
             t2s_method.change(update_t2s_list, [t2s_method], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
+          ## Config LLM Settings
+          with gr.Accordion("LLM Settings", open=True):
+            with gr.Row():
+              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['LLM_ENDPOINT'], elem_id="llm_url")        
+              llm_model = gr.Textbox(label="LLM Model", placeholder="LLM Model goes here...", value=user_settings['LLM_MODEL'], elem_id="llm_model")        
+          with gr.Row():
+            def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
+              # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
+              user_settings['S2T'] = s2t_method
+              user_settings['T2T'] = t2t_method
+              user_settings['T2S'] = t2s_method
+              user_settings['VC'] = vc_method
+              user_settings['LLM_ENDPOINT'] = llm_url
+              user_settings['LLM_MODEL'] = llm_model
+              save_settings(settings=user_settings)
+              return gr.Info("Settings saved!!")
+            save_setting_btn = gr.Button("Save Settings")
+            save_setting_btn.click(save_setting_fn, [s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model], [])
 
         # with gr.Column():
         #   with gr.Accordion("Download RVC Models", open=False):

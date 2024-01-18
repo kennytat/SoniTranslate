@@ -188,44 +188,47 @@ def load_models(model_path, hps):
 
         
 def tts(text, output_file, tts_voice_ckpt_dir,speed = 1, desired_duration = 0, start_time = 0):
-    print("Starting TTS {}".format(output_file), desired_duration, start_time)
-    ### Get hifigan path
-    config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
-    with open(config_file, "rb") as f:
-      hps = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
-    sample_rate = hps.data.sampling_rate
-    print("tts text::", text)
+    try:
+      print("Starting TTS {}".format(output_file), desired_duration, start_time)
+      ### Get hifigan path
+      config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
+      with open(config_file, "rb") as f:
+        hps = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
+      sample_rate = hps.data.sampling_rate
+      print("tts text::", text)
 
-    if re.sub(r'^sil\s+','',text).isnumeric():
-        silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
-        print("Got integer::", text, silence_duration) 
-        print("\n\n\n ==> Generating {} seconds of silence at {}".format(silence_duration, output_file))
-        second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
-        second_of_silence = second_of_silence.set_frame_rate(sample_rate)
-        second_of_silence.export(output_file, format="wav")
-    else:
-      duration_net, generator = load_models(tts_voice_ckpt_dir, hps)
-      text = text if detect(text) == 'vi' else ' . '
-      ## For tts with timeline
-      if desired_duration > 0:
-        tts_tmp_result = text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, 1)
-        wav_tmp = np.concatenate([tts_tmp_result])
-        predicted_duration = librosa.get_duration(y=wav_tmp, sr=sample_rate)
-        speed = predicted_duration / desired_duration
-        speed = math.floor(speed * 10000) / 10000
-        speed = 0.8 if speed <= 0.8 else speed + 0.005
-        speed = 1.5 if speed >= 1.5 else speed
-        print("tts speed::",speed)
-        tts_result = text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
-        wav = np.concatenate([tts_result])
+      if re.sub(r'^sil\s+','',text).isnumeric():
+          silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
+          print("Got integer::", text, silence_duration) 
+          print("\n\n\n ==> Generating {} seconds of silence at {}".format(silence_duration, output_file))
+          second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
+          second_of_silence = second_of_silence.set_frame_rate(sample_rate)
+          second_of_silence.export(output_file, format="wav")
       else:
-        tts_result = text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
-        # clips.append(silence)
-        wav = np.concatenate([tts_result])
+        duration_net, generator = load_models(tts_voice_ckpt_dir, hps)
+        text = text if detect(text) == 'vi' else ' . '
+        ## For tts with timeline
+        if desired_duration > 0:
+          tts_tmp_result = text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, 1)
+          wav_tmp = np.concatenate([tts_tmp_result])
+          predicted_duration = librosa.get_duration(y=wav_tmp, sr=sample_rate)
+          speed = predicted_duration / desired_duration
+          speed = math.floor(speed * 10000) / 10000
+          speed = 0.8 if speed <= 0.8 else speed + 0.005
+          speed = 1.5 if speed >= 1.5 else speed
+          print("tts speed::",speed)
+          tts_result = text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
+          wav = np.concatenate([tts_result])
+        else:
+          tts_result = text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
+          # clips.append(silence)
+          wav = np.concatenate([tts_result])
 
-      sf.write(output_file, wav, samplerate=sample_rate)
-      print("Wav segment written at: {}".format(output_file))
-    gc.collect(); torch.cuda.empty_cache()
+        sf.write(output_file, wav, samplerate=sample_rate)
+        print("Wav segment written at: {}".format(output_file))
+      gc.collect(); torch.cuda.empty_cache()
+    except Exception as error:
+      print("tts error::", text, "\n", error)
     return WavStruct(output_file, start_time)
 
 def convert_voice(input_dir, model_dir):
@@ -279,9 +282,9 @@ def synthesize(output_dir_name, input, is_file, speed, method, tts_voice_ckpt_di
     print("Queue list:: ", queue_list.qsize())
     results = []
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-    N_JOBS = round(CUDA_MEM*0.6/1000000000)
+    N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
     print("Start TTS:: concurrency =", N_JOBS)
-    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=N_JOBS):
+    with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
       results = Parallel(verbose=100)(delayed(tts)(text, output_file, tts_voice_ckpt_dir, speed, total_duration, start_silence) for (text, output_file, total_duration, start_silence) in queue_list.queue)
 
     print("TTS Done::")
@@ -417,7 +420,7 @@ if __name__ == "__main__":
     mp.set_start_method('spawn', force=True)
     
     host = "localhost"
-    port = 7901
+    port = 7902
     ## Parser argurment
     parser = argparse.ArgumentParser(description="VGM TTS application")
     parser.add_argument("-pf", "--platform", help="TTS Platform, default to desktop", default="web")
