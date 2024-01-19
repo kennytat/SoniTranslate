@@ -579,7 +579,7 @@ def translate_from_media(
     with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
     segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
-    if not t2t_method.startswith("LLM"):
+    if not t2t_method == "LLM":
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
     # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
@@ -591,8 +591,8 @@ def translate_from_media(
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
-      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['LLM_ENDPOINT'],user_settings['LLM_MODEL'])
-      if t2t_method.startswith("LLM"):
+      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
+      if t2t_method == "LLM":
         result_diarize['segments'] = concise_srt(result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
@@ -748,8 +748,68 @@ MAX_TTS = 6
 #             background_fill_primary ="#171717",
 #             panel_background_fill = "#171717"
 #         )
+
+js = """
+function initLocalStorage() {
+  if (localStorage.key("user_settings")) {
+    try {
+      const settings = JSON.parse(localStorage.getItem("user_settings"));
+      for (const [key, value] of Object.entries(settings)) {
+        document.getElementById(key).getElementsByTagName(value.type)[0].value =
+          value.value;
+      }
+    } catch (error) {
+      console.log("error:", error);
+    }
+  }
+
+  // Event listener for settings change
+  document
+    .getElementById("save_setting_btn")
+    .addEventListener("click", function () {
+      const settings = {
+        s2t: {
+          type: "input",
+          value: document.getElementById("s2t").getElementsByTagName("input")[0]
+            .value,
+        },
+        t2t: {
+          type: "input",
+          value: document.getElementById("t2t").getElementsByTagName("input")[0]
+            .value,
+        },
+        t2s: {
+          type: "input",
+          value: document.getElementById("t2s").getElementsByTagName("input")[0]
+            .value,
+        },
+        vc: {
+          type: "input",
+          value: document.getElementById("vc").getElementsByTagName("input")[0]
+            .value,
+        },
+        llm_url: {
+          type: "textarea",
+          value: document
+            .getElementById("llm_url")
+            .getElementsByTagName("textarea")[0].value,
+        },
+        llm_model: {
+          type: "textarea",
+          value: document
+            .getElementById("llm_model")
+            .getElementsByTagName("textarea")[0].value,
+        },
+      };
+      localStorage.setItem("user_settings", JSON.stringify(settings));
+      console.log("setting saved!!", settings);
+    });
+
+  return "LocalStorage Initialized!!";
+}
+"""
 theme="Taithrah/Minimal"
-demo = gr.Blocks(title="VGM Translate",theme=theme)
+demo = gr.Blocks(title="VGM Translate",theme=theme, js=js)
 with demo:
   gr.Markdown(title)
   gr.Markdown(description)
@@ -911,10 +971,10 @@ with demo:
         with gr.Column():
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
-              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['S2T'], visible=True, elem_id="s2t")
-              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['T2T'], visible=True, elem_id="t2t")
-              t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value=user_settings['T2S'], visible=True, elem_id="t2s")
-              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value=user_settings['VC'], visible=True, elem_id="vc")
+              s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['s2t'], visible=True, elem_id="s2t")
+              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t")
+              t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s")
+              vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc")
             ## update t2s method
             def update_t2s_list(method):
               list_tts = list_vtts if method == 'VietTTS' else list_gtts
@@ -926,20 +986,20 @@ with demo:
           ## Config LLM Settings
           with gr.Accordion("LLM Settings", open=True):
             with gr.Row():
-              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['LLM_ENDPOINT'], elem_id="llm_url")        
-              llm_model = gr.Textbox(label="LLM Model", placeholder="LLM Model goes here...", value=user_settings['LLM_MODEL'], elem_id="llm_model")        
+              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url")        
+              llm_model = gr.Textbox(label="LLM Model", placeholder="LLM Model goes here...", value=user_settings['llm_model'], elem_id="llm_model")        
           with gr.Row():
             def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
               # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
-              user_settings['S2T'] = s2t_method
-              user_settings['T2T'] = t2t_method
-              user_settings['T2S'] = t2s_method
-              user_settings['VC'] = vc_method
-              user_settings['LLM_ENDPOINT'] = llm_url
-              user_settings['LLM_MODEL'] = llm_model
+              user_settings['s2t'] = s2t_method
+              user_settings['t2t'] = t2t_method
+              user_settings['t2s'] = t2s_method
+              user_settings['vc'] = vc_method
+              user_settings['llm_url'] = llm_url
+              user_settings['llm_model'] = llm_model
               save_settings(settings=user_settings)
               return gr.Info("Settings saved!!")
-            save_setting_btn = gr.Button("Save Settings")
+            save_setting_btn = gr.Button("Save Settings", elem_id="save_setting_btn")
             save_setting_btn.click(save_setting_fn, [s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model], [])
 
         # with gr.Column():

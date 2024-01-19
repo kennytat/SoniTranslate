@@ -1,12 +1,10 @@
 version: "3.8"
 services:
   soni:
-    env_file:
-      - .env
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/mdds-labs/sonitranslate:v1.2.0
+    image: ghcr.io/mdds-labs/sonitranslate:v1.3.0
     container_name: soni
     deploy:
       resources:
@@ -20,10 +18,14 @@ services:
       - 6860:6860
     environment:
       YOUR_HF_TOKEN: "YOUR_HF_TOKEN"
-      YOUR_AUTH_TOKEN: "YOUR_AUTH_TOKEN"
+      SVC_VOICES_MODELS: "ENABLE"
+      TTS_JOBS: 1
+      COPY_OUTPUT_DIR: "/mnt/hdd6tb/man-smb"
       # AUTH_USER='test'
       # AUTH_PASS='test'
     restart: unless-stopped
     volumes:
       - /mnt/backup/AI/sonitranslate/cache:/root/.cache
       - /mnt/backup/AI/sonitranslate/model:/app/model
+      - /mnt/hdd6tb/man-smb:/mnt/hdd6tb/man-smb
+      # - /path/to/cache/dir:/tmp
