@@ -28,5 +28,11 @@ RUN rm -rf /root/.cache/pip && rm -rf /var/cache/apt/*
 COPY . .
 
 EXPOSE 6860
+EXPOSE 7901
+EXPOSE 3100
 
-CMD python app.py
+COPY entrypoint.sh /
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

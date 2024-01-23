@@ -79,7 +79,9 @@ def text_to_phone_idx(text, phone_set, sil_idx):
     text = normalize(text)
     text = unicodedata.normalize("NFKC", text)
     text = num_to_str(text)
+    text = re.sub(r"[\s\.]+(?=\s)", " . ", text)
     text = text.replace(".", " . ")
+    text = text.replace("-", " - ")
     text = text.replace(",", " , ")
     text = text.replace(";", " ; ")
     text = text.replace(":", " : ")
@@ -420,7 +422,7 @@ if __name__ == "__main__":
     mp.set_start_method('spawn', force=True)
     
     host = "localhost"
-    port = 7902
+    port = 7901
     ## Parser argurment
     parser = argparse.ArgumentParser(description="VGM TTS application")
     parser.add_argument("-pf", "--platform", help="TTS Platform, default to desktop", default="web")
