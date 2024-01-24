@@ -1,6 +1,6 @@
 {
   "s2t": "Whisper",
-  "t2t": "VB",
+  "t2t": "LLM",
   "t2s": "VietTTS",
   "vc": "None",
   "llm_url": "https://infer-2.vgm.chat/v1",

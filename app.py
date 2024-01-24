@@ -28,7 +28,7 @@ import tempfile
 from vietTTS.utils import concise_srt
 from vietTTS.upsample import Predictor
 import soundfile as sf
-from utils import print_tree_directory, upload_model_list, manual_download, download_list, select_zip_and_rar_files, new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_or_audio, is_windows_path, youtube_download
+from utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_or_audio, is_windows_path, youtube_download
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
@@ -602,8 +602,7 @@ def translate_from_media(
     with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
     segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
-    if not t2t_method == "LLM":
-      result_diarize['segments'] = concise_srt(result_diarize['segments'])
+    result_diarize['segments'] = concise_srt(result_diarize['segments'], 375 if t2t_method == "LLM" else 500)
     segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
     # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
     target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{target_media_output_basename}-SPEAKER.srt')
@@ -615,8 +614,6 @@ def translate_from_media(
     else:
       # Start translate if srt not found
       result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
-      if t2t_method == "LLM":
-        result_diarize['segments'] = concise_srt(result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
     with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:

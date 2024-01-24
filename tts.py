@@ -235,6 +235,22 @@ class TTS():
             tts_result = self.text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
             # clips.append(silence)
             wav = np.concatenate([tts_result])
+             
+          # Equalize and Normalize
+          wav = wav / 32768.0  # Convert to range [-1, 1]
+          # Apply a simple high-pass filter for equalization
+          # This is a very basic approach - for a more complex equalization, more sophisticated filtering would be required
+          # Boosting higher frequencies
+          alpha = 0.8
+          filtered_data = np.array(wav)
+          for i in range(1, len(wav)):
+              filtered_data[i] = alpha * filtered_data[i] + (1 - alpha) * wav[i]
+          # Normalize the audio
+          max_val = np.max(np.abs(filtered_data))
+          wav = filtered_data / max_val
+          wav = (wav * 32767).astype(np.int16)
+
+          # Save the processed file
           sf.write(output_file, wav, samplerate=sample_rate)
           print("Wav segment written at: {}".format(output_file))
         del duration_net; del generator; gc.collect(); torch.cuda.empty_cache()
