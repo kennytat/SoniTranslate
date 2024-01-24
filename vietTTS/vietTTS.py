@@ -176,5 +176,5 @@ def text_to_speech(text, output_file, model_name,speed = 1):
 # if __name__ == '__main__':
 #   model_name = "vn_han_male"
 #   raw_str = """Và trong tài liệu hướng dẫn ngắn này, tôi muốn cho bạn thấy nó dễ dàng như thế nào để có được yêu thích hàng ngày của bạn sử dụng các thẻ bảng điều khiển chúng tôi thiết lập trong một hướng dẫn trước đó."""
-#   result = text_to_speech(raw_str, "/mnt/ssd256/Projects/SoniTranslate/test/viettts.ogg", model_name)
+#   result = text_to_speech(raw_str, "/mnt/ssd256/Projects/SoniTranslate/test/viettts.wav", model_name)
 #   # print("result::", result)

@@ -34,17 +34,17 @@ def create_translated_audio(result_diarize, audio_files, Output_name_file, disab
       output_path = f"{output_base}_even{output_ext}" if method == "even" else (f"{output_base}_odd{output_ext}" if method == "odd" else Output_name_file)
       print("file_array::", method, file_array)
       for line, audio_file in tqdm(zip(segments, file_array)):
-          start = float(line['start'])
-          # Overlay each audio at the corresponding time
-          try:
-            audio = AudioSegment.from_file(audio_file)
-            ###audio_a = audio.speedup(playback_speed=1.5)
-            start_time = start * 1000  # to ms
-            combined_audio = combined_audio.overlay(audio, position=start_time)
-          except:
-            print(f'ERROR AUDIO FILE {audio_file}')
+        start = float(line['start'])
+        # Overlay each audio at the corresponding time
+        try:
+          audio = AudioSegment.from_file(audio_file)
+          ###audio_a = audio.speedup(playback_speed=1.5)
+          start_time = start * 1000  # to ms
+          combined_audio = combined_audio.overlay(audio, position=start_time)
+        except:
+          print(f'ERROR AUDIO FILE {audio_file}')
       # combined audio as a file
-      combined_audio.export(output_path, format="wav") # best than ogg, change if the audio is anomalous
+      combined_audio.export(output_path, format="wav", bitrate="16k") # best than ogg, change if the audio is anomalous
     
   else:
     concatenated_audio = AudioSegment.empty()

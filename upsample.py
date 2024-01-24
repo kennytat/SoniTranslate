@@ -1,7 +1,9 @@
 import os
 import sys
+import gc
 import subprocess
 from pathlib import Path
+from pydub import AudioSegment
 import atexit
 import argparse
 import shutil
@@ -9,10 +11,12 @@ import tempfile
 import gradio as gr
 from utils import new_dir_now, encode_filename
 import torch
+from vietTTS.upsample import Predictor
+import soundfile as sf
 
 total_input = []
 total_output = []
-
+upsampler = None
 # Check GPU
 CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
 if torch.cuda.is_available():
@@ -26,36 +30,6 @@ else:
     compute_type_default = 'float32'
     whisper_model_default = 'medium'
 
-LANGUAGES = {
-    'Automatic detection': 'Automatic detection',
-    'Arabic (ar)': 'ar',
-    'Cantonese (yue)': 'yue',
-    'Chinese (zh)': 'zh',
-    'Czech (cs)': 'cs',
-    'Danish (da)': 'da',
-    'Dutch (nl)': 'nl',
-    'English (en)': 'en',
-    'Finnish (fi)': 'fi',
-    'French (fr)': 'fr',
-    'German (de)': 'de',
-    'Greek (el)': 'el',
-    'Hebrew (he)': 'he',
-    'Hungarian (hu)': 'hu',
-    'Italian (it)': 'it',
-    'Japanese (ja)': 'ja',
-    'Korean (ko)': 'ko',
-    'Persian (fa)': 'fa',
-    'Polish (pl)': 'pl',
-    'Portuguese (pt)': 'pt',
-    'Russian (ru)': 'ru',
-    'Spanish (es)': 'es',
-    'Turkish (tr)': 'tr',
-    'Ukrainian (uk)': 'uk',
-    'Urdu (ur)': 'ur',
-    'Vietnamese (vi)': 'vi',
-    'Hindi (hi)': 'hi',
-}
-   
   
 class ExitHooks(object):
     def __init__(self):
@@ -81,23 +55,78 @@ hooks.hook()
 class CONFIG():
     """Configurations"""
     # ckpt
-    os_tmp = Path(os.path.join(tempfile.gettempdir(), "STT"))
+    os_tmp = Path(os.path.join(tempfile.gettempdir(), "upsample"))
 
-def STT(
-  input_files,
-  whisper_model,
-  LANGUAGE,
-  batch_size, 
-  chunk_size
-  ):
+def split_audio(input_file="", extension="", output_folder="", chunk_duration=10000):
+    print("split_audio called:",input_file, extension, output_folder, chunk_duration)
+    # Load the audio file
+    audio = AudioSegment.from_file(input_file)
+
+    # Get the duration of the audio in milliseconds
+    audio_duration = len(audio)
+
+    # Calculate the number of chunks
+    num_chunks = audio_duration // chunk_duration
+
+    # Create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+    output_files = []
+    # Split the audio into chunks
+    for i in range(num_chunks):
+        start_time = i * chunk_duration
+        end_time = (i + 1) * chunk_duration
+
+        # Extract the chunk
+        chunk = audio[start_time:end_time]
+
+        # Save the chunk to a new file
+        output_file = os.path.join(output_folder, f"chunk_{i + 1}{extension}")
+        # print("output_file::", output_file)
+        chunk.export(output_file, format=extension.replace(".",""))
+        output_files.append(output_file)
+    return output_files
+
+def join_audio(chunk_files=[], extension="", output_file=""):
+    # Get a list of all audio files in the chunks folder
+    # print(chunk_files)
+    # Initialize an empty AudioSegment
+    joined_audio = AudioSegment.silent(duration=0)
+
+    # Concatenate each chunk to the joined_audio
+    for chunk_file in chunk_files:
+        chunk = AudioSegment.from_file(chunk_file)
+        joined_audio += chunk
+
+    # Export the joined audio to the output file
+    joined_audio.export(output_file, format=extension.replace(".",""))
+    
+def upsampling(filepath):
+  global upsampler
+  if not upsampler:
+    upsampler = Predictor()
+    upsampler.setup(model_name="speech")
+  print("upsampling:", filepath)
+  audio_data, sample_rate = sf.read(filepath)
+  source_duration = len(audio_data) / sample_rate
+  data = upsampler.predict(
+      filepath,
+      ddim_steps=50,
+      guidance_scale=3.5,
+      seed=42
+  )
+  ## Trim duration to match source duration
+  target_samples = int(source_duration * 48000)
+  sf.write(filepath, data=data[:target_samples], samplerate=48000)
+  return filepath
+
+def start(input_files):
     output_dir_name = new_dir_now()
     output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
     Path(output_dir_path).mkdir(parents=True, exist_ok=True)
-    print("stt called::",   input_files, whisper_model, LANGUAGE, batch_size, chunk_size)
+    print("stt called::",   input_files)
     file_list = [f.name for f in input_files]
     results_list = []
-    LANGUAGE = LANGUAGES[LANGUAGE]
-    print("Start transcribing source language::")
+    print("Start upsampling::")
     global total_input
     global total_output
     total_input = input_files
@@ -106,19 +135,25 @@ def STT(
         print('file_path::',file_path)
         tmp_dir = os.path.join(output_dir_path, encode_filename(file_path))
         Path(tmp_dir).mkdir(parents=True, exist_ok=True)
-        whisper_args = ['whisperx', '--model', whisper_model, '--no_align', '--batch_size', str(batch_size),'--chunk_size', str(chunk_size), file_path ,'-o', tmp_dir]
-        if LANGUAGE != 'Automatic detection':
-          whisper_args.extend(['--language', LANGUAGE])
-        subprocess.run(whisper_args)
-        print(f'Done:: {index}/{len(file_list)} task::', file_path)
-        archive_path = os.path.join(Path(output_dir_path).absolute(), os.path.splitext(os.path.basename(file_path))[0])
-        shutil.make_archive(archive_path, 'zip', tmp_dir)   
-        results_list.append(f"{archive_path}.zip")
-        total_output.append(f"{archive_path}.zip")
+        basename, ext = os.path.splitext(file_path)
+        output_file = os.path.join(Path(output_dir_path).absolute(), os.path.basename(file_path))
+        ## Split audio
+        split_audio_array = split_audio(file_path, ext, tmp_dir, 10000)
+        ## Upsample audio
+        for audio in split_audio_array:
+          upsampling(audio)
+        global upsampler
+        upsampler = None; gc.collect(); torch.cuda.empty_cache()
+        ## Join audio
+        join_audio(split_audio_array, ext, output_file)
+       
+        print(f'Done:: {index}/{len(file_list)} task::', file_path)  
+        results_list.append(output_file)
+        total_output.append(output_file)
         ## Remove tmp files
         shutil.rmtree(tmp_dir, ignore_errors=True)
       except:
-          print("Skip error file while stt: {}".format(file_path))
+          print("Skip error file while upsampling: {}".format(file_path))
     print("[DONE] {} tasks: {}".format(len(results_list), results_list))
     return results_list
 
@@ -126,20 +161,14 @@ def web_interface(port):
   css = """
   .btn-active {background-color: "orange"}
   """
-  app = gr.Blocks(title="VGM Speech To Text", theme=gr.themes.Default(), css=css)
+  app = gr.Blocks(title="VGM Audio Enhancer", theme=gr.themes.Default(), css=css)
   with app:
-      gr.Markdown("# VGM Speech To Text")
+      gr.Markdown("# VGM Audio Enhancer")
       with gr.Tabs():
-          with gr.TabItem("STT"):
+          with gr.TabItem("Audio Enhancer"):
               with gr.Row():
                   with gr.Column():
                       input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
-                      with gr.Row():
-                        WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
-                        LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
-                      with gr.Row():
-                        batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1)
-                        chunk_size = gr.Slider(2, 30, value=5, label="Chuck size", step=1)
                   with gr.Column():
                       def update_output_list():
                         global total_input
@@ -162,8 +191,8 @@ def web_interface(port):
                         def update_output_visibility():
                           return gr.update(label="Audio Files Output"),gr.update(visible=False)
                         btn = gr.Button(value="Generate!", variant="primary")
-                        btn.click(STT,
-                                inputs=[input_files, WHISPER_MODEL,LANGUAGE,batch_size, chunk_size],
+                        btn.click(start,
+                                inputs=[input_files],
                                 outputs=[files_output], concurrency_limit=1).then(
                         fn=update_output_visibility,
                         inputs=[],
@@ -203,29 +232,27 @@ if __name__ == "__main__":
     os.system(f'rm -rf { CONFIG.os_tmp}/*')
     
     host = "localhost"
-    port = 3100
+    port = 3110
     ## Parser argurment
-    parser = argparse.ArgumentParser(description="VGM STT application")
+    parser = argparse.ArgumentParser(description="VGM Audio Enhance application")
     parser.add_argument("-pf", "--platform", help="STT Platform, default to desktop", default="web")
     parser.add_argument("-m", "--model", help="Custom path for model directory, default to current folder")
     parser.add_argument("-f", "--file", help="Input file for STT")
     parser.add_argument("-o", "--output", help="Output directory")
     args = parser.parse_args()
-    ## Change ckpt_dir path if provided
-    if args.model:
-        CONFIG.STT_ckpt_dir = args.model
-        print("ckpt_dir:",  CONFIG.STT_ckpt_dir)
+    # ## Change ckpt_dir path if provided
+    # if args.model:
+    #     CONFIG.model = args.model
+    #     print("ckpt_dir:",  CONFIG.model)
     ## Execute app
     if args.platform == "web" and args.file:
-        raise TypeError("Could not STT from WEB and CLI at same time")
-    elif args.platform == "cli" and args.file and args.text:
-        raise TypeError("Could not STT-CLI text and file at same time")
+        raise TypeError("Could not start Upsample from WEB and CLI at same time")
     elif args.platform == "web":
         web_interface(port)
     elif args.platform == "desktop":
         pass
         # start_desktop_interface(host, port)
-    elif (args.platform == "cli" and args.file) or (args.platform == "cli" and args.text):
+    elif args.platform == "cli" and args.file:
         pass
         # STT(file=args.file, text=args.text, voice=args.voice, speed=args.speed, method=args.method, output=args.output)
     else:

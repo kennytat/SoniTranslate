@@ -9,7 +9,6 @@ __pycache__/
 *.wav
 *.mp3
 *.mp4
-*.ogg
 
 # Distribution / packaging
 .Python

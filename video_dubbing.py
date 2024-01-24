@@ -50,7 +50,7 @@ def translate_from_video(
 
     OutputFile = 'Video.mp4'
     audio_wav = "audio.wav"
-    Output_name_file = "audio_dub_solo.ogg"
+    Output_name_file = "audio_dub_solo.wav"
     mix_audio = "audio_mix.mp3"
 
     os.system("rm Video.mp4")
@@ -165,7 +165,7 @@ def translate_from_video(
             print("NO SPEAKER DETECT IN SEGMENT")
 
         # make the tts audio
-        filename = f"audio/{start}.ogg"
+        filename = f"audio/{start}.wav"
 
         if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
             make_voice(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO)
@@ -203,7 +203,7 @@ def translate_from_video(
         audio_files.append(filename)
 
     # replace files with the accelerates
-    os.system("mv -f audio2/audio/*.ogg audio/")
+    os.system("mv -f audio2/audio/*.wav audio/")
 
     os.system(f"rm {Output_name_file}")
     create_translated_audio(result_diarize, audio_files, Output_name_file)

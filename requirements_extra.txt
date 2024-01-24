@@ -20,6 +20,8 @@ cryptography
 langdetect
 vietnam_number
 docx2txt
+audiosr
+cog
 # so-vits-svc-fork
 so-vits-svc-fork
 #

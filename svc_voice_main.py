@@ -58,7 +58,7 @@ class SVCClassVoices:
     
 # if __name__ == "__main__":
 #   svc_voices = SVCClassVoices()
-#   audio_files = ['audio/0.388.ogg', 'audio/16.412.ogg', 'audio/17.712.ogg', 'audio/26.094.ogg', 'audio/29.015.ogg', 'audio/46.485.ogg', 'audio/67.513.ogg','audio/76.356.ogg', 'audio/78.336.ogg', 'audio/84.198.ogg', 'audio/103.596.ogg', 'audio/108.143.ogg']
+#   audio_files = ['audio/0.388.wav', 'audio/16.412.wav', 'audio/17.712.wav', 'audio/26.094.wav', 'audio/29.015.wav', 'audio/46.485.wav', 'audio/67.513.wav','audio/76.356.wav', 'audio/78.336.wav', 'audio/84.198.wav', 'audio/103.596.wav', 'audio/108.143.wav']
 #   speakers_list = ['SPEAKER_00', 'SPEAKER_00', 'SPEAKER_01', 'SPEAKER_00', 'SPEAKER_00', 'SPEAKER_00', 'SPEAKER_01', 'SPEAKER_00', 'SPEAKER_01', 'SPEAKER_00', 'SPEAKER_00', 'SPEAKER_01']
 #   svc_voices.apply_conf('vn_han_male','vn_han_male', None,None,None,None)
 #   svc_voices(speakers_list,audio_files)

@@ -26,6 +26,8 @@ import shutil
 import logging
 import tempfile
 from vietTTS.utils import concise_srt
+from vietTTS.upsample import Predictor
+import soundfile as sf
 from utils import print_tree_directory, upload_model_list, manual_download, download_list, select_zip_and_rar_files, new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_or_audio, is_windows_path, youtube_download
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -34,6 +36,7 @@ logging.getLogger("markdown_it").setLevel(logging.WARNING)
 load_dotenv()
 total_input = []
 total_output = []
+upsampler = None
 title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
 
 description = """
@@ -288,6 +291,26 @@ def batch_preprocess(
       output.append(result)
   return output
 
+def upsampling(file):
+  global upsampler
+  if not upsampler:
+    upsampler = Predictor()
+    upsampler.setup(model_name="speech")
+  filepath = os.path.join("audio2", file[0])
+  print("upsampling:", filepath)
+  audio_data, sample_rate = sf.read(filepath)
+  source_duration = len(audio_data) / sample_rate
+  data = upsampler.predict(
+      filepath,
+      ddim_steps=50,
+      guidance_scale=3.5,
+      seed=42
+  )
+  ## Trim duration to match source duration
+  target_samples = int(source_duration * 48000)
+  sf.write(filepath, data=data[:target_samples], samplerate=48000)
+  return file
+
 def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline):
     text = segment['text']
     start = segment['start']
@@ -302,7 +325,7 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timel
         print(f"NO SPEAKER DETECT IN SEGMENT: TTS auxiliary will be used in the segment time {segment['start'], segment['text']}")
 
     # make the tts audio
-    filename = f"audio/{start}.ogg"
+    filename = f"audio/{start}.wav"
 
     if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
         make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
@@ -619,10 +642,16 @@ def translate_from_media(
     
     N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
     print("Start TTS:: concurrency =", N_JOBS)
-    
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS) if max_speakers == 1 else 1):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
     
+    if os.getenv('UPSAMPLING_ENABLE', '') == "true":
+      progress(0.75, desc="Upsampling...")
+      print("Start Upsampling::")
+      with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
+        tts_results = Parallel(verbose=100)(delayed(upsampling)(file) for (file) in tts_results)
+      global upsampler
+      upsampler = None; gc.collect(); torch.cuda.empty_cache()
     # tts_results = []
     # for segment in tqdm(result_diarize['segments']):
     #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline)
@@ -645,7 +674,7 @@ def translate_from_media(
         rvc_voices(speakers_list, audio_files)
 
     # replace files with the accelerates
-    os.system("mv -f audio2/audio/*.ogg audio/")
+    os.system("mv -f audio2/audio/*.wav audio/")
 
     os.system(f"rm -rf {translated_output_file}")
     
@@ -843,27 +872,27 @@ with demo:
                     return [value for value in visibility_dict.values()]
                 with gr.Row() as tts_voice00_row:
                   tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 1', visible=True)
-                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 1', visible=True)
+                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 1', visible=False)
                   rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 1', visible=False)
                 with gr.Row(visible=False) as tts_voice01_row:
                   tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 2', visible=True)
-                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 2', visible=True)
+                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 2', visible=False)
                   rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 2', visible=False)
                 with gr.Row(visible=False) as tts_voice02_row:
                   tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 3', visible=True)
-                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 3', visible=True)
+                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 3', visible=False)
                   rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 3', visible=False)
                 with gr.Row(visible=False) as tts_voice03_row:
                   tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 4', visible=True)
-                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 4', visible=True)
+                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 4', visible=False)
                   rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 4', visible=False)
                 with gr.Row(visible=False) as tts_voice04_row:
                   tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 5', visible=True)
-                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 5', visible=True)
+                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 5', visible=False)
                   rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 5', visible=False)
                 with gr.Row(visible=False) as tts_voice05_row:
                   tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 6', visible=True)
-                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 6', visible=True)
+                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 6', visible=False)
                   rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 6', visible=False)
                 max_speakers.change(update_speaker_visibility, max_speakers, [tts_voice00_row, tts_voice01_row, tts_voice02_row, tts_voice03_row, tts_voice04_row, tts_voice05_row])
 
@@ -1268,7 +1297,7 @@ if __name__ == "__main__":
   mp.set_start_method('spawn', force=True)
   
   # os.system('rm -rf /tmp/gradio/*')
-  # os.system('rm -rf *.wav *.mp3 *.ogg *.mp4')
+  # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
   
@@ -1279,7 +1308,7 @@ if __name__ == "__main__":
   auth_user = os.getenv('AUTH_USER', '')
   auth_pass = os.getenv('AUTH_PASS', '')
   demo.queue().launch(
-    # auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
+    auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
     show_api=False,
     debug=True,
     inbrowser=True,
