@@ -112,23 +112,24 @@ def num_to_str(text):
   except:
     print("num_to_str error:::")
   
-def fix_special(verse):
+def fix_special(text):
   # verse = TTSnorm(verse)
-  verse = verse.strip()
-  verse = verse.replace(" , ", ", ").replace(" . ", ". ")
-  for word, replacement in dictOfStrings.items():
-    # print(word)
-    verse = verse.replace(word, replacement)
-  # print("fix_special:", verse)
-  return verse
+  text = text.strip()
+  text = text.replace(" , ", ", ").replace(" . ", ". ")
+  text = re.sub(r"[\s\.]+(?=\s)",". ",text)
+  text = re.sub(r"\s+", " ", text)
+  text = text.replace('.', ',')
+  text = re.sub(r"\,+", ",", text)
+  text = text[:-1] if text.endswith(',') else text
+  return text
 
 def normalize(text):
   parser = BibleVerseParser("NO")
   text = parser.parseBibleVerse(text)
   del parser
   text = fix_special(text)
-  
-  # print("BibleParser:", text)
+  for word, replacement in dictOfStrings.items():
+    text = text.replace(word, replacement)
   return text
 
 def pad_zero(s, th):
@@ -180,7 +181,7 @@ def concise_srt(srt_list, max_word_length=500):
         if i > 0 and srt_list[i]['text'] != "":
           last_para = modified_paras[-1]
           test_combined_text = last_para['text'] + " . " + srt_list[i]['text']
-          test_combined_text = re.sub(r"[\s\.]+(?=\s)",". ",test_combined_text)
+          test_combined_text = fix_special(str(test_combined_text).capitalize())
           # print("test_combined_text length::", len(test_combined_text))
           if para['speaker'] == last_para['speaker'] and len(test_combined_text) < max_word_length and para['start'] - last_para['end'] <= 0.5:
             if "text" in last_para:
@@ -193,6 +194,7 @@ def concise_srt(srt_list, max_word_length=500):
             last_para['end'] = srt_list[i]['end'] 
             modified_paras[-1] = last_para
           else:
+            para['text'] = fix_special(str(para['text']).capitalize())
             modified_paras.append(para)
       except Exception as error:
         print("error::", i, error)

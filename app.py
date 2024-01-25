@@ -717,13 +717,13 @@ def translate_from_media(
     os.system(f"rm -rf {media_output}")
     if is_video:
       os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a aac -map 0:v -map 1:a -shortest {media_output}")
-    os.system(f"rm -rf {OutputFile}")
+    os.remove(OutputFile)
     if media_input.startswith('/tmp'):
-      os.system(f"rm -rf {media_input}")
+      os.remove(media_input)
     ## Archve all files and return output
     archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output))[0])
     shutil.make_archive(archive_path, 'zip', temp_dir)
-    os.system(f"rm -rf {temp_dir}")
+    shutil.rmtree(temp_dir)
     final_output = f"{archive_path}.zip"
     
     ### Copy to temporary directory

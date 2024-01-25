@@ -13,6 +13,7 @@ from utils import new_dir_now, encode_filename
 import torch
 from vietTTS.upsample import Predictor
 import soundfile as sf
+from utils import new_dir_now
 
 total_input = []
 total_output = []
@@ -137,21 +138,35 @@ def start(input_files):
         Path(tmp_dir).mkdir(parents=True, exist_ok=True)
         basename, ext = os.path.splitext(file_path)
         output_file = os.path.join(Path(output_dir_path).absolute(), os.path.basename(file_path))
+        
+        # is_video = True if is_video_or_audio(file_path) == 'video' else False
+        is_video = True if os.path.splitext(os.path.basename(file_path.strip()))[1] == '.mp4' else False
+        if is_video:
+          video_path = file_path
+          audio_path = f"{os.path.splitext(output_file)[0]}.wav"
+          subprocess.run(["ffmpeg", "-y", "-i", video_path, "-vn" ,"-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", audio_path])
+        else:
+          audio_path = file_path
         ## Split audio
-        split_audio_array = split_audio(file_path, ext, tmp_dir, 10000)
+        split_audio_array = split_audio(audio_path, ext, tmp_dir, 10000)
         ## Upsample audio
         for audio in split_audio_array:
           upsampling(audio)
         global upsampler
         upsampler = None; gc.collect(); torch.cuda.empty_cache()
         ## Join audio
-        join_audio(split_audio_array, ext, output_file)
-       
+        join_audio(split_audio_array, ext, audio_path)
+        ## Combined if is video
+        if is_video:
+          subprocess.run(["ffmpeg", "-y", "-i", video_path, "-i", audio_path, "-c:v", "copy", "-c:a", "aac", "-map", "0:v", "-map", "1:a", "-shortest", output_file])
+        else:
+          shutil.copy(audio_path, output_file)    
         print(f'Done:: {index}/{len(file_list)} task::', file_path)  
         results_list.append(output_file)
         total_output.append(output_file)
         ## Remove tmp files
         shutil.rmtree(tmp_dir, ignore_errors=True)
+        os.remove(file_path)
       except:
           print("Skip error file while upsampling: {}".format(file_path))
     print("[DONE] {} tasks: {}".format(len(results_list), results_list))
@@ -168,7 +183,7 @@ def web_interface(port):
           with gr.TabItem("Audio Enhancer"):
               with gr.Row():
                   with gr.Column():
-                      input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
+                      input_files = gr.Files(label="Upload media file(s)", file_types=["audio","video"])
                   with gr.Column():
                       def update_output_list():
                         global total_input

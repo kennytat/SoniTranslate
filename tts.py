@@ -330,11 +330,12 @@ class TTS():
       print("Start TTS:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
         results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, tts_voice_ckpt_dir, speed, total_duration, start_silence) for (text, output_file, total_duration, start_silence) in queue_list.queue)
-        
-      print("Start Upsampling::")
-      with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
-        results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in results)
-      del self.upsampler; gc.collect(); torch.cuda.empty_cache()
+      
+      if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
+        print("Start Upsampling::")
+        with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
+          results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in results)
+        self.upsampler = None; gc.collect(); torch.cuda.empty_cache()
       
       print("TTS Done::")
       if torch.cuda.is_available() and convert_voice_ckpt_dir != "none":
@@ -354,6 +355,8 @@ class TTS():
       
       ## Remove tmp files
       if os.path.exists(tmp_dirname): shutil.rmtree(tmp_dirname, ignore_errors=True)
+      if input.startswith('/tmp'):
+        os.remove(input)
       return (final_output, log_output)
 
   def speak(

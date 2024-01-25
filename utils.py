@@ -10,6 +10,7 @@ import zipfile
 import rarfile
 import logging
 import hashlib
+from vietTTS.utils import fix_special
 
 def encode_filename(filename):
     print("Encoding filename:", filename)
@@ -164,7 +165,7 @@ def segments_to_srt(segments, output_path):
       basename, ext = os.path.splitext(output_path)
       startTime = srt_time(str(0)+str(timedelta(seconds=segment['start'])))
       endTime = srt_time(str(0)+str(timedelta(seconds=segment['end'])))
-      text = segment['text']
+      text = fix_special(str(segment['text']).capitalize())
       segmentId = index+1
       speaker = segment['speaker'] if 'speaker' in segment else segments[index - 1]['speaker']
       segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text and text[0] == ' ' else text}\n\n"

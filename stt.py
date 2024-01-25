@@ -117,6 +117,7 @@ def STT(
         total_output.append(f"{archive_path}.zip")
         ## Remove tmp files
         shutil.rmtree(tmp_dir, ignore_errors=True)
+        os.remove(file_path)
       except:
           print("Skip error file while stt: {}".format(file_path))
     print("[DONE] {} tasks: {}".format(len(results_list), results_list))

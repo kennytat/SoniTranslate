@@ -1,8 +1,7 @@
 IPython
 nest_asyncio
 --extra-index-url https://download.pytorch.org/whl/cu117 torch==2.0.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2+cu117
-yt-dlp 
-gradio==4.11.0
+yt-dlp
 gTTS
 pydub==0.25.1
 edge_tts==6.1.7
@@ -12,3 +11,6 @@ datetime
 pathlib
 srt
 whisperx @ git+https://github.com/kennytat/whisperx.git@large-v3
+## Audio Upsampling
+audiosr
+cog
