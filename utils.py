@@ -227,9 +227,14 @@ def is_video_or_audio(file_path):
 
 def is_windows_path(path):
     # Use a regular expression to check for a Windows drive letter and separator
-    windows_path_pattern = re.compile(r"^[A-Za-z]:\\")
-    return bool(windows_path_pattern.match(path))
-  
+    return re.match(r'^[a-zA-Z]:\\', path) is not None
+
+def convert_to_wsl_path(path):
+    # Convert Windows path to WSL path
+    drive_letter, rest_of_path = path.split(':\\', 1)
+    wsl_path = "/".join(['/mnt', drive_letter.lower(), rest_of_path.replace('\\', '/')])
+    return wsl_path
+    
 def youtube_download(url, output_path):
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',

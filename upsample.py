@@ -13,7 +13,7 @@ from utils import new_dir_now, encode_filename
 import torch
 from vietTTS.upsample import Predictor
 import soundfile as sf
-from utils import new_dir_now
+from utils import new_dir_now, is_windows_path, convert_to_wsl_path
 
 total_input = []
 total_output = []
@@ -120,7 +120,7 @@ def upsampling(filepath):
   sf.write(filepath, data=data[:target_samples], samplerate=48000)
   return filepath
 
-def start(input_files):
+def start(input_files, output_dir):
     output_dir_name = new_dir_now()
     output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
     Path(output_dir_path).mkdir(parents=True, exist_ok=True)
@@ -167,6 +167,12 @@ def start(input_files):
         ## Remove tmp files
         shutil.rmtree(tmp_dir, ignore_errors=True)
         os.remove(file_path)
+        ### Copy to temporary directory
+        if output_dir:
+          print("---------COPY TO OUTPUT DIRECTORY---------")
+          output_dir = output_dir if not is_windows_path(output_dir) else convert_to_wsl_path(output_dir)
+          Path(output_dir).mkdir(parents=True, exist_ok=True)
+          os.system(f"cp '{output_file}' '{output_dir}'")
       except:
           print("Skip error file while upsampling: {}".format(file_path))
     print("[DONE] {} tasks: {}".format(len(results_list), results_list))
@@ -184,6 +190,8 @@ def web_interface(port):
               with gr.Row():
                   with gr.Column():
                       input_files = gr.Files(label="Upload media file(s)", file_types=["audio","video"])
+                      with gr.Accordion("Settings", open=False):
+                        output_dir = gr.Textbox(label="Output Directory - Leave blank to disable",info="Example: M:\\warehouse\\video.mp4", placeholder="Output path goes here")        
                   with gr.Column():
                       def update_output_list():
                         global total_input
@@ -207,7 +215,7 @@ def web_interface(port):
                           return gr.update(label="Audio Files Output"),gr.update(visible=False)
                         btn = gr.Button(value="Generate!", variant="primary")
                         btn.click(start,
-                                inputs=[input_files],
+                                inputs=[input_files, output_dir],
                                 outputs=[files_output], concurrency_limit=1).then(
                         fn=update_output_visibility,
                         inputs=[],
