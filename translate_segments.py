@@ -3,7 +3,7 @@ import os
 from tqdm import tqdm
 from translate_text_processor import post_process_text_vi
 from vb_translate import vb_translate
-from llm_translate import llm_translate
+from llm_translate import LLM
 from deep_translator import GoogleTranslator
 
 import torch
@@ -55,7 +55,10 @@ def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method, llm_endpoint, llm_m
           segments[line]['text'] = translated_line
       gc.collect(); torch.cuda.empty_cache(); del t5_tokenizer; del t5_model
     elif t2t_method == "LLM" and TRANSLATE_AUDIO_TO == "vi":
-      segments = llm_translate(segments, llm_endpoint, llm_model)
+      llm = LLM()
+      llm.initLLM(llm_endpoint, llm_model)
+      segments = llm.translate(segments)
+      del llm
     else:
       ## Google translator
       google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
