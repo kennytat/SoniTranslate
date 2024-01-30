@@ -140,7 +140,7 @@ def web_interface(port):
                         LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
                       with gr.Row():
                         batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1)
-                        chunk_size = gr.Slider(2, 30, value=5, label="Chuck size", step=1)
+                        chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
                   with gr.Column():
                       def update_output_list():
                         global total_input

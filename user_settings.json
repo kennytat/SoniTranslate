@@ -4,5 +4,9 @@
   "t2s": "VietTTS",
   "vc": "None",
   "llm_url": "https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1",
-  "llm_model": "nampdn-ai/vietmistral-chatvgm-3072"
+  "llm_models": [
+    "nampdn-ai/vietmistral-chatvgm-3072",
+    "nampdn-ai/vietmistral-bible-translation"
+  ],
+  "llm_model": "nampdn-ai/vietmistral-bible-translation"
 }

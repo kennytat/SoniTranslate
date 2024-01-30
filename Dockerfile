@@ -2,7 +2,7 @@ FROM python:3.10.12
 
 RUN apt update -y && apt upgrade -y
 
-RUN apt -y install -qq aria2 ffmpeg wget curl git vim
+RUN apt -y install -qq aria2 build-essential setuptools ffmpeg wget curl git vim 
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ ARG PATH="/root/miniconda3/bin:${PATH}"
 
 RUN wget \
 	https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-x86_64.sh \
-	&& mkdir /root/.conda \
+	&& mkdir ~/.conda \
 	&& bash Miniconda3-py310_23.5.2-0-Linux-x86_64.sh -b \
 	&& rm -f Miniconda3-py310_23.5.2-0-Linux-x86_64.sh
 

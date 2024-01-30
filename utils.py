@@ -9,6 +9,7 @@ import shutil
 import zipfile
 import rarfile
 import logging
+import requests
 import hashlib
 from vietTTS.utils import fix_special
 
@@ -247,3 +248,12 @@ def youtube_download(url, output_path):
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl_download:
         ydl_download.download([url])
+
+def get_llm_models(endpoints):
+  endpoints = endpoints.split(',')
+  models = []
+  for endpoint in endpoints:
+    response = requests.get(f"{endpoint}/models")
+    if response.status_code == 200 and "data" in response.json():
+      models.extend([item['id'] for item in response.json()["data"]])
+  return models

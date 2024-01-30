@@ -6,7 +6,7 @@ import random
 from tqdm import tqdm
 import joblib
 from joblib import Parallel, delayed
-
+import requests
 load_dotenv()
 
 from langchain.chat_models import ChatOpenAI
@@ -37,17 +37,20 @@ class LLM():
   def initLLM(self, endpoints, model):
     endpoints = endpoints.split(',')
     for endpoint in endpoints:
-      llm = ChatOpenAI(
-          model=model,
-          openai_api_key="EMPTY",
-          openai_api_base=endpoint,
-          max_tokens=2048,
-          temperature=0.5,
-          model_kwargs={"stop":["<|im_end|>"]},
-          # top_p=0.5
-      )
-      llm_chain = LLMChain(llm=llm, prompt=self.prompt, memory=self.memory, verbose=True)
-      self.llm_chain.append(llm_chain)
+      response = requests.get(f"{endpoint}/models")
+      models = [item['id'] for item in response.json()["data"]]
+      if model in models:
+        llm = ChatOpenAI(
+            model=model,
+            openai_api_key="EMPTY",
+            openai_api_base=endpoint,
+            max_tokens=2048,
+            temperature=0.5,
+            model_kwargs={"stop":["<|im_end|>"]},
+            # top_p=0.5
+        )
+        llm_chain = LLMChain(llm=llm, prompt=self.prompt, memory=self.memory, verbose=True)
+        self.llm_chain.append(llm_chain)
 
   def translate(self, segments):
       print("start llm_translate::")

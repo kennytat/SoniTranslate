@@ -28,7 +28,7 @@ import tempfile
 from vietTTS.utils import concise_srt
 from vietTTS.upsample import Predictor
 import soundfile as sf
-from utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_or_audio, is_windows_path, youtube_download
+from utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_or_audio, is_windows_path, youtube_download, get_llm_models
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
@@ -796,35 +796,27 @@ function initLocalStorage() {
       const settings = {
         s2t: {
           type: "input",
-          value: document.getElementById("s2t").getElementsByTagName("input")[0]
-            .value,
+          value: document.getElementById("s2t").getElementsByTagName("input")[0].value,
         },
         t2t: {
           type: "input",
-          value: document.getElementById("t2t").getElementsByTagName("input")[0]
-            .value,
+          value: document.getElementById("t2t").getElementsByTagName("input")[0].value,
         },
         t2s: {
           type: "input",
-          value: document.getElementById("t2s").getElementsByTagName("input")[0]
-            .value,
+          value: document.getElementById("t2s").getElementsByTagName("input")[0].value,
         },
         vc: {
           type: "input",
-          value: document.getElementById("vc").getElementsByTagName("input")[0]
-            .value,
+          value: document.getElementById("vc").getElementsByTagName("input")[0].value,
         },
         llm_url: {
           type: "textarea",
-          value: document
-            .getElementById("llm_url")
-            .getElementsByTagName("textarea")[0].value,
+          value: document.getElementById("llm_url").getElementsByTagName("textarea")[0].value,
         },
         llm_model: {
-          type: "textarea",
-          value: document
-            .getElementById("llm_model")
-            .getElementsByTagName("textarea")[0].value,
+          type: "input",
+          value: document.getElementById("llm_model").getElementsByTagName("input")[0].value,
         },
       };
       localStorage.setItem("user_settings", JSON.stringify(settings));
@@ -905,7 +897,7 @@ with demo:
                             compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
                           with gr.Row():
                             batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1)
-                            chunk_size = gr.Slider(2, 30, value=5, label="Chuck size", step=1)
+                            chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
                           # gr.HTML("<hr>")
                           # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
                           PREVIEW = gr.Checkbox(label="Preview", visible=False, info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
@@ -1009,11 +1001,16 @@ with demo:
               }
               return [value for value in visibility_dict.values()]
             t2s_method.change(update_t2s_list, [t2s_method], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
+            
           ## Config LLM Settings
+          def update_llm_model(llm_url):
+            models = get_llm_models(llm_url)
+            return gr.update(choices=models)
           with gr.Accordion("LLM Settings", open=True):
             with gr.Row():
-              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url")        
-              llm_model = gr.Textbox(label="LLM Model", placeholder="LLM Model goes here...", value=user_settings['llm_model'], elem_id="llm_model")        
+              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url")
+              llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model")        
+              llm_url.blur(update_llm_model, [llm_url], [llm_model])
           with gr.Row():
             def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
               # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
@@ -1022,6 +1019,7 @@ with demo:
               user_settings['t2s'] = t2s_method
               user_settings['vc'] = vc_method
               user_settings['llm_url'] = llm_url
+              user_settings['llm_models'] = get_llm_models(llm_url)
               user_settings['llm_model'] = llm_model
               save_settings(settings=user_settings)
               return gr.Info("Settings saved!!")
