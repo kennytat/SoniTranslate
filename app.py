@@ -1,4 +1,3 @@
-#%cd SoniTranslate
 from dotenv import load_dotenv
 import json
 import yt_dlp
@@ -44,7 +43,7 @@ description = """
 
 🎥 Upload a video or provide a video link. 📽️
 🎥 Upload SRT File for skiping S2T & T2T 📽️
- - SRT Format: "<video|audio name>-<target-language>.srt" - Example: "video-vi.srt"
+ - SRT Format: "<media name>-<target-language>-SPEAKER.srt" - Example: "video-vi-SPEAKER.srt"
  - See the tab labeled 'Help' for instructions on how to use it. Let's start having fun with video translation! 🚀🎉
 """
 
@@ -425,15 +424,15 @@ def translate_from_media(
     is_video = True if os.path.splitext(os.path.basename(media_input.strip()))[1] == '.mp4' else False
     
     OutputFile = os.path.join(temp_dir, 'Video.mp4') if is_video else os.path.join(temp_dir, 'Audio.mp3')
-    audio_wav = os.path.join(temp_dir, "audio_origin.wav")
-    audio_webm = os.path.join(temp_dir, "audio_origin.webm")  
-    translated_output_file = os.path.join(temp_dir, "audio_translated.wav")
-    mix_audio = os.path.join(temp_dir, "audio_mix.mp3") 
     file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
+    mix_audio = os.path.join(temp_dir, f"{file_name}.mp3") 
     media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
     media_output = os.path.join(temp_dir, media_output_name)
     source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{SOURCE_LANGUAGE}')
     target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
+    audio_wav = f"{source_media_output_basename}.wav"
+    audio_webm = f"{source_media_output_basename}.webm"
+    translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.wav")
     
     # os.system("rm -rf Video.mp4")
     # os.system("rm -rf audio_origin.webm")
@@ -530,7 +529,7 @@ def translate_from_media(
     audio = whisperx.load_audio(audio_wav)
     result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
     gc.collect(); torch.cuda.empty_cache(); del model
-    print("Transcript complete::", len(result["segments"]), result["segments"])
+    print("Transcript complete::", len(result["segments"]))
 
     
     # # 2. Align whisper output for source language
@@ -598,7 +597,6 @@ def translate_from_media(
     # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
     ## Write source segment and srt,txt to file
 
-    print("result_diarize['segments'] length",len(result_diarize['segments']))
     with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
     segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
@@ -614,6 +612,7 @@ def translate_from_media(
     else:
       # Start translate if srt not found
       result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
+      print("translated segments::", result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
     with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:

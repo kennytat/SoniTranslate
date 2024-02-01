@@ -29,8 +29,8 @@ def t5_translator(input_text: str, tokenizer, model):
     return "\n".join(result)
 
 ## Translate text using Google Translator
-def translate_text(segments, TRANSLATE_AUDIO_TO, t2t_method, llm_endpoint, llm_model):
-    print("start translate_text::")
+def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model=""):
+    print("start translate_text::", segments)
     if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
       print("vb_translator::", len(segments), "segments")
       source_text = "\n".join([ segment['text'] for segment in segments])

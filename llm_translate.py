@@ -64,18 +64,10 @@ class LLM():
 
 if __name__ == '__main__':
   input_texts = [
-'I want to read actually from, three passages of scripture, i\'m going to read just briefly here from john chapter 3, and then from john chapter 7',
-'for god so loved the world that he gave his one and only son, that whoever believes in him shall not perish but have eternal life',
-'for god did not send his son into the world to condemn the world, but to save the world through him',
-'whoever believes in him is not condemned, but whoever does not believe stands condemned already, because he has not believed in the name of god\'s one and only son',
-'this is the verdict light has come into the world, but men loved darkness instead of light because their deeds were evil, everyone who does evil hates the light, and will not come into the light for fear that his deeds will be exposed, but whoever lives by the truth comes into the light so that it may be seen plainly, that what he has done has been done through god',
-'And then in John chapter seven',
-'In verse 37, on the last and greatest day of the feast, jesus stood and said in a loud voice, "if anyone is thirsty, let him come to me and drink, whoever believes in me, as the scripture has said, streams of living water, will flow from within him, by this he meant the spirit whom those who believed in him, were later to receive, up to that time, the spirit had not',
-'been given since Jesus had not yet been glorified.',
-'On hearing his words, some of the people said, surely this man is the prophet.',
-'others said, "he is the christ," still others asked, "how can the christ come from galilee?',
-'does not the scripture say that the christ will come from david\'s family and from bethlehem, the town where david lived, thus the people, were divided because of jesus, some wanted to seize him, but no one laid a hand on him, and then finally from acts and from chapter 4',
-'And from verse 8, then peter, filled with the holy spirit, said to them,"rulers and elders of the people, if we\'re being called to account today for an act of kindness, shown to a cripple, and are asked how he was healed, then know this, you and all the people of israel, it is by the name of jesus christ of nazareth, whom you crucified, but whom god raised from the dead',
+  "Perhaps the most common type of bible reading aid is a calendar-based, daily devotional and in this short tutorial i want to show you how, how easy it is to get to your favorite daily devotional, utilizing the dashboard card we set in a previous tutorial, take a look at my screen, you'll see i've already opened the homepage, if your homepage is not open, click the home icon on the toolbar and, and there's our dashboard card, for me, i set my utmost for his highest",
+  "You set your favorite, all we have to do to get to today's reading, is click the title on the card, so i'll click my utmost for his highest, and notice that devotional opens right to today's reading, easy breezy, and please notice for me, there's a cross-reference to 2 samuel 23:16, and this is not just true for your daily devotionals, but for all of your logos resources, when you come to a bible reference in a resource notice it's blue, it's hyperlinked, hover over it, rest your cursor on it",
+  "And you will get a pop-up preview from your preferred bible, if you want your bible to jump there, then click the reference, so i'll click 2 samuel 23:16 and my preferred bible, jumps right there, in logos, there's no page turning, all you have to do is click a reference and logos will, automatically look it up for you, isn't that cool? now let's say, you have your favorite daily devotional open, but you want to read another devotional",
+  "Notice on the devotionals toolbar, there is the slanted parallel lines, click on it and here are all of your daily devotionals all you have to do, is click one in the list, and that devotional will open again to today's day, so if you want to read your bible along with a daily devotional, make sure you have that dashboard card set"
   ]
   
   # input_file = '/home/vgm/Desktop/test.txt'
@@ -83,7 +75,7 @@ if __name__ == '__main__':
   # input_texts = [line.strip() for line in open(input_file, 'r')]
   input_texts = [ {"text": text} for text in input_texts]
   llm = LLM()
-  llm.initLLM("https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1", "nampdn-ai/vietmistral-chatvgm-3072")
+  llm.initLLM("https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1", "nampdn-ai/vietmistral-chatvgm-3072") ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
   results = llm.translate(input_texts)
   print("input_texts::", len(input_texts))
   print("results::", len(results), results)
