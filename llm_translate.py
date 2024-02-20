@@ -44,7 +44,7 @@ class LLM():
             model=model,
             openai_api_key="EMPTY",
             openai_api_base=endpoint,
-            max_tokens=2048,
+            max_tokens=8192,
             temperature=0.5,
             model_kwargs={"stop":["<|im_end|>"]},
             # top_p=0.5
@@ -56,7 +56,7 @@ class LLM():
       print("start llm_translate::")
       # N_JOBS = os.cpu_count()
       # print("Start LLM Translate:: concurrency =", N_JOBS)
-      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(10)):
+      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(2)):
         t2t_results = Parallel(verbose=100)(delayed(random.choice(self.llm_chain).predict)(input=segments[line]['text']) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]

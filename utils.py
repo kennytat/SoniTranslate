@@ -183,9 +183,8 @@ def srt_to_segments(srt_input_path):
   
   for i, segment in enumerate(srt_segments):
     text = str(srt_segments[i]['content'])
-    speaker = re.findall(r"SPEAKER_\d+", text)[0] if re.search(r"SPEAKER_\d+", text) else None
-    if speaker:
-      srt_segments[i]['speaker'] = speaker
+    speaker = re.findall(r"SPEAKER_\d+", text)[0] if re.search(r"SPEAKER_\d+", text) else "SPEAKER_00"
+    srt_segments[i]['speaker'] = speaker
     srt_segments[i]['start'] = srt_segments[i]['start'].total_seconds()
     srt_segments[i]['end'] = srt_segments[i]['end'].total_seconds()
     srt_segments[i]['text'] = re.sub(r"SPEAKER_\d+\:", "", text)

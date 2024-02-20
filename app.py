@@ -603,7 +603,7 @@ def translate_from_media(
     result_diarize['segments'] = concise_srt(result_diarize['segments'], 375 if t2t_method == "LLM" else 500)
     segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
     # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
-    target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{target_media_output_basename}-SPEAKER.srt')
+    target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
     if os.path.exists(target_srt_inputpath):
       # Start convert from srt if srt found
       print("srt file exist::", target_srt_inputpath)
