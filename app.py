@@ -782,6 +782,18 @@ function initLocalStorage() {
       for (const [key, value] of Object.entries(settings)) {
         document.getElementById(key).getElementsByTagName(value.type)[0].value =
           value.value;
+        if (key === "vc") {
+          const voiceNum = 6;
+          for (let i = 0; i < voiceNum; i++) {
+            const svcElem = document.getElementById(`svc_voice0${i}`);
+            const rvcElem = document.getElementById(`rvc_voice0${i}`);
+            console.log("svcElem:", svcElem, value.value);
+            setTimeout(() => {
+              svcElem.classList.toggle("hidden", value.value !== "SVC");
+              rvcElem.classList.toggle("hidden", value.value !== "RVC");
+            }, 500);
+          }
+        }
       }
     } catch (error) {
       console.log("error:", error);
@@ -795,27 +807,35 @@ function initLocalStorage() {
       const settings = {
         s2t: {
           type: "input",
-          value: document.getElementById("s2t").getElementsByTagName("input")[0].value,
+          value: document.getElementById("s2t").getElementsByTagName("input")[0]
+            .value,
         },
         t2t: {
           type: "input",
-          value: document.getElementById("t2t").getElementsByTagName("input")[0].value,
+          value: document.getElementById("t2t").getElementsByTagName("input")[0]
+            .value,
         },
         t2s: {
           type: "input",
-          value: document.getElementById("t2s").getElementsByTagName("input")[0].value,
+          value: document.getElementById("t2s").getElementsByTagName("input")[0]
+            .value,
         },
         vc: {
           type: "input",
-          value: document.getElementById("vc").getElementsByTagName("input")[0].value,
+          value: document.getElementById("vc").getElementsByTagName("input")[0]
+            .value,
         },
         llm_url: {
           type: "textarea",
-          value: document.getElementById("llm_url").getElementsByTagName("textarea")[0].value,
+          value: document
+            .getElementById("llm_url")
+            .getElementsByTagName("textarea")[0].value,
         },
         llm_model: {
           type: "input",
-          value: document.getElementById("llm_model").getElementsByTagName("input")[0].value,
+          value: document
+            .getElementById("llm_model")
+            .getElementsByTagName("input")[0].value,
         },
       };
       localStorage.setItem("user_settings", JSON.stringify(settings));
@@ -859,29 +879,29 @@ with demo:
                     }
                     return [value for value in visibility_dict.values()]
                 with gr.Row() as tts_voice00_row:
-                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 1', visible=True)
-                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 1', visible=False)
-                  rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 1', visible=False)
+                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 1', visible=True)
+                  svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 1', visible=False, elem_id="svc_voice00")
+                  rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 1', visible=False, elem_id="rvc_voice00")
                 with gr.Row(visible=False) as tts_voice01_row:
-                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 2', visible=True)
-                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 2', visible=False)
-                  rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 2', visible=False)
+                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 2', visible=True)
+                  svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 2', visible=False, elem_id="svc_voice01")
+                  rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 2', visible=False, elem_id="rvc_voice01")
                 with gr.Row(visible=False) as tts_voice02_row:
-                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 3', visible=True)
-                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 3', visible=False)
-                  rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 3', visible=False)
+                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 3', visible=True)
+                  svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 3', visible=False, elem_id="svc_voice02")
+                  rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 3', visible=False, elem_id="rvc_voice02")
                 with gr.Row(visible=False) as tts_voice03_row:
-                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 4', visible=True)
-                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 4', visible=False)
-                  rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 4', visible=False)
+                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 4', visible=True)
+                  svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 4', visible=False, elem_id="svc_voice03")
+                  rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 4', visible=False, elem_id="rvc_voice03")
                 with gr.Row(visible=False) as tts_voice04_row:
-                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 5', visible=True)
-                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 5', visible=False)
-                  rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 5', visible=False)
+                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 5', visible=True)
+                  svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 5', visible=False, elem_id="svc_voice04")
+                  rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 5', visible=False, elem_id="rvc_voice04")
                 with gr.Row(visible=False) as tts_voice05_row:
-                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label = 'TTS Speaker 6', visible=True)
-                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label = 'SVC Speaker 6', visible=False)
-                  rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label = 'RVC Speaker 6', visible=False)
+                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 6', visible=True)
+                  svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 6', visible=False, elem_id="svc_voice05")
+                  rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 6', visible=False, elem_id="rvc_voice05")
                 max_speakers.change(update_speaker_visibility, max_speakers, [tts_voice00_row, tts_voice01_row, tts_voice02_row, tts_voice03_row, tts_voice04_row, tts_voice05_row])
 
                 with gr.Column():

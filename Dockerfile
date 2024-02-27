@@ -3,6 +3,7 @@ FROM python:3.10.12
 RUN apt update -y && apt upgrade -y
 
 RUN apt -y install -qq aria2 build-essential setuptools ffmpeg wget curl git vim 
+#nvidia-cuda-toolkit
 
 WORKDIR /app
 
