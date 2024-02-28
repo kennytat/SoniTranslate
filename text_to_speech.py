@@ -19,11 +19,11 @@ from vietTTS.vietTTS import text_to_speech
 #         tts.save(filename)
 #         print('Error: Audio will be replaced.')
 
-def make_voice_gradio(tts_text, tts_voice, filename, language, t2s_method):
+def make_voice_gradio(tts_text, tts_voice, tts_speed, filename, language, t2s_method):
     print("make_voice_gradio::",tts_text, tts_voice, filename, language, t2s_method)
     if t2s_method == "VietTTS" and language == "vi" :
       try:
-        text_to_speech(tts_text, filename, tts_voice)
+        text_to_speech(tts_text, filename, tts_voice, tts_speed)
       except Exception as error:
         print("tts error:", error, tts_text)
         tts = gTTS('a', lang=language)

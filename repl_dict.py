@@ -49,3 +49,7 @@ clean_dict_html = {
 	re.compile('\- \-', re.MULTILINE | re.UNICODE): '--',
 	re.compile('\. \. \.', re.MULTILINE | re.UNICODE): '...',
 }
+
+dictOfReplacementStrings = {
+    'thiên chúa': 'Thiên chúa',
+}

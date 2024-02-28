@@ -16,8 +16,8 @@ def split_array_odd_even(input_array):
             odd_array.append(element)
     return even_array, odd_array
 
-def create_translated_audio(result_diarize, audio_files, Output_name_file, disable_timeline):
-  if not disable_timeline:
+def create_translated_audio(result_diarize, audio_files, Output_name_file, match_start):
+  if match_start:
     # Split even, odd audio files path and time segments
     even_audio_files, odd_audio_files = split_array_odd_even(audio_files)
     even_segments, odd_segments = split_array_odd_even(result_diarize['segments'])
@@ -45,7 +45,7 @@ def create_translated_audio(result_diarize, audio_files, Output_name_file, disab
           print(f'ERROR AUDIO FILE {audio_file}')
       # combined audio as a file
       combined_audio.export(output_path, format="wav", bitrate="16k") # best than ogg, change if the audio is anomalous
-    
+ 
   else:
     concatenated_audio = AudioSegment.empty()
     for audio_file in audio_files:

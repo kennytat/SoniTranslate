@@ -58,9 +58,12 @@ class LLM():
         
   def process(self, text):
     # origin_word_count = len(text.split(" "))
-    result = random.choice(self.llm_chain).predict(input=text)
+    try:
+      result = random.choice(self.llm_chain).predict(input=text)
+    except:
+      result = ""
     # result_word_count = len(result.split(" "))
-    if "im_start" in result or "im_end" in result or (abs(len(text) - len(result))) > 100 or detect(result) != 'vi':
+    if not result or "im_start" in result or "im_end" in result or (abs(len(text) - len(result))) > 100 or detect(result) != 'vi':
       print(f"re-run:{len(text)}/{len(result)}\nen: {text}\nvi: {result}")
       return self.process(text)
     else:

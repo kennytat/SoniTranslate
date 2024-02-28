@@ -53,7 +53,8 @@ def post_process_text_vi(text):
     return "[câu chờ được dịch]"
   text = text.strip()
   for regex, replacement in repl_dict_vi.items():
-    text = re.sub(regex, replacement, text, 0) 
+    text = re.sub(regex, replacement, text, 0)
+  text = titlecase_with_dash(text)
   return text
 
 def process_line(doc):
@@ -124,3 +125,8 @@ def capitalize_para(line):
   if not toks[0].isupper() and line[0].isalpha():
     toks[0] = toks[0].capitalize()
   return ' '.join(toks)
+
+def titlecase_with_dash(string):
+    def titlecase_word(match):
+        return match.group(0).capitalize()
+    return re.sub(r"(?=[\S]*['-])([A-Za-zÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂẾưăạảấầẩẫậắằẳẵặẹẻẽềềểếỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ'-]+)", titlecase_word, string)

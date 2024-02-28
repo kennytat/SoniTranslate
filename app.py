@@ -182,7 +182,8 @@ def batch_preprocess(
   t2t_method,
   t2s_method,
   vc_method,
-  disable_timeline,
+  match_length,
+  match_start,
   YOUR_HF_TOKEN,
   preview=False,
   WHISPER_MODEL_SIZE="large-v2",
@@ -199,6 +200,12 @@ def batch_preprocess(
   tts_voice03="en-GB-SoniaNeural-Female",
   tts_voice04="en-NZ-MitchellNeural-Male",
   tts_voice05="en-GB-MaisieNeural-Female",
+  tts_speed00=1,
+  tts_speed01=1,
+  tts_speed02=1,
+  tts_speed03=1,
+  tts_speed04=1,
+  tts_speed05=1,
   rvc_voice00=None,
   rvc_voice01=None,
   rvc_voice02=None,
@@ -285,7 +292,7 @@ def batch_preprocess(
   if media_inputs is not None and len(media_inputs)> 0:
     total_input = media_inputs
     for media in media_inputs:
-      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, disable_timeline, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, AUDIO_MIX_METHOD, progress)
+      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, match_length, match_start, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, tts_speed00, tts_speed01, tts_speed02, tts_speed03, tts_speed04, tts_speed05, AUDIO_MIX_METHOD, progress)
       total_output.append(result)
       output.append(result)
   return output
@@ -310,7 +317,7 @@ def upsampling(file):
   sf.write(filepath, data=data[:target_samples], samplerate=48000)
   return file
 
-def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline):
+def tts(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length):
     text = segment['text']
     start = segment['start']
     end = segment['end']
@@ -327,7 +334,7 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timel
     filename = f"audio/{start}.wav"
 
     if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-        make_voice_gradio(text, speaker_to_voice[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
+        make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
     elif speaker == "SPEAKER_99":
         try:
             tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
@@ -349,7 +356,7 @@ def tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timel
     porcentaje = math.floor(porcentaje * 10000) / 10000
     porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
     porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
-    porcentaje = 1.0 if disable_timeline else porcentaje     
+    porcentaje = 1.0 if not match_length else porcentaje     
     # apply aceleration or opposite to the audio file in audio2 folder
     os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
     gc.collect(); torch.cuda.empty_cache()
@@ -362,7 +369,8 @@ def translate_from_media(
     t2t_method,
     t2s_method,
     vc_method,
-    disable_timeline,
+    match_length,
+    match_start,
     YOUR_HF_TOKEN,
     preview=False,
     WHISPER_MODEL_SIZE="large-v2",
@@ -379,6 +387,12 @@ def translate_from_media(
     tts_voice03="en-GB-SoniaNeural-Female",
     tts_voice04="en-NZ-MitchellNeural-Male",
     tts_voice05="en-GB-MaisieNeural-Female",
+    tts_speed00=1,
+    tts_speed01=1,
+    tts_speed02=1,
+    tts_speed03=1,
+    tts_speed04=1,
+    tts_speed05=1,
     AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
     progress=gr.Progress(),
     ):
@@ -615,6 +629,7 @@ def translate_from_media(
       print("translated segments::", result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
+    segments_to_txt(result_diarize['segments'], f'{target_media_output_basename}.txt')
     with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
     # ## Sort segments by speaker
@@ -635,11 +650,19 @@ def translate_from_media(
         'SPEAKER_04': tts_voice04,
         'SPEAKER_05': tts_voice05
     }
+    speaker_to_speed = {
+        'SPEAKER_00': tts_speed00,
+        'SPEAKER_01': tts_speed01,
+        'SPEAKER_02': tts_speed02,
+        'SPEAKER_03': tts_speed03,
+        'SPEAKER_04': tts_speed04,
+        'SPEAKER_05': tts_speed05
+    }
     
     N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
     print("Start TTS:: concurrency =", N_JOBS)
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS) if max_speakers == 1 else 1):
-      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline) for (segment) in tqdm(result_diarize['segments']))
+      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length) for (segment) in tqdm(result_diarize['segments']))
     
     if os.getenv('UPSAMPLING_ENABLE', '') == "true":
       progress(0.75, desc="Upsampling...")
@@ -650,7 +673,7 @@ def translate_from_media(
       upsampler = None; gc.collect(); torch.cuda.empty_cache()
     # tts_results = []
     # for segment in tqdm(result_diarize['segments']):
-    #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, disable_timeline)
+    #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, match_length)
     #   tts_results.append(tts_result)
       
     audio_files = [result[0] for result in tts_results]
@@ -676,7 +699,7 @@ def translate_from_media(
     
     # 7. Join target language audio files
     progress(0.85, desc="Creating final translated media...")
-    create_translated_audio(result_diarize, audio_files, translated_output_file, disable_timeline)
+    create_translated_audio(result_diarize, audio_files, translated_output_file, match_start)
 
     # # 8. Transribe target language for smaller chunk
     # print("Start transcribing target language::")
@@ -859,7 +882,9 @@ with demo:
                 link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
                 srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
                 # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
-                disable_timeline = gr.Checkbox(label="Disable",container=False, info='Disable timeline matching with origin language?')
+                with gr.Row():
+                  match_length = gr.Checkbox(label="Enable",container=False, value=False, info='Match speech length of original language?', interactive=True)
+                  match_start = gr.Checkbox(label="Enable",container=False, value=True, info='Match speech start time of origin language?', interactive=True)
                 ## media_input change function
                 # link = gr.HTML()
                 # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
@@ -879,27 +904,33 @@ with demo:
                     }
                     return [value for value in visibility_dict.values()]
                 with gr.Row() as tts_voice00_row:
-                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 1', visible=True)
+                  tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 1', visible=True, elem_id="tts_voice00")
+                  tts_speed00 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 1", step=0.02, elem_id="tts_speed00", interactive=True)
                   svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 1', visible=False, elem_id="svc_voice00")
                   rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 1', visible=False, elem_id="rvc_voice00")
                 with gr.Row(visible=False) as tts_voice01_row:
-                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 2', visible=True)
+                  tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 2', visible=True, elem_id="tts_voice01")
+                  tts_speed01 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 2", step=0.02, elem_id="tts_speed01", interactive=True)
                   svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 2', visible=False, elem_id="svc_voice01")
                   rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 2', visible=False, elem_id="rvc_voice01")
                 with gr.Row(visible=False) as tts_voice02_row:
-                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 3', visible=True)
+                  tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 3', visible=True, elem_id="tts_voice02")
+                  tts_speed02 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 3", step=0.02, elem_id="tts_speed02", interactive=True)
                   svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 3', visible=False, elem_id="svc_voice02")
                   rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 3', visible=False, elem_id="rvc_voice02")
                 with gr.Row(visible=False) as tts_voice03_row:
-                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 4', visible=True)
+                  tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 4', visible=True, elem_id="tts_voice03")
+                  tts_speed03 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 4", step=0.02, elem_id="tts_speed03", interactive=True)
                   svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 4', visible=False, elem_id="svc_voice03")
                   rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 4', visible=False, elem_id="rvc_voice03")
                 with gr.Row(visible=False) as tts_voice04_row:
-                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 5', visible=True)
+                  tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 5', visible=True, elem_id="tts_voice04")
+                  tts_speed04 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 5", step=0.02, elem_id="tts_speed04", interactive=True)
                   svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 5', visible=False, elem_id="svc_voice04")
                   rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 5', visible=False, elem_id="rvc_voice04")
                 with gr.Row(visible=False) as tts_voice05_row:
-                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 6', visible=True)
+                  tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 6', visible=True, elem_id="tts_voice05")
+                  tts_speed05 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 6", step=0.02, elem_id="tts_speed05", interactive=True)
                   svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 6', visible=False, elem_id="svc_voice05")
                   rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 6', visible=False, elem_id="rvc_voice05")
                 max_speakers.change(update_speaker_visibility, max_speakers, [tts_voice00_row, tts_voice01_row, tts_voice02_row, tts_voice03_row, tts_voice04_row, tts_voice05_row])
@@ -1270,7 +1301,8 @@ with demo:
         t2t_method,
         t2s_method,
         vc_method,
-        disable_timeline,
+        match_length,
+        match_start,
         HFKEY,
         PREVIEW,
         WHISPER_MODEL_SIZE,
@@ -1287,6 +1319,12 @@ with demo:
         tts_voice03,
         tts_voice04,
         tts_voice05,
+        tts_speed00,
+        tts_speed01,
+        tts_speed02,
+        tts_speed03,
+        tts_speed04,
+        tts_speed05,
         rvc_voice00,
         rvc_voice01,
         rvc_voice02,
