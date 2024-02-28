@@ -8,5 +8,5 @@
     "nampdn-ai/vietmistral-chatvgm-3072",
     "nampdn-ai/vietmistral-bible-translation"
   ],
-  "llm_model": "nampdn-ai/vietmistral-bible-translation"
+  "llm_model": "nampdn-ai/vietmistral-chatvgm-3072"
 }
