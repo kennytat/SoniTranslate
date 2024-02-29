@@ -3,6 +3,7 @@ import os
 from tqdm import tqdm
 from translate_text_processor import post_process_text_vi, titlecase_with_dash
 from vb_translate import vb_translate
+from langdetect import detect
 from llm_translate import LLM
 from deep_translator import GoogleTranslator
 import torch
@@ -68,12 +69,17 @@ def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint=
         segments[index]['text'] = post_process_text(segments[index]['text'])
       del llm
     else:
-      ## Google translator
-      google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
-      for line in tqdm(range(len(segments))):
-        text = segments[line]['text']
-        print("gg_translator::")
-        translated_line = google_translator.translate(text.strip())
-        print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
+      pass
+    ## Last option to check if any non-translated sentences left then using Google translator
+    google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
+    for line in tqdm(range(len(segments))):
+      # print("gg_translator::")
+      text = segments[line]['text']
+      if text and detect(text) != 'vi':
+        try:
+          translated_line = google_translator.translate(text.strip())
+          # print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
+        except Exception as e:
+          translated_line = text
         segments[line]['text'] = post_process_text(translated_line)
     return segments

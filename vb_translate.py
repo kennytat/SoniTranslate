@@ -4,7 +4,7 @@ import os
 import shutil
 import json
 import translate_text_processor
-from langdetect import detect
+# from langdetect import detect
 load_dotenv()
 
 TRANS_TOOL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "translate_tool")
@@ -257,18 +257,18 @@ def vb_translate(raw_input):
     
   print("en_para_list::",len(en_para_list), en_para_list)
   print("vi_para_list::",len(vi_para_list),vi_para_list)
-  from translate_segments import translate_text
-  for index, sentence in enumerate(vi_para_list):
-    try:
-      if index == 0:
-        vi_para_list[index] = translate_text(en_para_list[index], "vi", "T5")
-      else:
-        lang = detect(sentence)
-        if lang != "vi":
-          print('non translated sentence, try again::', sentence)
-          vi_para_list[index] = translate_text(sentence, "vi", "T5")
-    except Exception as e:
-      print('detect sentence language failed: skip translating sentence:', e, index, sentence)
+  # from translate_segments import translate_text
+  # for index, sentence in enumerate(vi_para_list):
+  #   try:
+  #     if index == 0:
+  #       vi_para_list[index] = translate_text(en_para_list[index], "vi", "T5")
+  #     else:
+  #       lang = detect(sentence)
+  #       if lang != "vi":
+  #         print('non translated sentence, try again::', sentence)
+  #         vi_para_list[index] = translate_text(sentence, "vi", "T5")
+  #   except Exception as e:
+  #     print('detect sentence language failed: skip translating sentence:', e, index, sentence)
       # print(index, sentence)
   return vi_para_list
 

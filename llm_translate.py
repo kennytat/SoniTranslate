@@ -57,17 +57,18 @@ class LLM():
         self.llm_chain.append(llm_chain)
         
   def process(self, text):
-    # origin_word_count = len(text.split(" "))
-    try:
-      result = random.choice(self.llm_chain).predict(input=text)
-    except:
-      result = ""
-    # result_word_count = len(result.split(" "))
-    if not result or "im_start" in result or "im_end" in result or (abs(len(text) - len(result))) > 100 or detect(result) != 'vi':
+    max_attempts = 5
+    attempts = 0
+    while attempts < max_attempts:
+      try:
+        result = random.choice(self.llm_chain).predict(input=text)
+      except Exception as e:
+        result = ""
+      if result and "im_start" not in result and "im_end" not in result and (abs(len(text) - len(result))) <= 100 and detect(result) == 'vi':
+          return result
       print(f"re-run:{len(text)}/{len(result)}\nen: {text}\nvi: {result}")
-      return self.process(text)
-    else:
-      return result
+      attempts += 1
+    return text
 
   def translate(self, segments):
       print("start llm_translate::")
