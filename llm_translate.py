@@ -66,7 +66,7 @@ class LLM():
         result = ""
       if result and "im_start" not in result and "im_end" not in result and (abs(len(text) - len(result))) <= 100 and detect(result) == 'vi':
           return result
-      print(f"re-run:{len(text)}/{len(result)}\nen: {text}\nvi: {result}")
+      print(f"re-run {attempts}: {len(text)}/{len(result)}\nen: {text}\nvi: {result}")
       attempts += 1
     return text
 
