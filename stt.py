@@ -14,11 +14,11 @@ total_input = []
 total_output = []
 
 # Check GPU
-CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
 if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
+    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
     whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
 else:
     device = "cpu"
@@ -139,7 +139,7 @@ def web_interface(port):
                         WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                         LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
                       with gr.Row():
-                        batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1)
+                        batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
                         chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
                   with gr.Column():
                       def update_output_list():

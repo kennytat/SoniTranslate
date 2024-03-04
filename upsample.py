@@ -19,11 +19,11 @@ total_input = []
 total_output = []
 upsampler = None
 # Check GPU
-CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
 if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
+    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
     whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
 else:
     device = "cpu"

@@ -324,8 +324,8 @@ class TTS():
           
       # print("Parallel processing {} tasks".format(len(process_list)))
       print("Queue list:: ", queue_list.qsize())
-      CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-      N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
+      CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
+      N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
       
       print("Start TTS:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
@@ -338,7 +338,7 @@ class TTS():
         self.upsampler = None; gc.collect(); torch.cuda.empty_cache()
       
       print("TTS Done::")
-      if torch.cuda.is_available() and convert_voice_ckpt_dir != "none":
+      if convert_voice_ckpt_dir != "none":
         print("Start Voice Convertion::")
         self.convert_voice(tmp_dirname, convert_voice_ckpt_dir)
         

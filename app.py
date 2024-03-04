@@ -109,11 +109,11 @@ LANGUAGES = {
 }
 
 # Check GPU
-CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
 if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
+    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
     whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
 else:
     device = "cpu"
@@ -659,7 +659,7 @@ def translate_from_media(
         'SPEAKER_05': tts_speed05
     }
     
-    N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000))
+    N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
     print("Start TTS:: concurrency =", N_JOBS)
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS) if max_speakers == 1 else 1):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length) for (segment) in tqdm(result_diarize['segments']))
@@ -946,7 +946,7 @@ with demo:
                             WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                             compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
                           with gr.Row():
-                            batch_size = gr.Slider(1, 32, value=round(CUDA_MEM*0.65/1000000000), label="Batch size", step=1)
+                            batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
                             chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
                           # gr.HTML("<hr>")
                           # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
@@ -1360,7 +1360,6 @@ if __name__ == "__main__":
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
   
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
-  print("CUDA_MEM::", CUDA_MEM)
   print('Working in:: ', device)
   
   auth_user = os.getenv('AUTH_USER', '')

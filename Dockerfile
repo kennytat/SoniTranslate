@@ -1,8 +1,8 @@
 FROM python:3.10.12
 
-RUN apt update -y && apt upgrade -y
+RUN apt-get update -y && apt-get upgrade -y
 
-RUN apt -y install -qq aria2 build-essential setuptools ffmpeg wget curl git vim 
+RUN apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake
 #nvidia-cuda-toolkit
 
 WORKDIR /app
