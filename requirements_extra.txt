@@ -31,3 +31,9 @@ torchcrepe
 ffmpeg-python>=0.2.0
 gdown
 rarfile
+#mlx
+mlx>=0.1
+tqdm
+more-itertools
+tiktoken==0.3.3
+huggingface_hub

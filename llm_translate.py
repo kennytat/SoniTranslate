@@ -74,7 +74,7 @@ class LLM():
       print("start llm_translate::")
       # N_JOBS = os.cpu_count()
       # print("Start LLM Translate:: concurrency =", N_JOBS)
-      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(5)):
+      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(1)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text']) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]

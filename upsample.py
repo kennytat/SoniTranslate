@@ -18,20 +18,7 @@ from utils import new_dir_now, is_windows_path, convert_to_wsl_path
 total_input = []
 total_output = []
 upsampler = None
-# Check GPU
-if torch.cuda.is_available():
-    device = "cuda"
-    list_compute_type = ['float16', 'float32']
-    compute_type_default = 'float16'
-    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-    whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
-else:
-    device = "cpu"
-    list_compute_type = ['float32']
-    compute_type_default = 'float32'
-    whisper_model_default = 'medium'
 
-  
 class ExitHooks(object):
     def __init__(self):
         self.exit_code = None
@@ -153,7 +140,7 @@ def start(input_files, output_dir):
         for audio in split_audio_array:
           upsampling(audio)
         global upsampler
-        upsampler = None; gc.collect(); torch.cuda.empty_cache()
+        upsampler = None; gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache()
         ## Join audio
         join_audio(split_audio_array, ext, audio_path)
         ## Combined if is video

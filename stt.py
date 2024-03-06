@@ -18,8 +18,13 @@ if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
-    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
+    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
     whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
+elif torch.backends.mps.is_available(): 
+    device = "mps"
+    list_compute_type = ['float32']
+    compute_type_default = 'float32'
+    whisper_model_default = 'large-v3'
 else:
     device = "cpu"
     list_compute_type = ['float32']

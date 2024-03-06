@@ -28,7 +28,7 @@ import numpy as np
 import regex
 from vietTTS.models import DurationNet, SynthesizerTrn
 from vietTTS.utils import normalize, num_to_str, read_number, pad_zero, encode_filename, new_dir_now, file_to_paragraph, txt_to_paragraph, combine_wav_segment
-from vietTTS.upsample import Predictor
+# from vietTTS.upsample import Predictor
 load_dotenv()
 
 
@@ -69,7 +69,7 @@ class CONFIG():
     key = "^VGMAI*607#"
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 space_re = regex.compile(r"\s+")
 number_re = regex.compile("([0-9]+)")
 num_re = regex.compile(r"([0-9.,]*[0-9])")
@@ -171,7 +171,7 @@ class TTS():
               phone_idx, phone_length, spec_length, attn, max_len=None, noise_scale=0.667
           )[0]
       wave = y_hat[0, 0].data.cpu().numpy()
-      del phone_duration; del duration_net; del generator; gc.collect(); torch.cuda.empty_cache()
+      del phone_duration; del duration_net; del generator; gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache()
       return (wave * (2**15)).astype(np.int16)
 
 
@@ -253,27 +253,27 @@ class TTS():
           # Save the processed file
           sf.write(output_file, wav, samplerate=sample_rate)
           print("Wav segment written at: {}".format(output_file))
-        del duration_net; del generator; gc.collect(); torch.cuda.empty_cache()
+        del duration_net; del generator; gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache()
       except Exception as error:
         print("tts error::", text, "\n", error)
       return WavStruct(output_file, start_time)
 
-  def upsampling(self, file):
-    if not self.upsampler:
-      self.upsampler = Predictor()
-      self.upsampler.setup(model_name="speech")
-    audio_data, sample_rate = sf.read(file.wav_path)
-    source_duration = len(audio_data) / sample_rate
-    data = self.upsampler.predict(
-        file.wav_path,
-        ddim_steps=50,
-        guidance_scale=3.5,
-        seed=42
-    )
-    ## Trim duration to match source duration
-    target_samples = int(source_duration * 48000)
-    sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
-    return file
+  # def upsampling(self, file):
+  #   if not self.upsampler:
+  #     self.upsampler = Predictor()
+  #     self.upsampler.setup(model_name="speech")
+  #   audio_data, sample_rate = sf.read(file.wav_path)
+  #   source_duration = len(audio_data) / sample_rate
+  #   data = self.upsampler.predict(
+  #       file.wav_path,
+  #       ddim_steps=50,
+  #       guidance_scale=3.5,
+  #       seed=42
+  #   )
+  #   ## Trim duration to match source duration
+  #   target_samples = int(source_duration * 48000)
+  #   sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
+  #   return file
     
   def convert_voice(self, input_dir, model_dir):
     print("start convert_voice::", input_dir, model_dir)
@@ -283,7 +283,7 @@ class TTS():
     os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
     if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
     shutil.move(output_dir, input_dir)
-    gc.collect(); torch.cuda.empty_cache()
+    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache()
     
   def synthesize(self, output_dir_name, input, is_file, speed, method, tts_voice_ckpt_dir, convert_voice_ckpt_dir):
       print("start synthesizing::", output_dir_name, input, is_file, speed, tts_voice_ckpt_dir, convert_voice_ckpt_dir)
@@ -331,11 +331,11 @@ class TTS():
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
         results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, tts_voice_ckpt_dir, speed, total_duration, start_silence) for (text, output_file, total_duration, start_silence) in queue_list.queue)
       
-      if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
-        print("Start Upsampling::")
-        with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
-          results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in results)
-        self.upsampler = None; gc.collect(); torch.cuda.empty_cache()
+      # if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
+      #   print("Start Upsampling::")
+      #   with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
+      #     results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in results)
+      #   self.upsampler = None; gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache()
       
       print("TTS Done::")
       if convert_voice_ckpt_dir != "none":

@@ -28,6 +28,8 @@ def get_vc(sid, to_return_protect0, to_return_protect1):
             hubert_model = net_g = n_spk = vc = hubert_model = tgt_sr = None
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
             ### if clean
             if_f0 = cpt.get("f0", 1)
             version = cpt.get("version", "v1")
@@ -48,6 +50,8 @@ def get_vc(sid, to_return_protect0, to_return_protect1):
             del net_g, cpt
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
         return {"visible": False, "__type__": "update"}
     person = "%s/%s" % (weight_root, sid)
     print("loading %s" % person)

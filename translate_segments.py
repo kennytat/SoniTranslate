@@ -11,8 +11,8 @@ import gc
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from peft import PeftModel
 from repl_dict import dictOfReplacementStrings
-device = torch.device("cuda")
-
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+    
 def post_process_text(text):
   text = titlecase_with_dash(text)
   for word, replacement in dictOfReplacementStrings.items():
@@ -22,7 +22,7 @@ def post_process_text(text):
 def t5_translator(input_text: str, tokenizer, model):
     def process_batch(sentences):
         sentences = [ text if text.endswith(".") else text + "." for text in sentences]
-        input_ids = tokenizer.batch_encode_plus(sentences, return_tensors='pt', padding=True, truncation=True).to(device)
+        input_ids = tokenizer.batch_encode_plus(sentences, return_tensors='pt', padding=True, truncation=True).to(torch.device(device))
         output_ids = model.generate(input_ids.input_ids, max_length=20000)  # Set max_length to a larger value
         output_texts = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
         # print("output_texts::::", sentences, output_texts)
@@ -60,7 +60,7 @@ def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint=
           translated_line = t5_translator(text.strip(), t5_tokenizer, t5_model)
           print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
           segments[line]['text'] = post_process_text(translated_line)
-      gc.collect(); torch.cuda.empty_cache(); del t5_tokenizer; del t5_model
+      gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del t5_tokenizer; del t5_model
     elif t2t_method == "LLM" and TRANSLATE_AUDIO_TO == "vi":
       llm = LLM()
       llm.initLLM(llm_endpoint, llm_model)

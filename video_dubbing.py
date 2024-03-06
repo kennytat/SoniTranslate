@@ -45,8 +45,8 @@ def translate_from_video(
         os.makedirs('audio2/audio')
 
     # Check GPU
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float32" if device == "cpu" else compute_type
+    device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+    compute_type = "float32" if device != "cuda" else compute_type
 
     OutputFile = 'Video.mp4'
     audio_wav = "audio.wav"
@@ -103,7 +103,7 @@ def translate_from_video(
         )
     audio = whisperx.load_audio(audio_wav)
     result = model.transcribe(audio, batch_size=batch_size)
-    gc.collect(); torch.cuda.empty_cache(); del model
+    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del model
     print("Transcript complete")
 
     # 2. Align whisper output
@@ -119,7 +119,7 @@ def translate_from_video(
         device,
         return_char_alignments=True,
         )
-    gc.collect(); torch.cuda.empty_cache(); del model_a
+    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del model_a
     print("Align complete")
 
     if result['segments'] == []:
@@ -133,7 +133,7 @@ def translate_from_video(
         min_speakers=min_speakers,
         max_speakers=max_speakers)
     result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
-    gc.collect(); torch.cuda.empty_cache(); del diarize_model
+    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del diarize_model
     print("Diarize complete")
 
     result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO)

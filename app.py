@@ -5,6 +5,7 @@ from pathlib import Path,PureWindowsPath, PurePosixPath
 import joblib
 from joblib import Parallel, delayed
 import gradio as gr
+import whisper
 import whisperx
 from whisperx.utils import LANGUAGES as LANG_TRANSCRIPT
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
@@ -25,8 +26,8 @@ import shutil
 import logging
 import tempfile
 from vietTTS.utils import concise_srt
-from vietTTS.upsample import Predictor
-import soundfile as sf
+# from vietTTS.upsample import Predictor
+# import soundfile as sf
 from utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_or_audio, is_windows_path, youtube_download, get_llm_models
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -113,8 +114,12 @@ if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
-    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-    whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
+    whisper_model_default = 'large-v3' if int(torch.cuda.get_device_properties(0).total_memory) > 9000000000 else 'medium'
+elif torch.backends.mps.is_available():
+    device = "mps"
+    list_compute_type = ['float32']
+    compute_type_default = 'float32'
+    whisper_model_default = 'large-v3'   
 else:
     device = "cpu"
     list_compute_type = ['float32']
@@ -297,25 +302,25 @@ def batch_preprocess(
       output.append(result)
   return output
 
-def upsampling(file):
-  global upsampler
-  if not upsampler:
-    upsampler = Predictor()
-    upsampler.setup(model_name="speech")
-  filepath = os.path.join("audio2", file[0])
-  print("upsampling:", filepath)
-  audio_data, sample_rate = sf.read(filepath)
-  source_duration = len(audio_data) / sample_rate
-  data = upsampler.predict(
-      filepath,
-      ddim_steps=50,
-      guidance_scale=3.5,
-      seed=42
-  )
-  ## Trim duration to match source duration
-  target_samples = int(source_duration * 48000)
-  sf.write(filepath, data=data[:target_samples], samplerate=48000)
-  return file
+# def upsampling(file):
+#   global upsampler
+#   if not upsampler:
+#     upsampler = Predictor()
+#     upsampler.setup(model_name="speech")
+#   filepath = os.path.join("audio2", file[0])
+#   print("upsampling:", filepath)
+#   audio_data, sample_rate = sf.read(filepath)
+#   source_duration = len(audio_data) / sample_rate
+#   data = upsampler.predict(
+#       filepath,
+#       ddim_steps=50,
+#       guidance_scale=3.5,
+#       seed=42
+#   )
+#   ## Trim duration to match source duration
+#   target_samples = int(source_duration * 48000)
+#   sf.write(filepath, data=data[:target_samples], samplerate=48000)
+#   return file
 
 def tts(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length):
     text = segment['text']
@@ -427,10 +432,6 @@ def translate_from_media(
     if not os.path.exists('audio2/audio'):
         os.makedirs('audio2/audio')
 
-    # Check GPU
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float32" if device == "cpu" else compute_type
-
     temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", new_dir_now())
     Path(temp_dir).mkdir(parents=True, exist_ok=True)
     
@@ -532,17 +533,19 @@ def translate_from_media(
 
     # 1. Transcribe with original whisper (batched)
     print("Start transcribing source language::")
-    with capture.capture_output() as cap:
-      model = whisperx.load_model(
-          WHISPER_MODEL_SIZE,
-          device,
-          compute_type=compute_type,
-          language= SOURCE_LANGUAGE,
-          )
-      del cap
-    audio = whisperx.load_audio(audio_wav)
-    result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
-    gc.collect(); torch.cuda.empty_cache(); del model
+    # with capture.capture_output() as cap:
+    #   model = whisperx.load_model(
+    #       WHISPER_MODEL_SIZE,
+    #       device,
+    #       compute_type=compute_type,
+    #       language= SOURCE_LANGUAGE,
+    #       )
+    #   del cap
+    # audio = whisperx.load_audio(audio_wav)
+    # result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
+    result = whisper.transcribe(audio_wav, path_or_hf_repo="mlx-community/whisper-large-v3-mlx")
+    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); 
+    # del model
     print("Transcript complete::", len(result["segments"]))
 
     
@@ -577,7 +580,7 @@ def translate_from_media(
     #     return_char_alignments=True,
     #     )
     # print("Align source language complete::", result["segments"])
-    # gc.collect(); torch.cuda.empty_cache(); del model_a
+    # gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del model_a
 
     if result['segments'] == []:
         print('No active speech found in audio')
@@ -588,14 +591,14 @@ def translate_from_media(
     progress(0.50, desc="Diarizing...")
     if max_speakers > 1:
       with capture.capture_output() as cap:
-        diarize_model = whisperx.DiarizationPipeline(use_auth_token=YOUR_HF_TOKEN, device=device)
+        diarize_model = whisperx.DiarizationPipeline(use_auth_token=YOUR_HF_TOKEN, device="cuda" if torch.cuda.is_available() else "cpu")
         del cap
       diarize_segments = diarize_model(
           audio_wav,
           min_speakers=min_speakers,
           max_speakers=max_speakers)
       result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
-      gc.collect(); torch.cuda.empty_cache(); del diarize_model
+      gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del diarize_model
     else:
       result_diarize = result
       result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
@@ -610,7 +613,7 @@ def translate_from_media(
         TRANSLATE_AUDIO_TO = "iw"
     # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
     ## Write source segment and srt,txt to file
-
+    # print("result_diarize:", type(result_diarize), result_diarize)
     with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
     segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
@@ -659,18 +662,18 @@ def translate_from_media(
         'SPEAKER_05': tts_speed05
     }
     
-    N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
+    N_JOBS = os.getenv('TTS_JOBS', 1)
     print("Start TTS:: concurrency =", N_JOBS)
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS) if max_speakers == 1 else 1):
       tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length) for (segment) in tqdm(result_diarize['segments']))
     
-    if os.getenv('UPSAMPLING_ENABLE', '') == "true":
-      progress(0.75, desc="Upsampling...")
-      print("Start Upsampling::")
-      with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
-        tts_results = Parallel(verbose=100)(delayed(upsampling)(file) for (file) in tts_results)
-      global upsampler
-      upsampler = None; gc.collect(); torch.cuda.empty_cache()
+    # if os.getenv('UPSAMPLING_ENABLE', '') == "true":
+    #   progress(0.75, desc="Upsampling...")
+    #   print("Start Upsampling::")
+    #   with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=1):
+    #     tts_results = Parallel(verbose=100)(delayed(upsampling)(file) for (file) in tts_results)
+    #   global upsampler
+    #   upsampler = None; gc.collect(); torch.cuda.empty_cache()
     # tts_results = []
     # for segment in tqdm(result_diarize['segments']):
     #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, match_length)
@@ -716,7 +719,7 @@ def translate_from_media(
     # result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
     # ## Write target segment and srt to file
     # segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
-    # gc.collect(); torch.cuda.empty_cache(); del model
+    # gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del model
     # print("Transcribe target language complete::", len(result["segments"]),result["segments"])
 
     # 8. Combine final audio and video

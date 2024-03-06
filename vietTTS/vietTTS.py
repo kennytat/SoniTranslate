@@ -16,7 +16,7 @@ from vietTTS.utils import normalize, num_to_str, read_number
 
 TTS_MODEL_DIR = os.path.join(os.getcwd(),"model","vits")
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 space_re = regex.compile(r"\s+")
 number_re = regex.compile("([0-9]+)")
 num_re = regex.compile(r"([0-9.,]*[0-9])")
@@ -184,11 +184,11 @@ def text_to_speech(text, output_file, model_name,speed = 1):
       ## Write wav to file        
       sf.write(output_file, wav, samplerate=sample_rate)
       print("Wav segment written at: {}".format(output_file))
-    gc.collect(); torch.cuda.empty_cache(); del duration_net; del generator
+    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del duration_net; del generator
     return "Done"
   
 # if __name__ == '__main__':
 #   model_name = "vn_han_male"
 #   raw_str = """Và trong tài liệu hướng dẫn ngắn này, tôi muốn cho bạn thấy nó dễ dàng như thế nào để có được yêu thích hàng ngày của bạn sử dụng các thẻ bảng điều khiển chúng tôi thiết lập trong một hướng dẫn trước đó."""
-#   result = text_to_speech(raw_str, "/mnt/ssd256/Projects/SoniTranslate/test/viettts.wav", model_name)
+#   result = text_to_speech(raw_str, "/Users/kenny/Downloads/test/test.mp3", model_name)
 #   # print("result::", result)
