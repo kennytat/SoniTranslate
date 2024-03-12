@@ -29,7 +29,7 @@ class LLM():
     self.prompt = ChatPromptTemplate(
           messages=[
               SystemMessagePromptTemplate.from_template(
-                  "Bạn là AI có khả năng dịch thuật nội dung Kinh Thánh từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
+                  "Bạn là AI có khả năng dịch thuật nội dung Kinh Thánh từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp, chỉ dịch và không trả lời câu hỏi."
               ),
               # The `variable_name` here is what must align with memory
               # MessagesPlaceholder(variable_name="history"),
@@ -57,15 +57,15 @@ class LLM():
         self.llm_chain.append(llm_chain)
         
   def process(self, text):
-    max_attempts = 5
+    max_attempts = 3
     attempts = 0
     while attempts < max_attempts:
       try:
         result = random.choice(self.llm_chain).predict(input=text)
+        if result and "im_start" not in result and "im_end" not in result and (abs(len(text) - len(result))) <= 100 and detect(result) == 'vi':
+            return result
       except Exception as e:
         result = ""
-      if result and "im_start" not in result and "im_end" not in result and (abs(len(text) - len(result))) <= 100 and detect(result) == 'vi':
-          return result
       print(f"re-run {attempts}: {len(text)}/{len(result)}\nen: {text}\nvi: {result}")
       attempts += 1
     return text

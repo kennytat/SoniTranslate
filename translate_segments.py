@@ -74,12 +74,12 @@ def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint=
     google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
     for line in tqdm(range(len(segments))):
       # print("gg_translator::")
-      text = segments[line]['text']
-      if text and detect(text) != 'vi':
-        try:
+      try:
+        text = segments[line]['text']
+        if text and detect(text.strip()) != 'vi':
           translated_line = google_translator.translate(text.strip())
           # print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
-        except Exception as e:
-          translated_line = text
-        segments[line]['text'] = post_process_text(translated_line)
+          segments[line]['text'] = post_process_text(translated_line)
+      except Exception as e:
+        pass
     return segments
