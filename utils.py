@@ -202,10 +202,13 @@ def srt_to_segments(srt_input_path):
           
 def segments_to_txt(segments, output_path):
   for segment in segments:
+    try:
       text = segment['text']
       segment = f"{text[1:] if text[0] == ' ' else text}\n"
       with open(output_path, 'a', encoding='utf-8') as txtFile:
           txtFile.write(segment)
+    except Exception as error:
+      print('segments_to_txt error:', error)
                    
 def is_video_or_audio(file_path):
     try:
