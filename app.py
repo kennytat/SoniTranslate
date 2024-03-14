@@ -342,21 +342,26 @@ def tts(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_met
             print('Using GTTS')
         except:
             tts = gTTS('a', lang=TRANSLATE_AUDIO_TO)
+            
             tts.save(filename)
             print('Error: Audio will be replaced.')
 
     # duration
-    duration_true = end - start
-    duration_tts = librosa.get_duration(filename=filename)
+    try:
+      duration_true = end - start
+      duration_tts = librosa.get_duration(filename=filename)
 
-    # porcentaje
-    porcentaje = duration_tts / duration_true
-    print("change speed::", porcentaje, duration_tts, duration_true)
-    # Smooth and round
-    porcentaje = math.floor(porcentaje * 10000) / 10000
-    porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
-    porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
-    porcentaje = 1.0 if not match_length else porcentaje     
+      # porcentaje
+      porcentaje = duration_tts / duration_true
+      print("change speed::", porcentaje, duration_tts, duration_true)
+      # Smooth and round
+      porcentaje = math.floor(porcentaje * 10000) / 10000
+      porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
+      porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
+      porcentaje = 1.0 if not match_length else porcentaje     
+    except Exception as e:
+      porcentaje = 1.0 
+      print('An exception occurred:', e)
     # apply aceleration or opposite to the audio file in audio2 folder
     os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
     gc.collect(); torch.cuda.empty_cache()
@@ -1067,20 +1072,20 @@ with demo:
               llm_url.blur(update_llm_model, [llm_url], [llm_model])
               llm_url.change(lambda x: x, llm_url, None, js="(x) => localStorage.setItem('llm_url', JSON.stringify({ type: 'textarea', value: x }))")
               llm_model.change(lambda x: x, llm_model, None, js="(x) => localStorage.setItem('llm_model', JSON.stringify({ type: 'input', value: x }))")
-          # with gr.Row():
-          #   def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
-          #     # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
-          #     user_settings['s2t'] = s2t_method
-          #     user_settings['t2t'] = t2t_method
-          #     user_settings['t2s'] = t2s_method
-          #     user_settings['vc'] = vc_method
-          #     user_settings['llm_url'] = llm_url
-          #     user_settings['llm_models'] = get_llm_models(llm_url)
-          #     user_settings['llm_model'] = llm_model
-          #     save_settings(settings=user_settings)
-          #     return gr.Info("Settings saved!!")
-          #   save_setting_btn = gr.Button("Save Settings", elem_id="save_setting_btn")
-          #   save_setting_btn.click(save_setting_fn, [s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model], [])
+          with gr.Row():
+            def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
+              # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
+              user_settings['s2t'] = s2t_method
+              user_settings['t2t'] = t2t_method
+              user_settings['t2s'] = t2s_method
+              user_settings['vc'] = vc_method
+              user_settings['llm_url'] = llm_url
+              user_settings['llm_models'] = get_llm_models(llm_url)
+              user_settings['llm_model'] = llm_model
+              save_settings(settings=user_settings)
+              return gr.Info("Settings saved!!")
+            save_setting_btn = gr.Button("Save Settings", elem_id="save_setting_btn")
+            save_setting_btn.click(save_setting_fn, [s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model], [])
 
         # with gr.Column():
         #   with gr.Accordion("Download RVC Models", open=False):
