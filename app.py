@@ -37,10 +37,10 @@ load_dotenv()
 total_input = []
 total_output = []
 upsampler = None
-title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
+title = "<center><strong><font size='7'>Video Translation</font></strong></center>"
 
 description = """
-### 🎥 **Translate videos easily with VGM Translate!** 📽️
+### 🎥 **Translate videos easily with Video Translation!** 📽️
 
 🎥 Upload a video or provide a video link. 📽️
 🎥 Upload SRT File for skiping S2T & T2T 📽️
@@ -78,8 +78,40 @@ The goal is to apply a RVC (Retrieval-based Voice Conversion) to the generated T
 Tip: You can use `Test RVC` to experiment and find the best TTS or configurations to apply to the RVC 🧪🔍
 
 """
-
 LANGUAGES = {
+    'Automatic detection': 'Automatic detection',
+    'Arabic (ar)': 'Arabic',
+    'Cantonese (yue)': 'Cantonese',
+    'Chinese (zh)': 'Chinese',
+    'Czech (cs)': 'Czech',
+    'Danish (da)': 'Danish',
+    'Dutch (nl)': 'Dutch',
+    'English (en)': 'English',
+    'Finnish (fi)': 'Finnish',
+    'French (fr)': 'French',
+    'German (de)': 'German',
+    'Greek (el)': 'Greek',
+    'Hebrew (he)': 'Hebrew',
+    'Hungarian (hu)': 'Hungarian',
+    'Indonesian (in)': 'Indonesian',
+    'Italian (it)': 'Italian',
+    'Japanese (ja)': 'Japanese',
+    'Korean (ko)': 'Korean',
+    'Persian (fa)': 'Persian',
+    'Polish (pl)': 'Polish',
+    'Portuguese (pt)': 'Portuguese',
+    'Russian (ru)': 'Russian',
+    'Spanish (es)': 'Spanish',
+    'Tagalog (tl)': 'Tagalog',
+    'Thai (th)': 'Thai',
+    'Turkish (tr)': 'Turkish',
+    'Ukrainian (uk)': 'Ukrainian',
+    'Urdu (ur)': 'Urdu',
+    'Vietnamese (vi)': 'Vietnamese',
+    'Hindi (hi)': 'Hindi',
+}
+
+LANGUAGES_ABBR = {
     'Automatic detection': 'Automatic detection',
     'Arabic (ar)': 'ar',
     'Cantonese (yue)': 'yue',
@@ -94,6 +126,7 @@ LANGUAGES = {
     'Greek (el)': 'el',
     'Hebrew (he)': 'he',
     'Hungarian (hu)': 'hu',
+    'Indonesian (in)': 'in',
     'Italian (it)': 'it',
     'Japanese (ja)': 'ja',
     'Korean (ko)': 'ko',
@@ -102,6 +135,8 @@ LANGUAGES = {
     'Portuguese (pt)': 'pt',
     'Russian (ru)': 'ru',
     'Spanish (es)': 'es',
+    'Tagalog (tl)': 'tl',
+    'Thai (Th)': 'th',
     'Turkish (tr)': 'tr',
     'Ukrainian (uk)': 'uk',
     'Urdu (ur)': 'ur',
@@ -322,7 +357,7 @@ def batch_preprocess(
 #   sf.write(filepath, data=data[:target_samples], samplerate=48000)
 #   return file
 
-def tts(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length):
+def tts(segment, speaker_to_voice, speaker_to_speed, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, t2s_method, match_length):
     text = segment['text']
     start = segment['start']
     end = segment['end']
@@ -339,7 +374,7 @@ def tts(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_met
     filename = f"audio/{start}.wav"
 
     if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-        make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, TRANSLATE_AUDIO_TO, t2s_method)
+        make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, t2s_method)
     elif speaker == "SPEAKER_99":
         try:
             tts = gTTS(text, lang=TRANSLATE_AUDIO_TO)
@@ -361,7 +396,7 @@ def tts(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_met
     porcentaje = math.floor(porcentaje * 10000) / 10000
     porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
     porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
-    porcentaje = 1.0 if not match_length else porcentaje     
+    porcentaje = 1.0 if not match_length else porcentaje
     # apply aceleration or opposite to the audio file in audio2 folder
     os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
     gc.collect(); torch.cuda.empty_cache()
@@ -435,8 +470,8 @@ def translate_from_media(
     temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", new_dir_now())
     Path(temp_dir).mkdir(parents=True, exist_ok=True)
     
-    # is_video = True if is_video_or_audio(media_input) == 'video' else False
-    is_video = True if os.path.splitext(os.path.basename(media_input.strip()))[1] == '.mp4' else False
+    is_video = True if is_video_or_audio(media_input) == 'video' else False
+    # is_video = True if os.path.splitext(os.path.basename(media_input.strip()))[1] == '.mp4' else False
     
     OutputFile = os.path.join(temp_dir, 'Video.mp4') if is_video else os.path.join(temp_dir, 'Audio.mp3')
     file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
@@ -628,7 +663,7 @@ def translate_from_media(
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
-      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
+      result_diarize['segments'] = translate_text(result_diarize['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
       print("translated segments::", result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
@@ -665,7 +700,7 @@ def translate_from_media(
     N_JOBS = os.getenv('TTS_JOBS', 1)
     print("Start TTS:: concurrency =", N_JOBS)
     with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS) if max_speakers == 1 else 1):
-      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, speaker_to_speed, TRANSLATE_AUDIO_TO, t2s_method, match_length) for (segment) in tqdm(result_diarize['segments']))
+      tts_results = Parallel(verbose=100)(delayed(tts)(segment, speaker_to_voice, speaker_to_speed, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, t2s_method, match_length) for (segment) in tqdm(result_diarize['segments']))
     
     # if os.getenv('UPSAMPLING_ENABLE', '') == "true":
     #   progress(0.75, desc="Upsampling...")
@@ -862,7 +897,7 @@ with demo:
                 srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
                 # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 with gr.Row():
-                  match_length = gr.Checkbox(label="Enable",container=False, value=False, info='Match speech length of original language?', interactive=True)
+                  match_length = gr.Checkbox(label="Enable",container=False, value=True, info='Match speech length of original language?', interactive=True)
                   match_start = gr.Checkbox(label="Enable",container=False, value=True, info='Match speech start time of origin language?', interactive=True)
                 ## media_input change function
                 # link = gr.HTML()
@@ -870,7 +905,7 @@ with demo:
 
                 with gr.Row():
                   SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Cantonese (yue)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='English (en)',label = 'Source language', info="This is the original language of the video", scale=1)
-                  TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', info="Select the target language for translation", scale=1)
+                  TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Indonesian (in)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Thai (th)', 'Tagalog (tl)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', info="Select the target language for translation", scale=1)
 
                 # line_ = gr.HTML("<hr>")
                 gr.Markdown("Select how many people are speaking in the video.")
@@ -1043,8 +1078,8 @@ with demo:
           with gr.Accordion("S2T - T2T - T2S", open=False):
             with gr.Row():
               s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['s2t'], visible=True, elem_id="s2t_method")
-              t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method")
-              t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method")
+              t2t_method = gr.Dropdown(["Google", "VB", "T5", "M4T", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method")
+              t2s_method = gr.Dropdown(["Google", "Edge", "M4T", "VietTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method")
               vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc_method")
               s2t_method.change(lambda x: x, s2t_method, None, js="(x) => localStorage.setItem('s2t_method', JSON.stringify({ type: 'input', value: x }))")
               t2t_method.change(lambda x: x, t2t_method, None, js="(x) => localStorage.setItem('t2t_method', JSON.stringify({ type: 'input', value: x }))")

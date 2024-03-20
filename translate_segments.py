@@ -11,6 +11,42 @@ import gc
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from peft import PeftModel
 from repl_dict import dictOfReplacementStrings
+from gradio_client import Client
+
+
+LANGUAGES_ABBR = {
+    'Automatic detection': None,
+    'Arabic': 'ar',
+    'Cantonese': 'yue',
+    'Chinese': 'zh',
+    'Czech': 'cs',
+    'Danish': 'da',
+    'Dutch': 'nl',
+    'English': 'en',
+    'Finnish': 'fi',
+    'French': 'fr',
+    'German': 'de',
+    'Greek': 'el',
+    'Hebrew': 'he',
+    'Hungarian': 'hu',
+    'Indonesian': 'id',
+    'Italian': 'it',
+    'Japanese': 'ja',
+    'Korean': 'ko',
+    'Persian': 'fa',
+    'Polish': 'pl',
+    'Portuguese': 'pt',
+    'Russian': 'ru',
+    'Spanish': 'es',
+    'Tagalog': 'tl',
+    'Thai': 'th',
+    'Turkish': 'tr',
+    'Ukrainian': 'uk',
+    'Urdu': 'ur',
+    'Vietnamese': 'vi',
+    'Hindi': 'hi',
+}
+
 device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     
 def post_process_text(text):
@@ -33,7 +69,7 @@ def t5_translator(input_text: str, tokenizer, model):
     return "\n".join(result)
 
 ## Translate text using Google Translator
-def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model=""):
+def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model=""):
     print("start translate_text::", segments)
     if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
       print("vb_translator::", len(segments), "segments")
@@ -68,18 +104,38 @@ def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint=
       for index, segment in enumerate(segments):
         segments[index]['text'] = post_process_text(segments[index]['text'])
       del llm
+    elif t2t_method == "M4T":
+      client = Client("https://facebook-seamless-m4t.hf.space/--replicas/0jsdd/")
+      for line in tqdm(range(len(segments))):
+        text = segments[line]['text']
+        try:
+          text = client.predict(
+              'T2TT (Text to Text translation)',	# str (Option from: [('S2ST (Speech to Speech translation)', 'S2ST (Speech to Speech translation)'), ('S2TT (Speech to Text translation)', 'S2TT (Speech to Text translation)'), ('T2ST (Text to Speech translation)', 'T2ST (Text to Speech translation)'), ('T2TT (Text to Text translation)', 'T2TT (Text to Text translation)'), ('ASR (Automatic Speech Recognition)', 'ASR (Automatic Speech Recognition)')]) in 'Task' Dropdown component	
+              "file",	# str  in 'Audio source' Radio component
+              "",	# str (filepath on your computer (or URL) of file) in 'Input speech' Audio component
+              "",	# str (filepath on your computer (or URL) of file) in 'Input speech' Audio component
+              text,	# str  in 'Input text' Textbox component
+              SOURCE_LANGUAGE,	# str (Option from: [('Afrikaans', 'Afrikaans'), ('Amharic', 'Amharic'), ('Armenian', 'Armenian'), ('Assamese', 'Assamese'), ('Basque', 'Basque'), ('Belarusian', 'Belarusian'), ('Bengali', 'Bengali'), ('Bosnian', 'Bosnian'), ('Bulgarian', 'Bulgarian'), ('Burmese', 'Burmese'), ('Cantonese', 'Cantonese'), ('Catalan', 'Catalan'), ('Cebuano', 'Cebuano'), ('Central Kurdish', 'Central Kurdish'), ('Croatian', 'Croatian'), ('Czech', 'Czech'), ('Danish', 'Danish'), ('Dutch', 'Dutch'), ('Egyptian Arabic', 'Egyptian Arabic'), ('English', 'English'), ('Estonian', 'Estonian'), ('Finnish', 'Finnish'), ('French', 'French'), ('Galician', 'Galician'), ('Ganda', 'Ganda'), ('Georgian', 'Georgian'), ('German', 'German'), ('Greek', 'Greek'), ('Gujarati', 'Gujarati'), ('Halh Mongolian', 'Halh Mongolian'), ('Hebrew', 'Hebrew'), ('Hindi', 'Hindi'), ('Hungarian', 'Hungarian'), ('Icelandic', 'Icelandic'), ('Igbo', 'Igbo'), ('Indonesian', 'Indonesian'), ('Irish', 'Irish'), ('Italian', 'Italian'), ('Japanese', 'Japanese'), ('Javanese', 'Javanese'), ('Kannada', 'Kannada'), ('Kazakh', 'Kazakh'), ('Khmer', 'Khmer'), ('Korean', 'Korean'), ('Kyrgyz', 'Kyrgyz'), ('Lao', 'Lao'), ('Lithuanian', 'Lithuanian'), ('Luo', 'Luo'), ('Macedonian', 'Macedonian'), ('Maithili', 'Maithili'), ('Malayalam', 'Malayalam'), ('Maltese', 'Maltese'), ('Mandarin Chinese', 'Mandarin Chinese'), ('Marathi', 'Marathi'), ('Meitei', 'Meitei'), ('Modern Standard Arabic', 'Modern Standard Arabic'), ('Moroccan Arabic', 'Moroccan Arabic'), ('Nepali', 'Nepali'), ('North Azerbaijani', 'North Azerbaijani'), ('Northern Uzbek', 'Northern Uzbek'), ('Norwegian Bokmål', 'Norwegian Bokmål'), ('Norwegian Nynorsk', 'Norwegian Nynorsk'), ('Nyanja', 'Nyanja'), ('Odia', 'Odia'), ('Polish', 'Polish'), ('Portuguese', 'Portuguese'), ('Punjabi', 'Punjabi'), ('Romanian', 'Romanian'), ('Russian', 'Russian'), ('Serbian', 'Serbian'), ('Shona', 'Shona'), ('Sindhi', 'Sindhi'), ('Slovak', 'Slovak'), ('Slovenian', 'Slovenian'), ('Somali', 'Somali'), ('Southern Pashto', 'Southern Pashto'), ('Spanish', 'Spanish'), ('Standard Latvian', 'Standard Latvian'), ('Standard Malay', 'Standard Malay'), ('Swahili', 'Swahili'), ('Swedish', 'Swedish'), ('Tagalog', 'Tagalog'), ('Tajik', 'Tajik'), ('Tamil', 'Tamil'), ('Telugu', 'Telugu'), ('Thai', 'Thai'), ('Turkish', 'Turkish'), ('Ukrainian', 'Ukrainian'), ('Urdu', 'Urdu'), ('Vietnamese', 'Vietnamese'), ('Welsh', 'Welsh'), ('West Central Oromo', 'West Central Oromo'), ('Western Persian', 'Western Persian'), ('Yoruba', 'Yoruba'), ('Zulu', 'Zulu')]) in 'Source language' Dropdown component
+              TRANSLATE_AUDIO_TO,	# str (Option from: [('Bengali', 'Bengali'), ('Catalan', 'Catalan'), ('Czech', 'Czech'), ('Danish', 'Danish'), ('Dutch', 'Dutch'), ('English', 'English'), ('Estonian', 'Estonian'), ('Finnish', 'Finnish'), ('French', 'French'), ('German', 'German'), ('Hindi', 'Hindi'), ('Indonesian', 'Indonesian'), ('Italian', 'Italian'), ('Japanese', 'Japanese'), ('Korean', 'Korean'), ('Maltese', 'Maltese'), ('Mandarin Chinese', 'Mandarin Chinese'), ('Modern Standard Arabic', 'Modern Standard Arabic'), ('Northern Uzbek', 'Northern Uzbek'), ('Polish', 'Polish'), ('Portuguese', 'Portuguese'), ('Romanian', 'Romanian'), ('Russian', 'Russian'), ('Slovak', 'Slovak'), ('Spanish', 'Spanish'), ('Swahili', 'Swahili'), ('Swedish', 'Swedish'), ('Tagalog', 'Tagalog'), ('Telugu', 'Telugu'), ('Thai', 'Thai'), ('Turkish', 'Turkish'), ('Ukrainian', 'Ukrainian'), ('Urdu', 'Urdu'), ('Vietnamese', 'Vietnamese'), ('Welsh', 'Welsh'), ('Western Persian', 'Western Persian')]) in 'Target language' Dropdown component
+              api_name="/run"
+          )
+          if text and text[1]:
+            print("m4t_translator::", SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, t2t_method, text[1])
+            segments[line]['text'] = post_process_text(text[1])
+        except:
+          print('An exception occurred')
     else:
       pass
     ## Last option to check if any non-translated sentences left then using Google translator
-    google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
+    google_translator = GoogleTranslator(source='auto', target=LANGUAGES_ABBR[TRANSLATE_AUDIO_TO])
     for line in tqdm(range(len(segments))):
       # print("gg_translator::")
       try:
         text = segments[line]['text']
-        if text and detect(text.strip()) != 'vi':
-          translated_line = google_translator.translate(text.strip())
-          # print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
-          segments[line]['text'] = post_process_text(translated_line)
+        # if text and detect(text.strip()) != 'vi':
+        translated_line = google_translator.translate(text.strip())
+        # print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
+        segments[line]['text'] = post_process_text(translated_line)
       except Exception as e:
         pass
     return segments

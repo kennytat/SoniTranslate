@@ -1,7 +1,7 @@
 {
   "s2t": "Whisper",
-  "t2t": "LLM",
-  "t2s": "VietTTS",
+  "t2t": "Google",
+  "t2s": "Google",
   "vc": "None",
   "llm_url": "https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1",
   "llm_models": [

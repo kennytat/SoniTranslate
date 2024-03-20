@@ -224,8 +224,8 @@ def transcript_to_srt(txt_input):
     else:
         print('Transcript not valid - parse normally!!')
         return txt_input
-  except:
-    print("Transcript not valid - parse normally!!")
+  except Exception as error:
+    print("Transcript not valid - parse normally!!", error)
     return txt_input
   
 def file_to_paragraph(file):
