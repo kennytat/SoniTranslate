@@ -186,7 +186,7 @@ def batch_preprocess(
   match_start,
   YOUR_HF_TOKEN,
   preview=False,
-  WHISPER_MODEL_SIZE="large-v2",
+  WHISPER_MODEL_SIZE="large-v3",
   batch_size=16,
   chunk_size=5,
   compute_type="float16",
@@ -378,7 +378,7 @@ def translate_from_media(
     match_start,
     YOUR_HF_TOKEN,
     preview=False,
-    WHISPER_MODEL_SIZE="large-v2",
+    WHISPER_MODEL_SIZE="large-v3",
     batch_size=16,
     chunk_size=5,
     compute_type="float16",
@@ -802,56 +802,100 @@ MAX_TTS = 6
 #             panel_background_fill = "#171717"
 #         )
 
-js = """
-function initLocalStorage() {
-  try {
-    const keys = Object.keys(localStorage);
-    console.log();
-    keys.forEach((key) => {
-      const item = JSON.parse(localStorage.getItem(key));
-      if (item.type && item.value) {
-        // console.log("item::", item, key);
-        document.getElementById(key).getElementsByTagName(item.type)[0].value =
-          item.value;
-        if (key === "vc_method") {
-          const voiceNum = 6;
-          for (let i = 0; i < voiceNum; i++) {
-            const svcElem = document.getElementById(`svc_voice0${i}`);
-            const rvcElem = document.getElementById(`rvc_voice0${i}`);
-            // console.log("svcElem:", svcElem, item.value);
-            setTimeout(() => {
-              svcElem.classList.toggle("hidden", item.value !== "SVC");
-              rvcElem.classList.toggle("hidden", item.value !== "RVC");
-            }, 500);
-          }
-        }
-      }
-    });
-  } catch (error) {
-    console.log("error:", error);
-  }
+get_local_storage = """
+function () {
+  globalThis.setStorage = (key, value) => {
+    localStorage.setItem(key, JSON.stringify(value));
+  };
+  globalThis.getStorage = (key, value) => {
+    return JSON.parse(localStorage.getItem(key));
+  };
+  const s2t_method = getStorage("s2t_method");
+  const t2t_method = getStorage("t2t_method");
+  const t2s_method = getStorage("t2s_method");
+  const vc_method = getStorage("vc_method");
+  const llm_url = getStorage("llm_url");
+  const llm_model = getStorage("llm_model");
+  const max_speakers = getStorage("max_speakers");
 
-  // Event listener for max_speakers change
-  document
-    .getElementById("max_speakers")
-    .addEventListener("click", function () {
-      // console.log("max_speakers clicked!!");
-      const item = JSON.parse(localStorage.getItem("vc_method"));
-      const voiceNum = 6;
-      for (let i = 0; i < voiceNum; i++) {
-        const svcElem = document.getElementById(`svc_voice0${i}`);
-        const rvcElem = document.getElementById(`rvc_voice0${i}`);
-        svcElem.classList.toggle("hidden", item.value !== "SVC");
-        rvcElem.classList.toggle("hidden", item.value !== "RVC");
-      }
-    });
+  const tts_voice00 = getStorage("tts_voice00");
+  const tts_speed00 = getStorage("tts_speed00");
+  const svc_voice00 = getStorage("svc_voice00");
+  const rvc_voice00 = getStorage("rvc_voice00");
 
-  return "LocalStorage Initialized!!";
+  const tts_voice01 = getStorage("tts_voice01");
+  const tts_speed01 = getStorage("tts_speed01");
+  const svc_voice01 = getStorage("svc_voice01");
+  const rvc_voice01 = getStorage("rvc_voice01");
+
+  const tts_voice02 = getStorage("tts_voice02");
+  const tts_speed02 = getStorage("tts_speed02");
+  const svc_voice02 = getStorage("svc_voice02");
+  const rvc_voice02 = getStorage("rvc_voice02");
+
+  const tts_voice03 = getStorage("tts_voice03");
+  const tts_speed03 = getStorage("tts_speed03");
+  const svc_voice03 = getStorage("svc_voice03");
+  const rvc_voice03 = getStorage("rvc_voice03");
+
+  const tts_voice04 = getStorage("tts_voice04");
+  const tts_speed04 = getStorage("tts_speed04");
+  const svc_voice04 = getStorage("svc_voice04");
+  const rvc_voice04 = getStorage("rvc_voice04");
+
+  const tts_voice05 = getStorage("tts_voice05");
+  const tts_speed05 = getStorage("tts_speed05");
+  const svc_voice05 = getStorage("svc_voice05");
+  const rvc_voice05 = getStorage("rvc_voice05");
+
+  const match_length = getStorage("match_length");
+  const match_start = getStorage("match_start");
+
+  const SOURCE_LANGUAGE = getStorage("SOURCE_LANGUAGE");
+  const TRANSLATE_AUDIO_TO = getStorage("TRANSLATE_AUDIO_TO");
+
+  return [
+    s2t_method,
+    t2t_method,
+    t2s_method,
+    vc_method,
+    llm_url,
+    llm_model,
+    max_speakers,
+    tts_voice00,
+    tts_speed00,
+    svc_voice00,
+    rvc_voice00,
+    tts_voice01,
+    tts_speed01,
+    svc_voice01,
+    rvc_voice01,
+    tts_voice02,
+    tts_speed02,
+    svc_voice02,
+    rvc_voice02,
+    tts_voice03,
+    tts_speed03,
+    svc_voice03,
+    rvc_voice03,
+    tts_voice04,
+    tts_speed04,
+    svc_voice04,
+    rvc_voice04,
+    tts_voice05,
+    tts_speed05,
+    svc_voice05,
+    rvc_voice05,
+    match_length,
+    match_start,
+    SOURCE_LANGUAGE,
+    TRANSLATE_AUDIO_TO,
+  ];
 }
 """
+
 theme="Taithrah/Minimal"
-demo = gr.Blocks(title="VGM Translate",theme=theme, js=js)
-with demo:
+with gr.Blocks(title="VGM Translate",theme=theme) as demo:
   gr.Markdown(title)
   gr.Markdown(description)
   with gr.Tabs():
@@ -865,19 +909,23 @@ with demo:
                 # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 with gr.Row():
                   match_length = gr.Checkbox(label="Enable",container=False, value=False, info='Match speech length of original language?', interactive=True)
+                  match_length.change(None, match_length, None, js="(v) => setStorage('match_length',v)")
                   match_start = gr.Checkbox(label="Enable",container=False, value=True, info='Match speech start time of origin language?', interactive=True)
+                  match_start.change(None, match_start, None, js="(v) => setStorage('match_start',v)")
                 ## media_input change function
                 # link = gr.HTML()
                 # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
 
                 with gr.Row():
                   SOURCE_LANGUAGE = gr.Dropdown(['Automatic detection', 'Arabic (ar)', 'Cantonese (yue)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='English (en)',label = 'Source language', info="This is the original language of the video", scale=1)
+                  SOURCE_LANGUAGE.change(None, SOURCE_LANGUAGE, None, js="(v) => setStorage('SOURCE_LANGUAGE',v)")
                   TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', info="Select the target language for translation", scale=1)
-
+                  TRANSLATE_AUDIO_TO.change(None, TRANSLATE_AUDIO_TO, None, js="(v) => setStorage('TRANSLATE_AUDIO_TO',v)")
                 # line_ = gr.HTML("<hr>")
                 gr.Markdown("Select how many people are speaking in the video.")
                 min_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="min_speakers", visible=False)
                 max_speakers = gr.Slider(1, MAX_TTS, value=1, step=1, label="Max speakers", elem_id="max_speakers")
+                max_speakers.change(None, max_speakers, None, js="(v) => setStorage('max_speakers',v)")
                 gr.Markdown("Select the voice you want for each speaker.")
                 def update_speaker_visibility(value):
                     visibility_dict = {
@@ -889,56 +937,57 @@ with demo:
                   tts_speed00 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 1", step=0.02, elem_id="tts_speed00", interactive=True)
                   svc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 1', visible=False, elem_id="svc_voice00")
                   rvc_voice00 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 1', visible=False, elem_id="rvc_voice00")
-                  tts_voice00.change(lambda x: x, tts_voice00, None, js="(x) => localStorage.setItem('tts_voice00', JSON.stringify({ type: 'input', value: x }))")
-                  tts_speed00.change(lambda x: x, tts_speed00, None, js="(x) => localStorage.setItem('tts_speed00', JSON.stringify({ type: 'input', value: x }))")
-                  svc_voice00.change(lambda x: x, svc_voice00, None, js="(x) => localStorage.setItem('svc_voice00', JSON.stringify({ type: 'input', value: x }))")
-                  rvc_voice00.change(lambda x: x, rvc_voice00, None, js="(x) => localStorage.setItem('rvc_voice00', JSON.stringify({ type: 'input', value: x }))")
+                  tts_voice00.change(None, tts_voice00, None, js="(v) => setStorage('tts_voice00',v)")
+                  tts_speed00.change(None, tts_speed00, None, js="(v) => setStorage('tts_speed00',v)")
+                  svc_voice00.change(None, svc_voice00, None, js="(v) => setStorage('svc_voice00',v)")
+                  rvc_voice00.change(None, rvc_voice00, None, js="(v) => setStorage('rvc_voice00',v)")
                 with gr.Row(visible=False) as tts_voice01_row:
                   tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 2', visible=True, elem_id="tts_voice01")
                   tts_speed01 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 2", step=0.02, elem_id="tts_speed01", interactive=True)
                   svc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 2', visible=False, elem_id="svc_voice01")
                   rvc_voice01 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 2', visible=False, elem_id="rvc_voice01")
-                  tts_voice01.change(lambda x: x, tts_voice01, None, js="(x) => localStorage.setItem('tts_voice01', JSON.stringify({ type: 'input', value: x }))")
-                  tts_speed01.change(lambda x: x, tts_speed01, None, js="(x) => localStorage.setItem('tts_speed01', JSON.stringify({ type: 'input', value: x }))")
-                  svc_voice01.change(lambda x: x, svc_voice01, None, js="(x) => localStorage.setItem('svc_voice01', JSON.stringify({ type: 'input', value: x }))")
-                  rvc_voice01.change(lambda x: x, rvc_voice01, None, js="(x) => localStorage.setItem('rvc_voice01', JSON.stringify({ type: 'input', value: x }))")
+                  tts_voice01.change(None, tts_voice01, None, js="(v) => setStorage('tts_voice01',v)")
+                  tts_speed01.change(None, tts_speed01, None, js="(v) => setStorage('tts_speed01',v)")
+                  svc_voice01.change(None, svc_voice01, None, js="(v) => setStorage('svc_voice01',v)")
+                  rvc_voice01.change(None, rvc_voice01, None, js="(v) => setStorage('rvc_voice01',v)")
                 with gr.Row(visible=False) as tts_voice02_row:
                   tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 3', visible=True, elem_id="tts_voice02")
                   tts_speed02 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 3", step=0.02, elem_id="tts_speed02", interactive=True)
                   svc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 3', visible=False, elem_id="svc_voice02")
                   rvc_voice02 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 3', visible=False, elem_id="rvc_voice02")
-                  tts_voice02.change(lambda x: x, tts_voice02, None, js="(x) => localStorage.setItem('tts_voice02', JSON.stringify({ type: 'input', value: x }))")
-                  tts_speed02.change(lambda x: x, tts_speed02, None, js="(x) => localStorage.setItem('tts_speed02', JSON.stringify({ type: 'input', value: x }))")
-                  svc_voice02.change(lambda x: x, svc_voice02, None, js="(x) => localStorage.setItem('svc_voice02', JSON.stringify({ type: 'input', value: x }))")
-                  rvc_voice02.change(lambda x: x, rvc_voice02, None, js="(x) => localStorage.setItem('rvc_voice02', JSON.stringify({ type: 'input', value: x }))")
+                  tts_voice02.change(None, tts_voice02, None, js="(v) => setStorage('tts_voice02',v)")
+                  tts_speed02.change(None, tts_speed02, None, js="(v) => setStorage('tts_speed02',v)")
+                  svc_voice02.change(None, svc_voice02, None, js="(v) => setStorage('svc_voice02',v)")
+                  rvc_voice02.change(None, rvc_voice02, None, js="(v) => setStorage('rvc_voice02',v)")
                 with gr.Row(visible=False) as tts_voice03_row:
                   tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 4', visible=True, elem_id="tts_voice03")
                   tts_speed03 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 4", step=0.02, elem_id="tts_speed03", interactive=True)
                   svc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 4', visible=False, elem_id="svc_voice03")
                   rvc_voice03 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 4', visible=False, elem_id="rvc_voice03")
-                  tts_voice03.change(lambda x: x, tts_voice03, None, js="(x) => localStorage.setItem('tts_voice03', JSON.stringify({ type: 'input', value: x }))")
-                  tts_speed03.change(lambda x: x, tts_speed03, None, js="(x) => localStorage.setItem('tts_speed03', JSON.stringify({ type: 'input', value: x }))")
-                  svc_voice03.change(lambda x: x, svc_voice03, None, js="(x) => localStorage.setItem('svc_voice03', JSON.stringify({ type: 'input', value: x }))")
-                  rvc_voice03.change(lambda x: x, rvc_voice03, None, js="(x) => localStorage.setItem('rvc_voice03', JSON.stringify({ type: 'input', value: x }))")
+                  tts_voice03.change(None, tts_voice03, None, js="(v) => setStorage('tts_voice03',v)")
+                  tts_speed03.change(None, tts_speed03, None, js="(v) => setStorage('tts_speed03',v)")
+                  svc_voice03.change(None, svc_voice03, None, js="(v) => setStorage('svc_voice03',v)")
+                  rvc_voice03.change(None, rvc_voice03, None, js="(v) => setStorage('rvc_voice03',v)")
                 with gr.Row(visible=False) as tts_voice04_row:
                   tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 5', visible=True, elem_id="tts_voice04")
                   tts_speed04 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 5", step=0.02, elem_id="tts_speed04", interactive=True)
                   svc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 5', visible=False, elem_id="svc_voice04")
                   rvc_voice04 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 5', visible=False, elem_id="rvc_voice04")
-                  tts_voice04.change(lambda x: x, tts_voice04, None, js="(x) => localStorage.setItem('tts_voice04', JSON.stringify({ type: 'input', value: x }))")
-                  tts_speed04.change(lambda x: x, tts_speed04, None, js="(x) => localStorage.setItem('tts_speed04', JSON.stringify({ type: 'input', value: x }))")
-                  svc_voice04.change(lambda x: x, svc_voice04, None, js="(x) => localStorage.setItem('svc_voice04', JSON.stringify({ type: 'input', value: x }))")
-                  rvc_voice04.change(lambda x: x, rvc_voice04, None, js="(x) => localStorage.setItem('rvc_voice04', JSON.stringify({ type: 'input', value: x }))")
+                  tts_voice04.change(None, tts_voice04, None, js="(v) => setStorage('tts_voice04',v)")
+                  tts_speed04.change(None, tts_speed04, None, js="(v) => setStorage('tts_speed04',v)")
+                  svc_voice04.change(None, svc_voice04, None, js="(v) => setStorage('svc_voice04',v)")
+                  rvc_voice04.change(None, rvc_voice04, None, js="(v) => setStorage('rvc_voice04',v)")
                 with gr.Row(visible=False) as tts_voice05_row:
                   tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 6', visible=True, elem_id="tts_voice05")
                   tts_speed05 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 6", step=0.02, elem_id="tts_speed05", interactive=True)
                   svc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='SVC Speaker 6', visible=False, elem_id="svc_voice05")
                   rvc_voice05 = gr.Dropdown(choices=list_rvc, value=list_rvc[0], label='RVC Speaker 6', visible=False, elem_id="rvc_voice05")
-                  tts_voice05.change(lambda x: x, tts_voice05, None, js="(x) => localStorage.setItem('tts_voice05', JSON.stringify({ type: 'input', value: x }))")
-                  tts_speed05.change(lambda x: x, tts_speed05, None, js="(x) => localStorage.setItem('tts_speed05', JSON.stringify({ type: 'input', value: x }))")
-                  svc_voice05.change(lambda x: x, svc_voice05, None, js="(x) => localStorage.setItem('svc_voice05', JSON.stringify({ type: 'input', value: x }))")
-                  rvc_voice05.change(lambda x: x, rvc_voice05, None, js="(x) => localStorage.setItem('rvc_voice05', JSON.stringify({ type: 'input', value: x }))")
+                  tts_voice05.change(None, tts_voice05, None, js="(v) => setStorage('tts_voice05',v)")
+                  tts_speed05.change(None, tts_speed05, None, js="(v) => setStorage('tts_speed05',v)")
+                  svc_voice05.change(None, svc_voice05, None, js="(v) => setStorage('svc_voice05',v)")
+                  rvc_voice05.change(None, rvc_voice05, None, js="(v) => setStorage('rvc_voice05',v)")
                 max_speakers.change(update_speaker_visibility, max_speakers, [tts_voice00_row, tts_voice01_row, tts_voice02_row, tts_voice03_row, tts_voice04_row, tts_voice05_row])
+                
 
                 with gr.Column():
                       with gr.Accordion("Advanced Settings", open=False):
@@ -948,7 +997,7 @@ with demo:
                           # gr.HTML("<hr>")
                           gr.Markdown("Default configuration of Whisper.")
                           with gr.Row():
-                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v3', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                             compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
                           with gr.Row():
                             batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
@@ -998,7 +1047,7 @@ with demo:
                 #             "./assets/Video_main.mp4",
                 #             "",
                 #             False,
-                #             "large-v2",
+                #             "large-v3",
                 #             16,
                 #             "float16",
                 #             "Spanish (es)",
@@ -1048,10 +1097,10 @@ with demo:
               t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method")
               t2s_method = gr.Dropdown(["Google", "Edge", "VietTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method")
               vc_method = gr.Dropdown(["None", "SVC", "RVC"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc_method")
-              s2t_method.change(lambda x: x, s2t_method, None, js="(x) => localStorage.setItem('s2t_method', JSON.stringify({ type: 'input', value: x }))")
-              t2t_method.change(lambda x: x, t2t_method, None, js="(x) => localStorage.setItem('t2t_method', JSON.stringify({ type: 'input', value: x }))")
-              t2s_method.change(lambda x: x, svc_voice00, None, js="(x) => localStorage.setItem('t2s_method', JSON.stringify({ type: 'input', value: x }))")
-              vc_method.change(lambda x: x, vc_method, None, js="(x) => localStorage.setItem('vc_method', JSON.stringify({ type: 'input', value: x }))")
+              s2t_method.change(None, s2t_method, None, js="(v) => setStorage('s2t_method',v)")
+              t2t_method.change(None, t2t_method, None, js="(v) => setStorage('t2t_method',v)")
+              t2s_method.change(None, t2s_method, None, js="(v) => setStorage('t2s_method',v)")
+              vc_method.change(None, vc_method, None, js="(v) => setStorage('vc_method',v)")
             ## update t2s method
             def update_t2s_list(method):
               list_tts = list_vtts if method == 'VietTTS' else list_gtts
@@ -1070,22 +1119,22 @@ with demo:
               llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url")
               llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model")        
               llm_url.blur(update_llm_model, [llm_url], [llm_model])
-              llm_url.change(lambda x: x, llm_url, None, js="(x) => localStorage.setItem('llm_url', JSON.stringify({ type: 'textarea', value: x }))")
-              llm_model.change(lambda x: x, llm_model, None, js="(x) => localStorage.setItem('llm_model', JSON.stringify({ type: 'input', value: x }))")
-          with gr.Row():
-            def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
-              # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
-              user_settings['s2t'] = s2t_method
-              user_settings['t2t'] = t2t_method
-              user_settings['t2s'] = t2s_method
-              user_settings['vc'] = vc_method
-              user_settings['llm_url'] = llm_url
-              user_settings['llm_models'] = get_llm_models(llm_url)
-              user_settings['llm_model'] = llm_model
-              save_settings(settings=user_settings)
-              return gr.Info("Settings saved!!")
-            save_setting_btn = gr.Button("Save Settings", elem_id="save_setting_btn")
-            save_setting_btn.click(save_setting_fn, [s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model], [])
+              llm_url.change(None, llm_url, None, js="(v) => setStorage('llm_url',v)")
+              llm_model.change(None, llm_model, None, js="(v) => setStorage('llm_model',v)")
+          # with gr.Row():
+          #   def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
+          #     # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
+          #     user_settings['s2t'] = s2t_method
+          #     user_settings['t2t'] = t2t_method
+          #     user_settings['t2s'] = t2s_method
+          #     user_settings['vc'] = vc_method
+          #     user_settings['llm_url'] = llm_url
+          #     user_settings['llm_models'] = get_llm_models(llm_url)
+          #     user_settings['llm_model'] = llm_model
+          #     save_settings(settings=user_settings)
+          #     return gr.Info("Settings saved!!")
+            # save_setting_btn = gr.Button("Save Settings", elem_id="save_setting_btn")
+            # save_setting_btn.click(save_setting_fn, [s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model], [])
 
         # with gr.Column():
         #   with gr.Accordion("Download RVC Models", open=False):
@@ -1355,6 +1404,49 @@ with demo:
         inputs=[],
         outputs=[media_output,tmp_output]
         )
+        
+  demo.load(
+      None,
+      inputs=None,
+      outputs=[
+      s2t_method,
+      t2t_method,
+      t2s_method,
+      vc_method,
+      llm_url,
+      llm_model,
+      max_speakers,
+      tts_voice00,
+      tts_speed00,
+      svc_voice00,
+      rvc_voice00,
+      tts_voice01,
+      tts_speed01,
+      svc_voice01,
+      rvc_voice01,
+      tts_voice02,
+      tts_speed02,
+      svc_voice02,
+      rvc_voice02,
+      tts_voice03,
+      tts_speed03,
+      svc_voice03,
+      rvc_voice03,
+      tts_voice04,
+      tts_speed04,
+      svc_voice04,
+      rvc_voice04,
+      tts_voice05,
+      tts_speed05,
+      svc_voice05,
+      rvc_voice05,
+      match_length,
+      match_start,
+      SOURCE_LANGUAGE,
+      TRANSLATE_AUDIO_TO,
+        ],
+      js=get_local_storage,
+  )
 
 if __name__ == "__main__":
   mp.set_start_method('spawn', force=True)
@@ -1376,6 +1468,6 @@ if __name__ == "__main__":
     inbrowser=True,
     show_error=True,
     server_name="0.0.0.0",
-    server_port=6860,
+    server_port=6861,
     # quiet=True,
     share=False)
