@@ -39,22 +39,27 @@ class LLM():
     # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=10)
     
   def initLLM(self, endpoints, model):
-    endpoints = endpoints.split(',')
-    for endpoint in endpoints:
-      response = requests.get(f"{endpoint}/models")
-      models = [item['id'] for item in response.json()["data"]]
-      if model in models:
-        llm = ChatOpenAI(
-            model=model,
-            openai_api_key="EMPTY",
-            openai_api_base=endpoint,
-            max_tokens=8192,
-            temperature=0.5,
-            model_kwargs={"stop":["<|im_end|>"]},
-            # top_p=0.5
-        )
-        llm_chain = LLMChain(llm=llm, prompt=self.prompt, verbose=True)
-        self.llm_chain.append(llm_chain)
+    try:
+      endpoints = endpoints.split(',')
+      for endpoint in endpoints:
+        response = requests.get(f"{endpoint}/models")
+        models = [item['id'] for item in response.json()["data"]]
+        if model in models:
+          llm = ChatOpenAI(
+              model=model,
+              openai_api_key="EMPTY",
+              openai_api_base=endpoint,
+              max_tokens=8192,
+              temperature=0.5,
+              model_kwargs={"stop":["<|im_end|>"]},
+              # top_p=0.5
+          )
+          llm_chain = LLMChain(llm=llm, prompt=self.prompt, verbose=True)
+          self.llm_chain.append(llm_chain)
+      return True
+    except Exception as e:
+      print('initLLM error:', e)
+      return False
         
   def process(self, text):
     max_attempts = 3

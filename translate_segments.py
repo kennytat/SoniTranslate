@@ -35,6 +35,17 @@ def t5_translator(input_text: str, tokenizer, model):
 ## Translate text using Google Translator
 def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model=""):
     print("start translate_text::", segments)
+    if t2t_method == "LLM" and TRANSLATE_AUDIO_TO == "vi":
+      llm = LLM()
+      llm_status = llm.initLLM(llm_endpoint, llm_model)
+      if llm_status:
+        segments = llm.translate(segments)
+        for index, segment in enumerate(segments):
+          segments[index]['text'] = post_process_text(segments[index]['text'])
+        del llm
+      else:
+        t2t_method = "VB"
+      
     if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
       print("vb_translator::", len(segments), "segments")
       source_text = "\n".join([ segment['text'] for segment in segments])
@@ -42,7 +53,8 @@ def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint=
       print("vb_translator translated_text::", len(translated_text), "segments")
       for index, segment in enumerate(segments):
         segments[index]['text'] = post_process_text(translated_text[index])
-    elif t2t_method == "T5" and TRANSLATE_AUDIO_TO == "vi":
+    
+    if t2t_method == "T5" and TRANSLATE_AUDIO_TO == "vi":
       ## T5 translator - instantiate the pre-trained English-to-Vietnamese Transformer model
       BASE_MODEL = "./model/envit5-translation"
       LORA_WEIGHT = "./model/envit5-translation-lora-38500"
