@@ -16,7 +16,7 @@ from vietTTS.utils import normalize, num_to_str, read_number
 
 TTS_MODEL_DIR = os.path.join(os.getcwd(),"model","vits")
 
-device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+device = "cpu"
 space_re = regex.compile(r"\s+")
 number_re = regex.compile("([0-9]+)")
 num_re = regex.compile(r"([0-9.,]*[0-9])")
@@ -68,7 +68,7 @@ def text_to_phone_idx(text, phone_set, sil_idx):
         tokens = tokens + [0, sil_idx]
     return tokens
 
-def inference(duration_net, generator, text, phone_set, hps, speed, max_word_length=750):
+def inference(duration_net, generator, text, phone_set, hps, speed = 1, max_word_length=750):
     assert phone_set[0][1:-1] == "SEP"
     assert "sil" in phone_set
     sil_idx = phone_set.index("sil")
@@ -86,7 +86,7 @@ def inference(duration_net, generator, text, phone_set, hps, speed, max_word_len
     phone_length = torch.from_numpy(batch["phone_length"].copy()).long().to(device)
     phone_idx = torch.from_numpy(batch["phone_idx"].copy()).long().to(device)
     with torch.inference_mode():
-        phone_duration = duration_net(phone_idx, phone_length)[:, :, 0] * 1000 / speed
+        phone_duration = duration_net(phone_idx, phone_length)[:, :, 0] * 1000 / (speed if speed else 1)
     phone_duration = torch.where(
         phone_idx == sil_idx, torch.clamp_min(phone_duration, 200), phone_duration
     )
@@ -138,7 +138,7 @@ def text_to_speech(text, output_file, model_name,speed = 1):
     if model_name not in voice_data:
       voice_data[model_name] = {"config": None, "phone_set": None}
     tts_voice_ckpt_dir = os.path.join(TTS_MODEL_DIR, model_name)
-    print("Starting TTS {}".format(output_file))
+    print("Starting TTS:", text, output_file, model_name, speed)
     ### load hifigan config
     config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
     if not voice_data[model_name]["config"]:
@@ -150,8 +150,7 @@ def text_to_speech(text, output_file, model_name,speed = 1):
     if not voice_data[model_name]["phone_set"]:
       with open(phone_set_file, "r") as f:
         voice_data[model_name]["phone_set"] = json.load(f)
-        
-    print("tts text::", text)
+
     if re.sub(r'^sil\s+','',text).isnumeric():
         silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
         print("Got integer::", text, silence_duration) 
@@ -164,27 +163,30 @@ def text_to_speech(text, output_file, model_name,speed = 1):
         second_of_silence = second_of_silence.set_frame_rate(sample_rate)
         second_of_silence.export(output_file, format="wav")
     else:
-      duration_net, generator = load_models(tts_voice_ckpt_dir, voice_data[model_name]["config"])
-      text = text if detect(text) == 'vi' else ' . '
-      tts_result = inference(duration_net, generator, text, voice_data[model_name]["phone_set"], voice_data[model_name]["config"], speed)
-      wav = np.concatenate([tts_result])
-      # Equalize and Normalize
-      wav = wav / 32768.0  # Convert to range [-1, 1]
-      # Apply a simple high-pass filter for equalization
-      # This is a very basic approach - for a more complex equalization, more sophisticated filtering would be required
-      # Boosting higher frequencies
-      alpha = 0.8
-      filtered_data = np.array(wav)
-      for i in range(1, len(wav)):
-          filtered_data[i] = alpha * filtered_data[i] + (1 - alpha) * wav[i]
-      # Normalize the audio
-      max_val = np.max(np.abs(filtered_data))
-      wav = filtered_data / max_val
-      wav = (wav * 32767).astype(np.int16)
-      ## Write wav to file        
-      sf.write(output_file, wav, samplerate=sample_rate)
-      print("Wav segment written at: {}".format(output_file))
-    gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del duration_net; del generator
+      try:
+        duration_net, generator = load_models(tts_voice_ckpt_dir, voice_data[model_name]["config"])
+        text = text if detect(text) == 'vi' else ' . '
+        tts_result = inference(duration_net, generator, text, voice_data[model_name]["phone_set"], voice_data[model_name]["config"], speed)
+        wav = np.concatenate([tts_result])
+        # Equalize and Normalize
+        wav = wav / 32768.0  # Convert to range [-1, 1]
+        # Apply a simple high-pass filter for equalization
+        # This is a very basic approach - for a more complex equalization, more sophisticated filtering would be required
+        # Boosting higher frequencies
+        alpha = 0.8
+        filtered_data = np.array(wav)
+        for i in range(1, len(wav)):
+            filtered_data[i] = alpha * filtered_data[i] + (1 - alpha) * wav[i]
+        # Normalize the audio
+        max_val = np.max(np.abs(filtered_data))
+        wav = filtered_data / max_val
+        wav = (wav * 32767).astype(np.int16)
+        ## Write wav to file        
+        sf.write(output_file, wav, samplerate=sample_rate)
+        print("Wav segment written at: {}".format(output_file))
+        gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del duration_net; del generator
+      except Exception as e:
+        print('text_to_speech error: {}'.format(e))
     return "Done"
   
 # if __name__ == '__main__':
