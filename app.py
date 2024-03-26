@@ -861,7 +861,7 @@ function () {
     vc_method,
     llm_url,
     llm_model,
-    max_speakers,
+    max_speakers || 1,
     tts_voice00,
     tts_speed00,
     svc_voice00,
@@ -997,7 +997,7 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
                           # gr.HTML("<hr>")
                           gr.Markdown("Default configuration of Whisper.")
                           with gr.Row():
-                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v3', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                             compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
                           with gr.Row():
                             batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
