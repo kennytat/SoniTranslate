@@ -23,7 +23,7 @@ def make_voice_gradio(tts_text, tts_voice, tts_speed, filename, language, t2s_me
     print("make_voice_gradio::",tts_text, tts_voice, filename, language, t2s_method)
     if t2s_method == "VietTTS" and language == "vi" :
       try:
-        text_to_speech(tts_text, filename, tts_voice, tts_speed)
+        text_to_speech(tts_text, filename, tts_voice, tts_speed if tts_speed else 1)
       except Exception as error:
         print("tts error:", error, tts_text)
         tts = gTTS('a', lang=language)

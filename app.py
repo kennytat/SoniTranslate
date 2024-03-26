@@ -864,7 +864,7 @@ function () {
     vc_method,
     llm_url,
     llm_model,
-    max_speakers,
+    max_speakers || 1,
     tts_voice00,
     tts_speed00,
     svc_voice00,
