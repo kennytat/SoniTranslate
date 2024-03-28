@@ -12,5 +12,13 @@ pathlib
 srt
 whisperx @ git+https://github.com/kennytat/whisperx.git@large-v3
 ## Audio Upsampling
-audiosr
-cog
+# audiosr
+# cog
+## FastAPI
+fastapi
+starlette
+asyncio
+passlib
+uvicorn
+itsdangerous
+aiosqlite

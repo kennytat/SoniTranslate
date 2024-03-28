@@ -28,7 +28,19 @@ import numpy as np
 import regex
 from vietTTS.models import DurationNet, SynthesizerTrn
 from vietTTS.utils import normalize, num_to_str, read_number, pad_zero, encode_filename, new_dir_now, file_to_paragraph, txt_to_paragraph, combine_wav_segment
-from vietTTS.upsample import Predictor
+# from vietTTS.upsample import Predictor
+from fastapi import FastAPI, HTTPException, Form, Request, Depends
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
+import asyncio
+import sqlite3
+from passlib.hash import bcrypt
+import uvicorn
+from itsdangerous import URLSafeSerializer
+import aiosqlite
 load_dotenv()
 
 
@@ -259,20 +271,20 @@ class TTS():
       return WavStruct(output_file, start_time)
 
   def upsampling(self, file):
-    if not self.upsampler:
-      self.upsampler = Predictor()
-      self.upsampler.setup(model_name="speech")
-    audio_data, sample_rate = sf.read(file.wav_path)
-    source_duration = len(audio_data) / sample_rate
-    data = self.upsampler.predict(
-        file.wav_path,
-        ddim_steps=50,
-        guidance_scale=3.5,
-        seed=42
-    )
-    ## Trim duration to match source duration
-    target_samples = int(source_duration * 48000)
-    sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
+    # if not self.upsampler:
+    #   self.upsampler = Predictor()
+    #   self.upsampler.setup(model_name="speech")
+    # audio_data, sample_rate = sf.read(file.wav_path)
+    # source_duration = len(audio_data) / sample_rate
+    # data = self.upsampler.predict(
+    #     file.wav_path,
+    #     ddim_steps=50,
+    #     guidance_scale=3.5,
+    #     seed=42
+    # )
+    # ## Trim duration to match source duration
+    # target_samples = int(source_duration * 48000)
+    # sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
     return file
     
   def convert_voice(self, input_dir, model_dir):
@@ -411,6 +423,10 @@ class TTS():
   def web_interface(self, port):
     css = """
     .btn-active {background-color: "orange"}
+    #logout_btn {
+      align-self: self-end;
+			width: 65px;
+    }
     """
     # title="VGM Text To Speech",
     # description = "A vietnamese text-to-speech by VGM speakers."
@@ -418,7 +434,11 @@ class TTS():
     convert_voices = ["none"] + [voice for voice in os.listdir(CONFIG.convert_ckpt_dir) if os.path.isdir(os.path.join(CONFIG.convert_ckpt_dir, voice))]
     app = gr.Blocks(title="VGM Text To Speech", theme=gr.themes.Default(), css=css)
     with app:
-        gr.Markdown("# VGM Text To Speech" )
+        with gr.Row():
+          with gr.Column():
+            gr.Markdown("# VGM Text To Speech")
+          with gr.Column():
+            gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn")
         with gr.Tabs():
             with gr.TabItem("TTS"):
                 with gr.Row():
@@ -439,17 +459,8 @@ class TTS():
                           btn.click(self.speak,
                                   inputs=[input_files, textbox, tts_voice, convert_voice, duration_slider, method],
                                   outputs=[files_output, audio_output, logs_output], concurrency_limit=1)
-    auth_user = os.getenv('AUTH_USER', '')
-    auth_pass = os.getenv('AUTH_PASS', '')
-    app.queue().launch(
-      auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-      show_api=False,
-      debug=False,
-      inbrowser=True,
-      show_error=True,
-      server_name="0.0.0.0",
-      server_port=port,
-      share=False)
+    app.queue()
+    return app
 
 @atexit.register
 def cleanup_tmp():
@@ -463,7 +474,114 @@ def cleanup_tmp():
       if os.path.exists( CONFIG.os_tmp): shutil.rmtree( CONFIG.os_tmp)
       if sys._MEIPASS2 and os.path.exists(sys._MEIPASS2): shutil.rmtree(sys._MEIPASS2)
   sys.exit()
-      
+
+
+## Fast API Initialization
+root = FastAPI()
+# Secret key for session management
+SECRET_KEY = "your-secret-key"
+serializer = URLSafeSerializer(SECRET_KEY)
+root.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+root.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+
+# Function to create SQLite connection
+async def create_connection():
+    return await aiosqlite.connect('db/auth.db')
+
+async def init_database():
+  conn = await create_connection()
+  cursor = await conn.cursor()
+  await cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+        )
+    ''')
+  await conn.commit()
+  await conn.close()
+
+# Function to fetch user ID by username
+async def get_user_id(username):
+    conn = await create_connection()
+    cursor = await conn.cursor()
+    await cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    row = await cursor.fetchone()
+    await conn.close()
+    return row
+  
+# Dependency to check if the user is logged in
+def is_authenticated(request: Request):
+    token = request.cookies.get("token")
+    # print('is_authenticated:', token)
+    if token:
+        username = serializer.loads(token)
+        user_id = asyncio.run(get_user_id(username))
+        # print('is_authenticated:', user_id[0])
+        if user_id:
+            return user_id[0]
+    return None
+  
+# Routes
+@root.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    token = request.cookies.get("token")
+    if token:
+        username = serializer.loads(token)
+        # Check if user exists in the database (session management)
+        conn = await create_connection()
+        cursor = await conn.cursor()
+        await cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        row = await cursor.fetchone()
+        if row:
+            return RedirectResponse(url="/app")
+    return RedirectResponse(url="/login")
+  
+
+@root.get("/signup", response_class=HTMLResponse)
+async def signup(request: Request):
+    return templates.TemplateResponse("signup.html", {"request": request})
+  
+@root.post("/signup")
+async def signup(username: str = Form(...), password: str = Form(...)):
+    hashed_password = bcrypt.hash(password)
+    try:
+        conn = await create_connection()
+        cursor = await conn.cursor()
+        await cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+        await conn.commit()
+        await conn.close()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    return RedirectResponse(url="/", status_code=303)
+
+@root.get("/login", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+  
+@root.post("/login")
+async def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
+    conn = await create_connection()
+    cursor = await conn.cursor()
+    await cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
+    row = await cursor.fetchone()
+    await conn.close()
+    if row and bcrypt.verify(password, row[0]):
+        token = serializer.dumps(username)
+        response = RedirectResponse(url="/app", status_code=303)
+        response.set_cookie(key="token", value=token)
+        return response
+    error = "Wrong username or password"
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+
+@root.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/login")
+    response.delete_cookie("token")
+    return response
+ 
 if __name__ == "__main__":
     ## Download model if not exist
     # os.system('/bin/sh update_model.sh')
@@ -474,38 +592,24 @@ if __name__ == "__main__":
     CONFIG.empty_wav.touch(exist_ok=True)
     ## Set torch multiprocessing
     mp.set_start_method('spawn', force=True)
-    
     host = "localhost"
     port = 7901
-    ## Parser argurment
-    parser = argparse.ArgumentParser(description="VGM TTS application")
-    parser.add_argument("-pf", "--platform", help="TTS Platform, default to desktop", default="web")
-    parser.add_argument("-m", "--model", help="Custom path for model directory, default to current folder")
-    parser.add_argument("-f", "--file", help="Input file for TTS")
-    parser.add_argument("-t", "--text", help="Input text for TTS")
-    parser.add_argument("-s", "--speed", help="Speed for TTS: default to 1", default=1)
-    parser.add_argument("-mt", "--method", help="Method for TTS: join|split", default="join")
-    parser.add_argument("-v", "--voice", help="Voice for TTS: male_name|female_name")
-    parser.add_argument("-o", "--output", help="Output directory")
-    args = parser.parse_args()
-    ## Change ckpt_dir path if provided
-    if args.model:
-        CONFIG.tts_ckpt_dir = args.model
-        print("ckpt_dir:",  CONFIG.tts_ckpt_dir)
-    ## Execute app
-    if args.platform == "web" and args.file:
-        raise TypeError("Could not TTS from WEB and CLI at same time")
-    elif args.platform == "cli" and args.file and args.text:
-        raise TypeError("Could not TTS-CLI text and file at same time")
-    elif args.platform == "web":
-        root = TTS()
-        root.web_interface(port)
-    elif args.platform == "desktop":
-        pass
-        # start_desktop_interface(host, port)
-    elif (args.platform == "cli" and args.file) or (args.platform == "cli" and args.text):
-        pass
-        # tts(file=args.file, text=args.text, voice=args.voice, speed=args.speed, method=args.method, output=args.output)
+    tts = TTS()
+    app = tts.web_interface(port)
+    if os.getenv('ENABLE_AUTH', '') == "true":
+      root = gr.mount_gradio_app(root, app, path="/app", auth_dependency=is_authenticated)
+      asyncio.run(init_database())
+      uvicorn.run(root, host="0.0.0.0", port=port)
     else:
-        raise TypeError("Not enough or wrong argument, please try again")
+      auth_user = os.getenv('AUTH_USER', '')
+      auth_pass = os.getenv('AUTH_PASS', '')
+      app.launch(
+        auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
+        show_api=False,
+        debug=False,
+        inbrowser=True,
+        show_error=True,
+        server_name="0.0.0.0",
+        server_port=port,
+        share=False)   
     sys.exit()

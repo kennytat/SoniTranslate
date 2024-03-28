@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1 id="title">Login</h1>
+      <form action="/login" method="post">
+        <input
+          type="text"
+          name="username"
+          placeholder="Username"
+          required
+        /><br />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          required
+        /><br />
+        <button type="submit">Login</button>
+        {% if error %}
+        <p style="color: red">*{{ error }}</p>
+        {% endif %}
+      </form>
+      <!-- <p>Don't have an account? <a href="/signup">Signup</a></p> -->
+    </div>
+    <script>
+      document
+        .getElementById("title")
+        .addEventListener("click", function (event) {
+          var clicks = event.detail;
+          if (clicks === 3) {
+            window.location.replace("/signup");
+          }
+        });
+    </script>
+  </body>
+</html>

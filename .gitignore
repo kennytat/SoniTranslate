@@ -179,3 +179,4 @@ fairseq/
 tmp/
 .DS_Store
 *.pt
+*.db
