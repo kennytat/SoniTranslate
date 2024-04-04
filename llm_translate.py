@@ -19,7 +19,7 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
-    # MessagesPlaceholder,
+    MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
 
@@ -29,37 +29,41 @@ class LLM():
     self.prompt = ChatPromptTemplate(
           messages=[
               SystemMessagePromptTemplate.from_template(
-                  "Bạn là AI có khả năng dịch thuật nội dung Kinh Thánh từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp, chỉ dịch và không trả lời câu hỏi."
+                  "Bạn là AI có khả năng dịch thuật nội dung Kinh Thánh từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
               ),
               # The `variable_name` here is what must align with memory
-              # MessagesPlaceholder(variable_name="history"),
+              MessagesPlaceholder(variable_name="history"),
               HumanMessagePromptTemplate.from_template("{input}"),
           ]
       )
-    # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=10)
     
-  def initLLM(self, endpoints, model):
-    try:
-      endpoints = endpoints.split(',')
-      for endpoint in endpoints:
-        response = requests.get(f"{endpoint}/models")
-        models = [item['id'] for item in response.json()["data"]]
-        if model in models:
-          llm = ChatOpenAI(
-              model=model,
-              openai_api_key="EMPTY",
-              openai_api_base=endpoint,
-              max_tokens=8192,
-              temperature=0.5,
-              model_kwargs={"stop":["<|im_end|>"]},
-              # top_p=0.5
-          )
-          llm_chain = LLMChain(llm=llm, prompt=self.prompt, verbose=True)
-          self.llm_chain.append(llm_chain)
-      return True
-    except Exception as e:
-      print('initLLM error:', e)
-      return False
+  def initLLM(self, endpoints, model, temp=0.3, k=30):
+    self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
+    endpoints = endpoints.split(',')
+    for endpoint in endpoints:
+      try:
+        if endpoint:
+          response = requests.get(f"{endpoint}/models")
+          print("llm_status::", endpoint, response,temp, k)
+          models = [item['id'] for item in response.json()["data"]]
+          if model in models:
+            llm = ChatOpenAI(
+                model=model,
+                openai_api_key="EMPTY",
+                openai_api_base=endpoint,
+                max_tokens=4096,
+                temperature=temp,
+                model_kwargs={"stop":["<|im_end|>","000000"]},
+                # top_p=0.5
+            )
+            llm_chain = LLMChain(llm=llm, 
+                                prompt=self.prompt,
+                                memory=self.memory, 
+                                verbose=True)
+            self.llm_chain.append(llm_chain)
+      except Exception as e:
+        print('initLLM error:',  endpoint, e)
+    return True if len(self.llm_chain) > 0 else False
         
   def process(self, text):
     max_attempts = 3
