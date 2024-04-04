@@ -193,6 +193,10 @@ def batch_preprocess(
   t2t_method,
   t2s_method,
   vc_method,
+  llm_url,
+  llm_model,
+  llm_temp,
+  llm_k,
   match_length,
   match_start,
   YOUR_HF_TOKEN,
@@ -303,7 +307,7 @@ def batch_preprocess(
   if media_inputs is not None and len(media_inputs)> 0:
     total_input = media_inputs
     for media in media_inputs:
-      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, match_length, match_start, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, tts_speed00, tts_speed01, tts_speed02, tts_speed03, tts_speed04, tts_speed05, AUDIO_MIX_METHOD, progress)
+      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, llm_url, llm_model, llm_temp, llm_k, match_length, match_start, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, tts_speed00, tts_speed01, tts_speed02, tts_speed03, tts_speed04, tts_speed05, AUDIO_MIX_METHOD, progress)
       total_output.append(result)
       output.append(result)
   return output
@@ -385,6 +389,10 @@ def translate_from_media(
     t2t_method,
     t2s_method,
     vc_method,
+    llm_url,
+    llm_model,
+    llm_temp,
+    llm_k,
     match_length,
     match_start,
     YOUR_HF_TOKEN,
@@ -629,10 +637,10 @@ def translate_from_media(
 
     with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
-    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
+    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}-origin.srt')
     result_diarize['segments'] = concise_srt(result_diarize['segments'], 375 if t2t_method == "LLM" else 500)
     segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
-    # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
+    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
     target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
     if os.path.exists(target_srt_inputpath):
       # Start convert from srt if srt found
@@ -641,7 +649,7 @@ def translate_from_media(
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
-      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
+      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, llm_url, llm_model, llm_temp, llm_k)
       print("translated segments::", result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
@@ -826,6 +834,8 @@ function() {
   const vc_method = getStorage("vc_method");
   const llm_url = getStorage("llm_url");
   const llm_model = getStorage("llm_model");
+  const llm_temp = getStorage("llm_temp");
+  const llm_k = getStorage("llm_k");
   const max_speakers = getStorage("max_speakers");
 
   const tts_voice00 = getStorage("tts_voice00");
@@ -871,6 +881,8 @@ function() {
     vc_method || "None",
     llm_url || "http://infer-2.vgm.chat,http://infer-3.vgm.chat",
     llm_model,
+    llm_temp || 0.3,
+    llm_k || 3000,
     max_speakers || 1,
     tts_voice00,
     tts_speed00 || 1,
@@ -1136,17 +1148,27 @@ with app:
               return [value for value in visibility_dict.values()]
             t2s_method.change(update_t2s_list, [t2s_method], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
             
-          ## Config LLM Settings
-          def update_llm_model(llm_url):
-            models = get_llm_models(llm_url)
-            return gr.update(choices=models)
           with gr.Accordion("LLM Settings", open=True):
             with gr.Row():
-              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url")
-              llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model")        
+              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url", scale=5)
+              llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model",scale=5)        
+              llm_temp = gr.Slider(0.1, 1, value=0.3, step=0.1, label="Temparature",scale=5, interactive=True)
+              llm_k = gr.Slider(10, 3000, value=3000, step=10, label="K",scale=5, interactive=True)
+              llm_refresh = gr.Button("Refresh", scale=2)
+              ## Config LLM Settings
+              def update_llm_model(llm_url):
+                models = get_llm_models(llm_url)
+                user_settings['llm_url'] = llm_url
+                user_settings['llm_models'] = models
+                user_settings['llm_model'] = models[0]
+                save_settings(settings=user_settings)
+                return gr.update(choices=models)
               llm_url.blur(update_llm_model, [llm_url], [llm_model])
               llm_url.change(None, llm_url, None, js="(v) => setStorage('llm_url',v)")
               llm_model.change(None, llm_model, None, js="(v) => setStorage('llm_model',v)")
+              llm_temp.change(None, llm_temp, None, js="(v) => setStorage('llm_temp',v)")
+              llm_k.change(None, llm_k, None, js="(v) => setStorage('llm_k',v)")
+              llm_refresh.click(update_llm_model, [llm_url], [llm_model])
           # with gr.Row():
           #   def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
           #     # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
@@ -1387,6 +1409,10 @@ with app:
         t2t_method,
         t2s_method,
         vc_method,
+        llm_url,
+        llm_model,
+        llm_temp,
+        llm_k,
         match_length,
         match_start,
         HFKEY,
@@ -1441,6 +1467,8 @@ with app:
       vc_method,
       llm_url,
       llm_model,
+      llm_temp,
+      llm_k,
       max_speakers,
       tts_voice00,
       tts_speed00,
