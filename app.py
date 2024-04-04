@@ -32,12 +32,23 @@ from utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
-
+from fastapi import FastAPI, HTTPException, Form, Request, Depends
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
+import asyncio
+import sqlite3
+from passlib.hash import bcrypt
+import uvicorn
+from itsdangerous import URLSafeSerializer
+import aiosqlite
 load_dotenv()
 total_input = []
 total_output = []
 upsampler = None
-title = "<center><strong><font size='7'>VGM Translate</font></strong></center>"
+title = "<strong><font size='7'>VGM Translate</font></strong>"
 
 description = """
 ### 🎥 **Translate videos easily with VGM Translate!** 📽️
@@ -187,6 +198,10 @@ def batch_preprocess(
   t2t_method,
   t2s_method,
   vc_method,
+  llm_url,
+  llm_model,
+  llm_temp,
+  llm_k,
   match_length,
   match_start,
   YOUR_HF_TOKEN,
@@ -297,7 +312,7 @@ def batch_preprocess(
   if media_inputs is not None and len(media_inputs)> 0:
     total_input = media_inputs
     for media in media_inputs:
-      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, match_length, match_start, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, tts_speed00, tts_speed01, tts_speed02, tts_speed03, tts_speed04, tts_speed05, AUDIO_MIX_METHOD, progress)
+      result = translate_from_media(media, s2t_method, t2t_method, t2s_method, vc_method, llm_url, llm_model, llm_temp, llm_k, match_length, match_start, YOUR_HF_TOKEN, preview, WHISPER_MODEL_SIZE, batch_size, chunk_size, compute_type, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, min_speakers, max_speakers, tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05, tts_speed00, tts_speed01, tts_speed02, tts_speed03, tts_speed04, tts_speed05, AUDIO_MIX_METHOD, progress)
       total_output.append(result)
       output.append(result)
   return output
@@ -379,6 +394,10 @@ def translate_from_media(
     t2t_method,
     t2s_method,
     vc_method,
+    llm_url,
+    llm_model,
+    llm_temp,
+    llm_k,
     match_length,
     match_start,
     YOUR_HF_TOKEN,
@@ -548,7 +567,7 @@ def translate_from_media(
     #   del cap
     # audio = whisperx.load_audio(audio_wav)
     # result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
-    result = whisper.transcribe(audio_wav, path_or_hf_repo="mlx-community/whisper-large-v3-mlx")
+    result = whisper.transcribe(audio_wav, path_or_hf_repo="model/mlx-whisper-large-v3-fp32")
     gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); 
     # del model
     print("Transcript complete::", len(result["segments"]))
@@ -621,10 +640,10 @@ def translate_from_media(
     # print("result_diarize:", type(result_diarize), result_diarize)
     with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
       srtFile.write(json.dumps(result_diarize['segments']))
-    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
+    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}-origin.srt')
     result_diarize['segments'] = concise_srt(result_diarize['segments'], 375 if t2t_method == "LLM" else 500)
     segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
-    # segments_to_srt(result_diarize['segments'], f'{media_output_basename}-{SOURCE_LANGUAGE}-concise.srt')
+    segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
     target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
     if os.path.exists(target_srt_inputpath):
       # Start convert from srt if srt found
@@ -633,7 +652,7 @@ def translate_from_media(
       result_diarize['segments'] = concise_srt(result_diarize['segments'])
     else:
       # Start translate if srt not found
-      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, user_settings['llm_url'],user_settings['llm_model'])
+      result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, t2t_method, llm_url, llm_model, llm_temp, llm_k)
       print("translated segments::", result_diarize['segments'])
     ## Write target segment and srt to file
     segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
@@ -687,7 +706,7 @@ def translate_from_media(
     audio_files = [result[0] for result in tts_results]
     speakers_list = [result[1] for result in tts_results]
     print("audio_files:",len(audio_files))
-    print("speakers_list:",len(speakers_list),speakers_list)
+    print("speakers_list:",len(speakers_list))
     
     # 6. Convert to target voices
     if vc_method == 'SVC':
@@ -761,10 +780,9 @@ def translate_from_media(
       target_dir = os.getenv('COPY_OUTPUT_DIR', '')
       if target_dir and os.path.isdir(target_dir):
         os.system(f"cp '{final_output}' '{target_dir}'")
+        os.system(f"rm -rf '{final_output}'")
     except:
       print('copy to target dir failed')
-    
-  
     return final_output
 
 import sys
@@ -806,7 +824,7 @@ MAX_TTS = 6
 #         )
 
 get_local_storage = """
-function () {
+function() {
   globalThis.setStorage = (key, value) => {
     localStorage.setItem(key, JSON.stringify(value));
   };
@@ -819,6 +837,8 @@ function () {
   const vc_method = getStorage("vc_method");
   const llm_url = getStorage("llm_url");
   const llm_model = getStorage("llm_model");
+  const llm_temp = getStorage("llm_temp");
+  const llm_k = getStorage("llm_k");
   const max_speakers = getStorage("max_speakers");
 
   const tts_voice00 = getStorage("tts_voice00");
@@ -858,48 +878,63 @@ function () {
   const TRANSLATE_AUDIO_TO = getStorage("TRANSLATE_AUDIO_TO");
 
   return [
-    s2t_method,
-    t2t_method,
-    t2s_method,
-    vc_method,
-    llm_url,
+    s2t_method || "Whisper",
+    t2t_method || "LLM",
+    t2s_method || "VietTTS",
+    vc_method || "None",
+    llm_url || "http://infer-2.vgm.chat,http://infer-3.vgm.chat",
     llm_model,
+    llm_temp || 0.3,
+    llm_k || 3000,
     max_speakers || 1,
     tts_voice00,
-    tts_speed00,
+    tts_speed00 || 1,
     svc_voice00,
     rvc_voice00,
     tts_voice01,
-    tts_speed01,
+    tts_speed01 || 1,
     svc_voice01,
     rvc_voice01,
     tts_voice02,
-    tts_speed02,
+    tts_speed02 || 1,
     svc_voice02,
     rvc_voice02,
     tts_voice03,
-    tts_speed03,
+    tts_speed03 || 1,
     svc_voice03,
     rvc_voice03,
-    tts_voice04,
+    tts_voice04 || 1,
     tts_speed04,
     svc_voice04,
     rvc_voice04,
     tts_voice05,
-    tts_speed05,
+    tts_speed05 || 1,
     svc_voice05,
     rvc_voice05,
-    match_length,
-    match_start,
-    SOURCE_LANGUAGE,
-    TRANSLATE_AUDIO_TO,
+    match_length || true,
+    match_start || true,
+    SOURCE_LANGUAGE || "English (en)",
+    TRANSLATE_AUDIO_TO || "Vietnamese (vi)",
   ];
 }
 """
 
 theme="Taithrah/Minimal"
-with gr.Blocks(title="VGM Translate",theme=theme) as demo:
-  gr.Markdown(title)
+css = """
+.btn-active {background-color: "orange"}
+#logout_btn {
+  align-self: self-end;
+  width: 65px;
+}
+"""
+app = gr.Blocks(title="VGM Translate", theme=theme, css=css)
+with app:
+  with gr.Row():
+    with gr.Column():
+      gr.Markdown(title)
+    if os.getenv('ENABLE_AUTH', '') == "true":
+      with gr.Column():
+        gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn")
   gr.Markdown(description)
   with gr.Tabs():
     with gr.Tab("Audio Translation for a Video"):
@@ -912,9 +947,9 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
                 # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                 with gr.Row():
                   match_length = gr.Checkbox(label="Enable",container=False, value=False, info='Match speech length of original language?', interactive=True)
-                  match_length.change(None, match_length, None, js="(v) => setStorage('match_length',v)")
+                  match_length.change(lambda x: x, match_length, None, js="(x) => setStorage('match_length',x)")
                   match_start = gr.Checkbox(label="Enable",container=False, value=True, info='Match speech start time of origin language?', interactive=True)
-                  match_start.change(None, match_start, None, js="(v) => setStorage('match_start',v)")
+                  match_start.change(lambda x: x, match_start, None, js="(x) => setStorage('match_start',x)")
                 ## media_input change function
                 # link = gr.HTML()
                 # media_input.change(submit_file_func, media_input, [media_input, link], show_progress='full')
@@ -1035,9 +1070,12 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
                   global total_output
                   total_input = []
                   total_output = []
+                  # os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio")}/*')
+                  # os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
                   return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
-                clear_btn = gr.ClearButton(components=[media_input,link_input,srt_input,media_output,tmp_output], size='sm')
-                clear_btn.click(reset_param,[],[media_output,tmp_output])
+                with gr.Row():
+                  clear_btn = gr.ClearButton(components=[media_input,link_input,srt_input,media_output,tmp_output], size='sm')
+                  clear_btn.click(reset_param,[],[media_output,tmp_output])
                 line_ = gr.HTML("<hr>")
                 if os.getenv("YOUR_HF_TOKEN") == None or os.getenv("YOUR_HF_TOKEN") == "":
                   HFKEY = gr.Textbox(visible= True, label="HF Token", info="One important step is to accept the license agreement for using Pyannote. You need to have an account on Hugging Face and accept the license to use the models: https://huggingface.co/pyannote/speaker-diarization and https://huggingface.co/pyannote/segmentation. Get your KEY TOKEN here: https://hf.co/settings/tokens", placeholder="Token goes here...")
@@ -1113,17 +1151,27 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
               return [value for value in visibility_dict.values()]
             t2s_method.change(update_t2s_list, [t2s_method], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
             
-          ## Config LLM Settings
-          def update_llm_model(llm_url):
-            models = get_llm_models(llm_url)
-            return gr.update(choices=models)
           with gr.Accordion("LLM Settings", open=True):
             with gr.Row():
-              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url")
-              llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model")        
+              llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url", scale=5)
+              llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model",scale=5)        
+              llm_temp = gr.Slider(0.1, 1, value=0.3, step=0.1, label="Temparature",scale=5, interactive=True)
+              llm_k = gr.Slider(10, 3000, value=3000, step=10, label="K",scale=5, interactive=True)
+              llm_refresh = gr.Button("Refresh", scale=2)
+              ## Config LLM Settings
+              def update_llm_model(llm_url):
+                models = get_llm_models(llm_url)
+                user_settings['llm_url'] = llm_url
+                user_settings['llm_models'] = models
+                user_settings['llm_model'] = models[0]
+                save_settings(settings=user_settings)
+                return gr.update(choices=models)
               llm_url.blur(update_llm_model, [llm_url], [llm_model])
               llm_url.change(None, llm_url, None, js="(v) => setStorage('llm_url',v)")
               llm_model.change(None, llm_model, None, js="(v) => setStorage('llm_model',v)")
+              llm_temp.change(None, llm_temp, None, js="(v) => setStorage('llm_temp',v)")
+              llm_k.change(None, llm_k, None, js="(v) => setStorage('llm_k',v)")
+              llm_refresh.click(update_llm_model, [llm_url], [llm_model])
           # with gr.Row():
           #   def save_setting_fn(s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model):
           #     # print("settings:", s2t_method,t2t_method,t2s_method,vc_method,llm_url,llm_model)
@@ -1351,7 +1399,7 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
 
     # with gr.Accordion("Logs", open = False):
     #     logs = gr.Textbox()
-    #     demo.load(read_logs, None, logs, every=1)
+    #     app.load(read_logs, None, logs, every=1)
     def update_output_visibility():
       return gr.update(label="TRANSLATED VIDEO"),gr.update(visible=False)
     # run
@@ -1364,6 +1412,10 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
         t2t_method,
         t2s_method,
         vc_method,
+        llm_url,
+        llm_model,
+        llm_temp,
+        llm_k,
         match_length,
         match_start,
         HFKEY,
@@ -1408,7 +1460,7 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
         outputs=[media_output,tmp_output]
         )
         
-  demo.load(
+  app.load(
       None,
       inputs=None,
       outputs=[
@@ -1418,6 +1470,8 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
       vc_method,
       llm_url,
       llm_model,
+      llm_temp,
+      llm_k,
       max_speakers,
       tts_voice00,
       tts_speed00,
@@ -1450,27 +1504,140 @@ with gr.Blocks(title="VGM Translate",theme=theme) as demo:
         ],
       js=get_local_storage,
   )
+  app.queue()
 
+## Fast API Initialization
+root = FastAPI()
+# Secret key for session management
+SECRET_KEY = "your-secret-key"
+serializer = URLSafeSerializer(SECRET_KEY)
+root.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+root.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+
+# Function to create SQLite connection
+async def create_connection():
+    return await aiosqlite.connect('db/auth.db')
+
+async def init_database():
+  conn = await create_connection()
+  cursor = await conn.cursor()
+  await cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+        )
+    ''')
+  await conn.commit()
+  await conn.close()
+
+# Function to fetch user ID by username
+async def get_user_id(username):
+    conn = await create_connection()
+    cursor = await conn.cursor()
+    await cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    row = await cursor.fetchone()
+    await conn.close()
+    return row
+  
+# Dependency to check if the user is logged in
+def is_authenticated(request: Request):
+    token = request.cookies.get("token")
+    # print('is_authenticated:', token)
+    if token:
+        username = serializer.loads(token)
+        user_id = asyncio.run(get_user_id(username))
+        # print('is_authenticated:', user_id[0])
+        if user_id:
+            return user_id[0]
+    return None
+  
+# Routes
+@root.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    token = request.cookies.get("token")
+    if token:
+        username = serializer.loads(token)
+        # Check if user exists in the database (session management)
+        conn = await create_connection()
+        cursor = await conn.cursor()
+        await cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        row = await cursor.fetchone()
+        if row:
+            return RedirectResponse(url="/app")
+    return RedirectResponse(url="/login")
+  
+
+@root.get("/signup", response_class=HTMLResponse)
+async def signup(request: Request):
+    return templates.TemplateResponse("signup.html", {"request": request})
+  
+@root.post("/signup")
+async def signup(username: str = Form(...), password: str = Form(...)):
+    hashed_password = bcrypt.hash(password)
+    try:
+        conn = await create_connection()
+        cursor = await conn.cursor()
+        await cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+        await conn.commit()
+        await conn.close()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    return RedirectResponse(url="/", status_code=303)
+
+@root.get("/login", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+  
+@root.post("/login")
+async def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
+    conn = await create_connection()
+    cursor = await conn.cursor()
+    await cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
+    row = await cursor.fetchone()
+    await conn.close()
+    if row and bcrypt.verify(password, row[0]):
+        token = serializer.dumps(username)
+        response = RedirectResponse(url="/app", status_code=303)
+        response.set_cookie(key="token", value=token)
+        return response
+    error = "Wrong username or password"
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+
+@root.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/login")
+    response.delete_cookie("token")
+    return response
+ 
 if __name__ == "__main__":
   mp.set_start_method('spawn', force=True)
   
-  # os.system('rm -rf /tmp/gradio/*')
+  os.system('rm -rf /tmp/gradio/*')
   # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  
+  port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   
-  auth_user = os.getenv('AUTH_USER', '')
-  auth_pass = os.getenv('AUTH_PASS', '')
-  demo.queue().launch(
-    auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-    show_api=False,
-    debug=True,
-    inbrowser=True,
-    show_error=True,
-    server_name="0.0.0.0",
-    server_port=6860,
-    # quiet=True,
-    share=False)
+  ## Enable Auth
+  if os.getenv('ENABLE_AUTH', '') == "true":
+    root = gr.mount_gradio_app(root, app, path="/app", auth_dependency=is_authenticated)
+    asyncio.run(init_database())
+    uvicorn.run(root, host="0.0.0.0", port=port)
+  else:
+    auth_user = os.getenv('AUTH_USER', '')
+    auth_pass = os.getenv('AUTH_PASS', '')
+    app.launch(
+      auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
+      show_api=False,
+      debug=True,
+      inbrowser=True,
+      show_error=True,
+      server_name="0.0.0.0",
+      server_port=port,
+      # quiet=True,
+      share=False)

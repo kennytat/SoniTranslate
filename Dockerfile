@@ -7,6 +7,7 @@ RUN apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake
 
 WORKDIR /app
 
+ENV LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
 ENV PATH="/usr/local/cuda/bin:/root/miniconda3/bin:${PATH}"
 ARG PATH="/root/miniconda3/bin:${PATH}"
 
@@ -26,12 +27,12 @@ RUN conda install -y libcusparse=11.7.3.50 -c nvidia
 
 RUN rm -rf /root/.cache/pip && rm -rf /var/cache/apt/*
 
+COPY /usr/lib/x86_64-linux-gnu/libcublas.so.11 /usr/lib64/libcublas.so.11
 COPY . .
 
 EXPOSE 6860
 EXPOSE 7901
 EXPOSE 3100
-EXPOSE 3110
 
 COPY entrypoint.sh /
 

@@ -33,11 +33,11 @@ def t5_translator(input_text: str, tokenizer, model):
     return "\n".join(result)
 
 ## Translate text using Google Translator
-def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model=""):
+def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.5, llm_k=30):
     print("start translate_text::", segments)
     if t2t_method == "LLM" and TRANSLATE_AUDIO_TO == "vi":
       llm = LLM()
-      llm_status = llm.initLLM(llm_endpoint, llm_model)
+      llm_status = llm.initLLM(llm_endpoint, llm_model, llm_temp, llm_k)
       if llm_status:
         segments = llm.translate(segments)
         for index, segment in enumerate(segments):

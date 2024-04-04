@@ -3,10 +3,7 @@
   "t2t": "LLM",
   "t2s": "VietTTS",
   "vc": "None",
-  "llm_url": "https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1",
-  "llm_models": [
-    "nampdn-ai/vietmistral-chatvgm-3072",
-    "nampdn-ai/vietmistral-bible-translation"
-  ],
-  "llm_model": "nampdn-ai/vietmistral-chatvgm-3072"
+  "llm_url": "http://localhost:1234/v1",
+  "llm_models": ["chattrust/v2/chattrust-beta2-f16.gguf"],
+  "llm_model": "chattrust/v2/chattrust-beta2-f16.gguf"
 }
