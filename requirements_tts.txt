@@ -1,0 +1,19 @@
+# TTS
+# --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
+regex
+gradio==4.21.0
+srt
+docx2txt
+nltk
+cryptography
+langdetect
+vietnam_number
+so-vits-svc-fork
+python-dotenv
+fastapi
+starlette
+asyncio
+passlib
+uvicorn
+itsdangerous
+aiosqlite

@@ -323,6 +323,7 @@ if __name__ == "__main__":
     print("Application running on::", sys.platform)
     os.makedirs( CONFIG.os_tmp, exist_ok=True)
     os.system(f'rm -rf { CONFIG.os_tmp}/*')
+    os.system(f'rm -rf /tmp/gradio/*')
     host = "localhost"
     port = 3100
     app = web_interface(port)

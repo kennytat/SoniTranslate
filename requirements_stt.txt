@@ -1,0 +1,12 @@
+whisperx @ git+https://github.com/kennytat/whisperx.git@large-v3
+gradio==4.21.0
+python-dotenv
+ffmpeg-python>=0.2.0
+rarfile
+fastapi
+starlette
+asyncio
+passlib
+uvicorn
+itsdangerous
+aiosqlite

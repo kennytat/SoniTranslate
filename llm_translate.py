@@ -29,7 +29,7 @@ class LLM():
     self.prompt = ChatPromptTemplate(
           messages=[
               SystemMessagePromptTemplate.from_template(
-                  "Bạn là AI có khả năng dịch thuật nội dung Kinh Thánh từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
+                  "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
               ),
               # The `variable_name` here is what must align with memory
               MessagesPlaceholder(variable_name="history"),
@@ -53,8 +53,12 @@ class LLM():
                 openai_api_base=endpoint,
                 max_tokens=4096,
                 temperature=temp,
-                model_kwargs={"stop":["<|im_end|>","000000"]},
-                # top_p=0.5
+                # max_retries=2,
+                model_kwargs={
+                  "stop":["<|im_end|>"],
+                  "top_p": 0.95,
+                  # "top_k": 30
+                },
             )
             llm_chain = LLMChain(llm=llm, 
                                 prompt=self.prompt,
@@ -83,7 +87,7 @@ class LLM():
       print("start llm_translate::")
       # N_JOBS = os.cpu_count()
       # print("Start LLM Translate:: concurrency =", N_JOBS)
-      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(5)):
+      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(1)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text']) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]
