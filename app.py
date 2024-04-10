@@ -567,7 +567,7 @@ def translate_from_media(
     #   del cap
     # audio = whisperx.load_audio(audio_wav)
     # result = model.transcribe(WHISPER_MODEL_SIZE, audio, batch_size=batch_size, chunk_size=chunk_size)
-    result = whisper.transcribe(audio_wav, path_or_hf_repo="model/mlx-whisper-large-v3-fp32")
+    result = whisper.transcribe(audio_wav, path_or_hf_repo=f"model/mlx-whisper-{WHISPER_MODEL_SIZE}-fp16")
     gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); 
     # del model
     print("Transcript complete::", len(result["segments"]))
@@ -876,6 +876,11 @@ function() {
 
   const SOURCE_LANGUAGE = getStorage("SOURCE_LANGUAGE");
   const TRANSLATE_AUDIO_TO = getStorage("TRANSLATE_AUDIO_TO");
+  
+  const WHISPER_MODEL_SIZE = getStorage("WHISPER_MODEL_SIZE");
+  const compute_type = getStorage("compute_type");
+  const batch_size = getStorage("batch_size");
+  const chunk_size = getStorage("chunk_size");
 
   return [
     s2t_method || "Whisper",
@@ -915,6 +920,10 @@ function() {
     match_start || true,
     SOURCE_LANGUAGE || "English (en)",
     TRANSLATE_AUDIO_TO || "Vietnamese (vi)",
+    WHISPER_MODEL_SIZE || "large-v3",
+    compute_type || "float16",
+    batch_size || 16,
+    chunk_size || 5
   ];
 }
 """
@@ -1035,11 +1044,15 @@ with app:
                           # gr.HTML("<hr>")
                           gr.Markdown("Default configuration of Whisper.")
                           with gr.Row():
-                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                            WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'base.en', 'small','small.en', 'medium', 'medium.en', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                            WHISPER_MODEL_SIZE.change(None, WHISPER_MODEL_SIZE, None, js="(v) => setStorage('WHISPER_MODEL_SIZE',v)")
                             compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
+                            compute_type.change(None, compute_type, None, js="(v) => setStorage('compute_type',v)")
                           with gr.Row():
                             batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
+                            batch_size.change(None, batch_size, None, js="(v) => setStorage('batch_size',v)")
                             chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
+                            chunk_size.change(None, chunk_size, None, js="(v) => setStorage('chunk_size',v)")
                           # gr.HTML("<hr>")
                           # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")
                           PREVIEW = gr.Checkbox(label="Preview", visible=False, info="Preview cuts the video to only 10 seconds for testing purposes. Please deactivate it to retrieve the full video duration.")
@@ -1501,6 +1514,10 @@ with app:
       match_start,
       SOURCE_LANGUAGE,
       TRANSLATE_AUDIO_TO,
+      WHISPER_MODEL_SIZE,
+      compute_type,
+      batch_size,
+      chunk_size
         ],
       js=get_local_storage,
   )
