@@ -780,7 +780,7 @@ def translate_from_media(
       target_dir = os.getenv('COPY_OUTPUT_DIR', '')
       if target_dir and os.path.isdir(target_dir):
         os.system(f"cp '{final_output}' '{target_dir}'")
-        os.system(f"rm -rf '{final_output}'")
+        # os.system(f"rm -rf '{final_output}'")
     except:
       print('copy to target dir failed')
     return final_output
@@ -1083,8 +1083,8 @@ with app:
                   global total_output
                   total_input = []
                   total_output = []
-                  # os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio")}/*')
-                  # os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
+                  os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio")}/*')
+                  os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
                   return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
                 with gr.Row():
                   clear_btn = gr.ClearButton(components=[media_input,link_input,srt_input,media_output,tmp_output], size='sm')
@@ -1632,9 +1632,9 @@ async def logout():
 if __name__ == "__main__":
   mp.set_start_method('spawn', force=True)
   
-  os.system('rm -rf /tmp/gradio/*')
   # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
   os.system('mkdir -p downloads')
+  os.system('rm -rf /tmp/gradio/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
   port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
