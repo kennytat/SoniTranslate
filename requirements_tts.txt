@@ -1,7 +1,7 @@
 # TTS
 # --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
 regex
-gradio==4.21.0
+gradio==4.25.0
 srt
 docx2txt
 nltk

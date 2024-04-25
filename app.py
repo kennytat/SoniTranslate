@@ -1080,7 +1080,7 @@ with app:
                   global total_output
                   total_input = []
                   total_output = []
-                  os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio")}/*')
+                  os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio-vgm")}/*')
                   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
                   return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
                 with gr.Row():
