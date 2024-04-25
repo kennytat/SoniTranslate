@@ -1631,7 +1631,7 @@ if __name__ == "__main__":
   
   # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
   os.system('mkdir -p downloads')
-  os.system('rm -rf /tmp/gradio/*')
+  os.system('rm -rf /tmp/gradio-vgm/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
   port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
