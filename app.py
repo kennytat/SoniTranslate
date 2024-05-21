@@ -43,6 +43,7 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
+from spell_check import SpellCheck
 load_dotenv()
 total_input = []
 total_output = []
@@ -625,6 +626,19 @@ def translate_from_media(
       result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
     print("Diarize complete::")
 
+
+    # 4. Spell checking
+    print("Start spell checking::")
+    progress(0.55, desc="Spell checking...")
+    checker = SpellCheck()
+    for line in tqdm(range(len(result_diarize['segments']))):
+      try:
+        text = result_diarize['segments'][line]['text']
+        result_diarize['segments'][line]['text'] = checker.correct(text)
+      except Exception as e:
+        pass 
+    del checker  
+    
     # 4. Translate to target language
     print("Start translating::")
     progress(0.6, desc="Translating...")

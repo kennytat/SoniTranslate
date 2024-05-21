@@ -2,7 +2,7 @@ FROM python:3.10.12
 
 RUN apt-get update -y && apt-get upgrade -y
 
-RUN apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake
+RUN apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip
 #nvidia-cuda-toolkit
 
 WORKDIR /app
