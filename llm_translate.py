@@ -9,11 +9,11 @@ from joblib import Parallel, delayed
 import requests
 from langdetect import detect
 # from vietTTS.utils import concise_srt
-from utils import srt_to_segments, segments_to_srt
+from utils.utils import srt_to_segments, segments_to_srt
 
 load_dotenv()
 
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain import ConversationChain, LLMChain, PromptTemplate
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import (

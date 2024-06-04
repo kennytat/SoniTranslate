@@ -5,31 +5,17 @@ from pathlib import Path
 class SVCClassVoices:
     def __init__(self):
         self.file_index = "" # root
-
-    def apply_conf(self,
-                   model_voice_path00,
-                   model_voice_path01,
-                   model_voice_path02,
-                   model_voice_path03,
-                   model_voice_path04,
-                   model_voice_path05):
-      self.model_voice_path00 = model_voice_path00
-      self.model_voice_path01 = model_voice_path01
-      self.model_voice_path02 = model_voice_path02
-      self.model_voice_path03 = model_voice_path03
-      self.model_voice_path04 = model_voice_path04
-      self.model_voice_path05 = model_voice_path05
       
-    def __call__(self, speaker_list, audio_files):
+    def __call__(self, speaker_list, audio_files, speaker_to_model):
       try:
-        speaker_to_model = {
-            'SPEAKER_00': self.model_voice_path00,
-            'SPEAKER_01': self.model_voice_path01,
-            'SPEAKER_02': self.model_voice_path02,
-            'SPEAKER_03': self.model_voice_path03,
-            'SPEAKER_04': self.model_voice_path04,
-            'SPEAKER_05': self.model_voice_path05,
-        }
+        # speaker_to_model = {
+        #     'SPEAKER_00': self.model_voice_path00,
+        #     'SPEAKER_01': self.model_voice_path01,
+        #     'SPEAKER_02': self.model_voice_path02,
+        #     'SPEAKER_03': self.model_voice_path03,
+        #     'SPEAKER_04': self.model_voice_path04,
+        #     'SPEAKER_05': self.model_voice_path05,
+        # }
         speakers = list(dict.fromkeys(speaker_list))
         for speaker in speakers:
           speaker_dir = os.path.join("audio2", speaker)
@@ -43,7 +29,7 @@ class SVCClassVoices:
         
         for speaker in speakers:
           input_dir = os.path.join('audio2',speaker)
-          model_name = speaker_to_model.get(speaker, self.model_voice_path00) #'vn_han_male'
+          model_name = speaker_to_model[speaker]
           SVC_MODEL_DIR = os.path.join(os.getcwd(),"model","svc", model_name)
           model_path = os.path.join(SVC_MODEL_DIR, "G.pth")
           config_path = os.path.join(SVC_MODEL_DIR, "config.json")

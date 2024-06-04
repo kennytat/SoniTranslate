@@ -7,7 +7,7 @@ import argparse
 import shutil
 import tempfile
 import gradio as gr
-from utils import new_dir_now, encode_filename
+from utils.utils import new_dir_now, encode_filename
 import torch
 from fastapi import FastAPI, HTTPException, Form, Request, Depends
 from fastapi.responses import HTMLResponse

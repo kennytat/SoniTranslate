@@ -1,4 +1,3 @@
-gradio==4.25.0
 ## T5 transformer translate
 pytesseract
 transformers
@@ -15,19 +14,4 @@ langdetect
 # LLM translate
 openai
 langchain
-# vietTTS
-regex
-cryptography
-langdetect
-vietnam_number
-docx2txt
-# svc
-so-vits-svc-fork
-# rvc
-praat-parselmouth>=0.4.3
-pyworld==0.3.2
-faiss-cpu==1.7.3
-torchcrepe
-ffmpeg-python>=0.2.0
-gdown
-rarfile
+langchain_community

@@ -1,12 +1,1 @@
-{
-  "s2t": "Whisper",
-  "t2t": "LLM",
-  "t2s": "VietTTS",
-  "vc": "None",
-  "llm_url": "http://infer-2.vgm.chat/v1,http://infer-3.vgm.chat/v1",
-  "llm_models": [
-    "nampdn-ai/chattrust-beta.2",
-    "nampdn-ai/chattrust-reasoning.sft_4e"
-  ],
-  "llm_model": "nampdn-ai/chattrust-beta.2"
-}
+{"s2t": "Whisper", "t2t": "LLM", "t2s": "VietTTS", "vc": "None", "llm_url": "http://infer-2.vgm.chat/v1,http://infer-3.vgm.chat/v1", "llm_models": ["bible-translator-llama3-5b4e", "trust-translator-4e"], "llm_model": "bible-translator-llama3-5b4e"}

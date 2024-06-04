@@ -441,8 +441,19 @@ class RVCClassVoices:
         )
         return "test/test.wav", "test/real_test.wav"
 
-    def __call__(self, speakers_list, audio_files):
-
+    def __call__(self, speakers_list, audio_files, speaker_to_vc):
+      
+        ## Init model
+        self.apply_conf(f0method='harvest',
+          model_voice_path00=speaker_to_vc["SPEAKER_00"], transpose00=0, file_index2_00=speaker_to_vc["SPEAKER_00"].replace('.pth','.index'),
+          model_voice_path01=speaker_to_vc["SPEAKER_01"], transpose01=0, file_index2_01=speaker_to_vc["SPEAKER_01"].replace('.pth','.index'),
+          model_voice_path02=speaker_to_vc["SPEAKER_02"], transpose02=0, file_index2_02=speaker_to_vc["SPEAKER_02"].replace('.pth','.index'),
+          model_voice_path03=speaker_to_vc["SPEAKER_03"], transpose03=0, file_index2_03=speaker_to_vc["SPEAKER_03"].replace('.pth','.index'),
+          model_voice_path04=speaker_to_vc["SPEAKER_04"], transpose04=0, file_index2_04=speaker_to_vc["SPEAKER_04"].replace('.pth','.index'),
+          model_voice_path05=speaker_to_vc["SPEAKER_05"], transpose05=0, file_index2_05=speaker_to_vc["SPEAKER_05"].replace('.pth','.index'),
+          model_voice_path99=None, transpose99=0, file_index2_99=None)
+        ## =================================================================
+        
         speakers_indices = {}
 
         for index, speak_ in enumerate(speakers_list):
@@ -554,10 +565,10 @@ class RVCClassVoices:
             else:
                 pass
 
-if __name__ == "__main__":
-  audio_files = ['audio/test2.wav']
-  speakers_list = ['SPEAKER_00']
-  rvc_voices = RVCClassVoices()
-  rvc_voice00 = "AG2014.pth"
-  rvc_voices.apply_conf(f0method='harvest', model_voice_path00=rvc_voice00, transpose00=0, file_index2_00=rvc_voice00.replace('.pth','.index'))
-  rvc_voices(speakers_list, audio_files)
+# if __name__ == "__main__":
+#   audio_files = ['audio/test2.wav']
+#   speakers_list = ['SPEAKER_00']
+#   rvc_voices = RVCClassVoices()
+#   rvc_voice00 = "AG2014.pth"
+#   rvc_voices.apply_conf(f0method='harvest', model_voice_path00=rvc_voice00, transpose00=0, file_index2_00=rvc_voice00.replace('.pth','.index'))
+#   rvc_voices(speakers_list, audio_files)

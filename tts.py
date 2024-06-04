@@ -41,6 +41,10 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
+from text_to_speech import make_voice_gradio
+from utils.tts_utils import edge_tts_voices_list, piper_tts_voices_list
+from utils.language_configuration import LANGUAGES
+from ovc_voice_main import OpenVoice
 load_dotenv()
 
 
@@ -76,196 +80,68 @@ class CONFIG():
     os_tmp = Path(os.path.join(tempfile.gettempdir(), "tts"))
     empty_wav = Path(os.path.join(f'{os_tmp}', "test.wav"))
     tts_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "vits"))
-    convert_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "svc"))
+    svc_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "svc"))
     # salt = Path(os.path.join(os.getcwd(), "model","tts", "salt.salt"))
-    key = "^VGMAI*607#"
+    # key = "^VGMAI*607#"
 
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-space_re = regex.compile(r"\s+")
-number_re = regex.compile("([0-9]+)")
-num_re = regex.compile(r"([0-9.,]*[0-9])")
-alphabet = "aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵbcdđghklmnpqrstvx"
-keep_text_and_num_re = regex.compile(rf"[^\s{alphabet}.,0-9]")
-keep_text_re = regex.compile(rf"[^\s{alphabet}]")
+list_etts = edge_tts_voices_list()
+list_gtts = ['default']
+list_ptts = piper_tts_voices_list()
+list_vtts = [voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))]
+list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
+list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
+list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
 
 class TTS():
   def __init__(self):
-    self.device = device
     self.upsampler = None
-        
-  def text_to_phone_idx(self, text, phone_set, sil_idx):
-      # lowercase
-      text = text.lower()
-      # unicode normalize
-      text = normalize(text)
-      text = unicodedata.normalize("NFKC", text)
-      text = num_to_str(text)
-      text = re.sub(r"[\s\.]+(?=\s)", " . ", text)
-      text = text.replace(".", " . ")
-      text = text.replace("-", " - ")
-      text = text.replace(",", " , ")
-      text = text.replace(";", " ; ")
-      text = text.replace(":", " : ")
-      text = text.replace("!", " ! ")
-      text = text.replace("?", " ? ")
-      text = text.replace("(", " ( ")
-      text = num_re.sub(r" \1 ", text)
-      words = text.split()
-      words = [read_number(w) if num_re.fullmatch(w) else w for w in words]
-      text = " ".join(words)
-
-      # remove redundant spaces
-      text = re.sub(r"\s+", " ", text)
-      # remove leading and trailing spaces
-      text = text.strip()
-      # convert words to phone indices
-      tokens = []
-      for c in text:
-          # if c is "," or ".", add <sil> phone
-          if c in ":,.!?;(":
-              tokens.append(sil_idx)
-          elif c in phone_set:
-              tokens.append(phone_set.index(c))
-          elif c == " ":
-              # add <sep> phone
-              tokens.append(0)
-      if tokens[0] != sil_idx:
-          # insert <sil> phone at the beginning
-          tokens = [sil_idx, 0] + tokens
-      if tokens[-1] != sil_idx:
-          tokens = tokens + [0, sil_idx]
-      return tokens
-
-
-  def text_to_speech(self, duration_net, generator, text, model_path, hps, speed, max_word_length=750):
-      phone_set_file = os.path.join(model_path,"phone_set.json")
-      # load phone set json file
-      with open(phone_set_file, "r") as f:
-          phone_set = json.load(f)
-
-      assert phone_set[0][1:-1] == "SEP"
-      assert "sil" in phone_set
-      sil_idx = phone_set.index("sil")
-      # prevent too long text
-      if len(text) > max_word_length:
-          text = text[:max_word_length]
-
-      phone_idx = self.text_to_phone_idx(text, phone_set, sil_idx)
-      batch = {
-          "phone_idx": np.array([phone_idx]),
-          "phone_length": np.array([len(phone_idx)]),
-      }
-
-      # predict phoneme duration
-      phone_length = torch.from_numpy(batch["phone_length"].copy()).long().to(device)
-      phone_idx = torch.from_numpy(batch["phone_idx"].copy()).long().to(device)
-      with torch.inference_mode():
-          phone_duration = duration_net(phone_idx, phone_length)[:, :, 0] * 1000 / speed
-      phone_duration = torch.where(
-          phone_idx == sil_idx, torch.clamp_min(phone_duration, 200), phone_duration
-      )
-      phone_duration = torch.where(phone_idx == 0, 0, phone_duration)
-
-      # generate waveform
-      end_time = torch.cumsum(phone_duration, dim=-1)
-      start_time = end_time - phone_duration
-      start_frame = start_time / 1000 * hps.data.sampling_rate / hps.data.hop_length
-      end_frame = end_time / 1000 * hps.data.sampling_rate / hps.data.hop_length
-      spec_length = end_frame.max(dim=-1).values
-      pos = torch.arange(0, spec_length.item(), device=device)
-      attn = torch.logical_and(
-          pos[None, :, None] >= start_frame[:, None, :],
-          pos[None, :, None] < end_frame[:, None, :],
-      ).float()
-      with torch.inference_mode():
-          y_hat = generator.infer(
-              phone_idx, phone_length, spec_length, attn, max_len=None, noise_scale=0.667
-          )[0]
-      wave = y_hat[0, 0].data.cpu().numpy()
-      del phone_duration; del duration_net; del generator; gc.collect(); torch.cuda.empty_cache()
-      return (wave * (2**15)).astype(np.int16)
-
-
-  def load_models(self, model_path, hps):
-      duration_model_path=os.path.join(model_path,"duration.pth")
-      lightspeed_model_path = os.path.join(model_path,"vits.pth")
-      duration_net = DurationNet(hps.data.vocab_size, 64, 4).to(device)
-      duration_net.load_state_dict(torch.load(duration_model_path, map_location=device))
-      duration_net = duration_net.eval()
-      generator = SynthesizerTrn(
-          hps.data.vocab_size,
-          hps.data.filter_length // 2 + 1,
-          hps.train.segment_size // hps.data.hop_length,
-          **vars(hps.model),
-      ).to(device)
-      del generator.enc_q
-      ckpt = torch.load(lightspeed_model_path, map_location=device)
-      params = {}
-      for k, v in ckpt["net_g"].items():
-          k = k[7:] if k.startswith("module.") else k
-          params[k] = v
-      generator.load_state_dict(params, strict=False)
-      del ckpt, params
-      generator = generator.eval()
-      return duration_net, generator
-
           
-  def tts(self, text, output_file, tts_voice_ckpt_dir, speed = 1, desired_duration = 0, start_time = 0):
+  def tts(self, text, output_file, tts_voice, speed = 1, desired_duration = 0, start_time = 0):
+      # tts_voice_ckpt_dir = os.path.join(CONFIG.tts_ckpt_dir, tts_voice)
+      # print("selected TTS voice:", tts_voice_ckpt_dir)
       try:
         print("Starting TTS {}".format(output_file), desired_duration, start_time)
         ### Get hifigan path
-        config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
-        with open(config_file, "rb") as f:
-          hps = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
-        sample_rate = hps.data.sampling_rate
-        print("tts text::", text)
+        # config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
+        # with open(config_file, "rb") as f:
+        #   hps = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
+        # sample_rate = hps.data.sampling_rate
+        # print("tts text::", text)
 
         if re.sub(r'^sil\s+','',text).isnumeric():
             silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
             print("Got integer::", text, silence_duration) 
             print("\n\n\n ==> Generating {} seconds of silence at {}".format(silence_duration, output_file))
             second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
-            second_of_silence = second_of_silence.set_frame_rate(sample_rate)
+            second_of_silence = second_of_silence.set_frame_rate(16000)
             second_of_silence.export(output_file, format="wav")
         else:
-          duration_net, generator = self.load_models(tts_voice_ckpt_dir, hps)
-          text = text if detect(text) == 'vi' else ' . '
+          # duration_net, generator = self.load_models(tts_voice_ckpt_dir, hps)
+          text = text if detect(text) == self.tts_lang else ' . '
+          make_voice_gradio(text, tts_voice, speed, output_file, self.tts_lang, self.tts_method)
+        
           ## For tts with timeline
           if desired_duration > 0:
-            tts_tmp_result = self.text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, 1)
-            wav_tmp = np.concatenate([tts_tmp_result])
-            predicted_duration = librosa.get_duration(y=wav_tmp, sr=sample_rate)
-            speed = predicted_duration / desired_duration
-            speed = math.floor(speed * 10000) / 10000
-            speed = 0.8 if speed <= 0.8 else speed + 0.005
-            speed = 1.5 if speed >= 1.5 else speed
-            print("tts speed::",speed)
-            tts_result = self.text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
-            wav = np.concatenate([tts_result])
-          else:
-            tts_result = self.text_to_speech(duration_net, generator, text, tts_voice_ckpt_dir, hps, speed)
-            # clips.append(silence)
-            wav = np.concatenate([tts_result])
-             
-          # Equalize and Normalize
-          wav = wav / 32768.0  # Convert to range [-1, 1]
-          # Apply a simple high-pass filter for equalization
-          # This is a very basic approach - for a more complex equalization, more sophisticated filtering would be required
-          # Boosting higher frequencies
-          alpha = 0.8
-          filtered_data = np.array(wav)
-          for i in range(1, len(wav)):
-              filtered_data[i] = alpha * filtered_data[i] + (1 - alpha) * wav[i]
-          # Normalize the audio
-          max_val = np.max(np.abs(filtered_data))
-          wav = filtered_data / max_val
-          wav = (wav * 32767).astype(np.int16)
+            try:
+              duration_true = desired_duration
+              duration_tts = librosa.get_duration(filename=output_file)
 
-          # Save the processed file
-          sf.write(output_file, wav, samplerate=sample_rate)
-          print("Wav segment written at: {}".format(output_file))
-        del duration_net; del generator; gc.collect(); torch.cuda.empty_cache()
+              # porcentaje
+              porcentaje = duration_tts / duration_true
+              print("change speed::", porcentaje, duration_tts, duration_true)
+              # Smooth and round
+              porcentaje = math.floor(porcentaje * 10000) / 10000
+              porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
+              porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
+              porcentaje = 1.0 if not self.match_length else porcentaje     
+            except Exception as e:
+              porcentaje = 1.0 
+              print('An exception occurred:', e)
+            # apply aceleration or opposite to the audio file in audio2 folder
+            tmp_file = f"tmp-{output_file}"
+            os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje} {tmp_file}")
+            os.system(f"mv {tmp_file} {output_file}")
+          gc.collect(); torch.cuda.empty_cache()
       except Exception as error:
         print("tts error::", text, "\n", error)
       return WavStruct(output_file, start_time)
@@ -287,8 +163,8 @@ class TTS():
     # sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
     return file
     
-  def convert_voice(self, input_dir, model_dir):
-    print("start convert_voice::", input_dir, model_dir)
+  def start_svc_voice(self, input_dir, model_dir):
+    print("start svc_voice::", input_dir, model_dir)
     model_path = os.path.join(model_dir, "G.pth")
     config_path = os.path.join(model_dir, "config.json")
     output_dir = f'{input_dir}.out'
@@ -296,9 +172,23 @@ class TTS():
     if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
     shutil.move(output_dir, input_dir)
     gc.collect(); torch.cuda.empty_cache()
-    
-  def synthesize(self, output_dir_name, input, is_file, speed, method, tts_voice_ckpt_dir, convert_voice_ckpt_dir):
-      print("start synthesizing::", output_dir_name, input, is_file, speed, tts_voice_ckpt_dir, convert_voice_ckpt_dir)
+
+  def start_ovc_voice(self, input_dir, tts_voice, open_voice):
+    print("start open_voice::", input_dir, tts_voice, open_voice)
+    output_dir = f"{input_dir}-out"
+    os.system(f"mkdir -p {output_dir}")
+    ov = OpenVoice()
+    for file in sorted(Path(input_dir).glob("*.wav")):
+      file_output = str(file).replace(input_dir, output_dir)
+      print("openvoice::", file_output)
+      ov.convert_voice(file, tts_voice, file_output, open_voice)
+    del ov
+    if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
+    shutil.move(output_dir, input_dir)
+    gc.collect(); torch.cuda.empty_cache()
+      
+  def synthesize(self, output_dir_name, input, is_file, speed, method):
+      print("start synthesizing::", output_dir_name, input, is_file, speed)
       filepath = ""
       paragraphs = ""
       file_name_only = ""
@@ -341,7 +231,7 @@ class TTS():
       
       print("Start TTS:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
-        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, tts_voice_ckpt_dir, speed, total_duration, start_silence) for (text, output_file, total_duration, start_silence) in queue_list.queue)
+        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence) for (text, output_file, total_duration, start_silence) in queue_list.queue)
       
       if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
         print("Start Upsampling::")
@@ -349,11 +239,18 @@ class TTS():
           results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in results)
         self.upsampler = None; gc.collect(); torch.cuda.empty_cache()
       
+      ## TTS Done - Start converting voice
       print("TTS Done::")
-      if convert_voice_ckpt_dir != "none":
+      if self.vc_method == "SVC":
+        svc_voice_ckpt_dir = os.path.join(CONFIG.svc_ckpt_dir, self.vc_voice)
         print("Start Voice Convertion::")
-        self.convert_voice(tmp_dirname, convert_voice_ckpt_dir)
+        self.start_svc_voice(tmp_dirname, svc_voice_ckpt_dir)
+
+      if self.vc_method == "OpenVoice":
+        print("Start Voice Convertion::")
+        self.start_ovc_voice(tmp_dirname, self.tts_voice, self.vc_voice)    
         
+      ## Return join or split output files  
       if method == 'join':
         result_path, log_path = combine_wav_segment(results, final_output)
         print("combine_wav_segment result::", result_path, log_path)
@@ -375,19 +272,23 @@ class TTS():
     self,
     input_files,
     input_text,
-    tts_voice="",
-    convert_voice="none",
+    tts_lang,
+    tts_voice,
+    vc_voice,
     speed=1,
-    method="join"
+    method="join",
+    tts_method="VietTTS",
+    vc_method="None"
     ):
+      self.tts_lang = LANGUAGES[tts_lang]
+      self.tts_voice = tts_voice
+      self.vc_voice = vc_voice
+      self.tts_method = tts_method
+      self.vc_method = vc_method
       output_dir_name = new_dir_now()
       output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
       Path(output_dir_path).mkdir(parents=True, exist_ok=True)
       print("start speak_fn:", tts_voice)
-      tts_voice_ckpt_dir = os.path.join(CONFIG.tts_ckpt_dir, tts_voice)
-      convert_voice_ckpt_dir = os.path.join(CONFIG.convert_ckpt_dir, convert_voice) if convert_voice != "none" else "none"
-      print("selected TTS voice:", tts_voice_ckpt_dir)
-      print("selected Convert voice:", convert_voice_ckpt_dir)
       results_list = []
       result_text = CONFIG.empty_wav
       logs_list = []
@@ -395,15 +296,15 @@ class TTS():
       if input_text:
         try:
             print('input_text::', input_text)
-            output_temp_file, log_temp_file = self.synthesize(output_dir_name, input_text, False, speed, method, tts_voice_ckpt_dir, convert_voice_ckpt_dir)
+            output_temp_file, log_temp_file = self.synthesize(output_dir_name, input_text, False, speed, method)
             if log_temp_file:
               logs_list.append(log_temp_file)
             if method == 'join':
               result_text = output_temp_file
             if method == 'split':
               results_list.append(output_temp_file)
-        except:
-            print("Skip error file while synthesizing input_text")
+        except Exception as e:
+            print("Skip error file while synthesizing input_text::", e)
       ## Process input_files     
       if input_files:
         print("got input files::",input_files)
@@ -411,7 +312,7 @@ class TTS():
         for file_path in file_list:
             try:
                 print('file_path::',file_path)
-                output_temp_file, log_temp_file = self.synthesize(output_dir_name, file_path, True, speed, method, tts_voice_ckpt_dir, convert_voice_ckpt_dir)
+                output_temp_file, log_temp_file = self.synthesize(output_dir_name, file_path, True, speed, method)
                 results_list.append(output_temp_file)
                 if log_temp_file:
                   logs_list.append(log_temp_file)
@@ -420,33 +321,47 @@ class TTS():
       print("[DONE] {} tasks: {}".format(len(results_list), results_list))
       return results_list, result_text, logs_list
 
+  def refresh_model(self, tts_method):
+    if tts_method == "SVC":
+      vc_list = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
+    if tts_method == "OpenVoice":
+      vc_list = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
+    return gr.update(choices=vc_list)
+  
+  def create_open_voice(self, file_path, model_name):
+    ov = OpenVoice()
+    ov.create_voice(file_path, model_name)
+    gr.Info(f'Created voice: {model_name}')
+    del ov
+    return None, None
+   
   def web_interface(self, port):
     css = """
     .btn-active {background-color: "orange"}
     #logout_btn {
       align-self: self-end;
-			width: 65px;
+      width: 65px;
     }
     """
     # title="VGM Text To Speech",
     # description = "A vietnamese text-to-speech by VGM speakers."
-    tts_voices = [voice for voice in os.listdir(CONFIG.tts_ckpt_dir) if os.path.isdir(os.path.join(CONFIG.tts_ckpt_dir, voice))]
-    convert_voices = ["none"] + [voice for voice in os.listdir(CONFIG.convert_ckpt_dir) if os.path.isdir(os.path.join(CONFIG.convert_ckpt_dir, voice))]
     app = gr.Blocks(title="VGM Text To Speech", theme=gr.themes.Default(), css=css)
     with app:
         with gr.Row():
           with gr.Column():
             gr.Markdown("# VGM Text To Speech")
           with gr.Column():
-            gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn")
+            gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn", visible=True if os.getenv('ENABLE_AUTH', '') == "true" else False)
         with gr.Tabs():
             with gr.TabItem("TTS"):
                 with gr.Row():
                     with gr.Column():
                         input_files = gr.Files(label="Upload .doc|.docx|.txt|.srt file(s)", file_types=[".doc", ".docx", ".txt"])
                         textbox = gr.Textbox(label="Text for synthesize")
-                        tts_voice = gr.Radio(label="Choose TTS Voice", value=tts_voices[0], choices=tts_voices)
-                        convert_voice = gr.Radio(label="Choose Conversion Voice", value="none", choices=convert_voices)
+                        with gr.Row():
+                          tts_lang = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', scale=1)
+                          tts_voice = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker', visible=True, elem_id="tts_voice")
+                          vc_voice = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker', visible=False, elem_id="vc_voice")
                         duration_slider = gr.Slider(minimum=0.5, maximum=1.5, value=1, step=0.02, label='Speed')
                         method = gr.Radio(label="Method", value="join", choices=["join","split"])
                     with gr.Column():
@@ -454,11 +369,47 @@ class TTS():
                         audio_output = gr.Audio(label="Text Audio Output", elem_id="tts-audio")
                         logs_output = gr.Files(label="Error Audio Logs")
                         with gr.Row():
-                          gr.ClearButton([input_files,textbox,files_output,audio_output,logs_output])
+                          clear_btn = gr.ClearButton([input_files,textbox,files_output,audio_output,logs_output], value="Refresh")
                           btn = gr.Button(value="Generate!", variant="primary")
-                          btn.click(self.speak,
-                                  inputs=[input_files, textbox, tts_voice, convert_voice, duration_slider, method],
-                                  outputs=[files_output, audio_output, logs_output], concurrency_limit=1)
+            with gr.TabItem("Settings"):
+                with gr.Column():
+                  with gr.Accordion("T2S - VC Method", open=False):
+                    with gr.Row():
+                      tts_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS"], label='T2S', value="VietTTS", visible=True, elem_id="tts_method",interactive=True)
+                      vc_method = gr.Dropdown(["None", "SVC", "RVC", "OpenVoice"], label='Voice Conversion', value="None", visible=True, elem_id="vc_method",interactive=True)
+
+                      ## update t2s method
+                      def update_t2s_list(method, language):
+                        # print("method::", method, language, media_input)
+                        match method:
+                          case 'VietTTS':
+                            list_tts = list_vtts
+                          case 'EdgeTTS':
+                            list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
+                          case 'PiperTTS':
+                            list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
+                          case _:
+                            list_tts = list_gtts
+                        return gr.update(choices=list_tts, value=list_tts[0])
+                    tts_method.change(update_t2s_list, [tts_method, tts_lang], tts_voice)
+                    tts_lang.change(update_t2s_list, [tts_method, tts_lang], tts_voice)
+                  with gr.Accordion("Open Voice", visible=False) as open_voice_accordion:
+                    ov_file = gr.File(label="Upload audio file", file_types=["audio"])
+                    ov_name = gr.Textbox(label="Model Name")
+                    ov_btn = gr.Button(value="Create Voice", variant="primary")
+                    
+                def update_voice_conversion(method):
+                  visible = True if method != "None" else False
+                  return  gr.update(visible=visible), gr.update(visible=method=='OpenVoice')
+                vc_method.change(update_voice_conversion, [vc_method], [vc_voice, open_voice_accordion])    
+                    
+        ## Run function
+        clear_btn.click(self.refresh_model, inputs=[tts_method], outputs=[vc_voice])
+        ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
+        btn.click(self.speak,
+                inputs=[input_files, textbox, tts_lang, tts_voice, vc_voice, duration_slider, method, tts_method, vc_method],
+                outputs=[files_output, audio_output, logs_output], concurrency_limit=1)
+                                              
     app.queue()
     return app
 
@@ -594,7 +545,7 @@ if __name__ == "__main__":
     ## Set torch multiprocessing
     mp.set_start_method('spawn', force=True)
     host = "localhost"
-    port = 7901
+    port = 7903
     tts = TTS()
     app = tts.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":

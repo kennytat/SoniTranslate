@@ -9,11 +9,11 @@ import argparse
 import shutil
 import tempfile
 import gradio as gr
-from utils import new_dir_now, encode_filename
+from utils.utils import new_dir_now, encode_filename
 import torch
 from vietTTS.upsample import Predictor
 import soundfile as sf
-from utils import new_dir_now, is_windows_path, convert_to_wsl_path
+from utils.utils import is_video_file, new_dir_now, is_windows_path, convert_to_wsl_path
 
 total_input = []
 total_output = []
@@ -139,8 +139,8 @@ def start(input_files, output_dir):
         basename, ext = os.path.splitext(file_path)
         output_file = os.path.join(Path(output_dir_path).absolute(), os.path.basename(file_path))
         
-        # is_video = True if is_video_or_audio(file_path) == 'video' else False
-        is_video = True if os.path.splitext(os.path.basename(file_path.strip()))[1] == '.mp4' else False
+        is_video = is_video_file(file_path)
+        # is_video = True if os.path.splitext(os.path.basename(file_path.strip()))[1] == '.mp4' else False
         if is_video:
           video_path = file_path
           audio_path = f"{os.path.splitext(output_file)[0]}.wav"

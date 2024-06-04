@@ -1,15 +1,49 @@
 # TTS
 # --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
+## === VietTTS ===
 regex
-gradio==4.25.0
+gradio==4.29.0
 srt
 docx2txt
 nltk
 cryptography
 langdetect
 vietnam_number
-so-vits-svc-fork
 python-dotenv
+nest_asyncio
+yt_dlp
+rarfile
+ffmpeg-python
+## === TTS ===
+gTTS
+edge_tts
+piper-tts
+onnxruntime-gpu
+## === SVC ===
+so-vits-svc-fork
+## === RVC ===
+praat-parselmouth>=0.4.3
+pyworld==0.3.2
+faiss-cpu==1.7.3
+torchcrepe
+gdown
+## === Open voice ===
+librosa
+faster-whisper
+pydub
+wavmark
+numpy
+eng_to_ipa
+inflect
+unidecode
+whisper-timestamped
+openai
+pypinyin
+cn2an
+jieba
+langid
+huggingface-hub
+## === FastAPI ===
 fastapi
 starlette
 asyncio

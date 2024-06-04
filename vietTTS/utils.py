@@ -264,11 +264,8 @@ def txt_to_paragraph(txt_input):
           else:
               p_list.append(1)
       else:
-        try:
-          if detect(p) == "vi":
-            p_list.append(ParaStruct(p, 0, 0))
-        except:
-          pass
+          p_list.append(ParaStruct(p, 0, 0))
+
     # paras = [x for x in paras if x]
     print("Total paras: {}".format(len(p_list)))
     print(p_list)

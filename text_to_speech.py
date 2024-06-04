@@ -4,40 +4,29 @@ import edge_tts
 import asyncio
 import nest_asyncio
 from vietTTS.vietTTS import text_to_speech
-# def make_voice(tts_text, tts_voice, filename,language):
-#     #print(tts_text, filename)
-#     try:
-#       nest_asyncio.apply()
-#       asyncio.run(edge_tts.Communicate(tts_text, "-".join(tts_voice.split('-')[:-1])).save(filename))
-#     except:
-#       try:
-#           tts = gTTS(tts_text, lang=language)
-#           tts.save(filename)
-#           print(f'No audio was received. Please change the tts voice for {tts_voice}. TTS auxiliary will be used in the segment')
-#       except:
-#         tts = gTTS('a', lang=language)
-#         tts.save(filename)
-#         print('Error: Audio will be replaced.')
+from utils.tts_utils import piper_tts
+import torch
+import gc
+
 
 def make_voice_gradio(tts_text, tts_voice, tts_speed, filename, language, t2s_method):
     print("make_voice_gradio::",tts_text, tts_voice, filename, language, t2s_method)
-    if t2s_method == "VietTTS" and language == "vi" :
-      try:
-        text_to_speech(tts_text, filename, tts_voice, tts_speed if tts_speed else 1)
-      except Exception as error:
-        print("tts error:", error, tts_text)
-        tts = gTTS('a', lang=language)
+    try:
+      if t2s_method == "GTTS": 
+        tts = gTTS(tts_text, lang=language)
         tts.save(filename)
-    else:
-      try:
+        return
+      if t2s_method == "EdgeTTS":
         asyncio.run(edge_tts.Communicate(tts_text, "-".join(tts_voice.split('-')[:-1])).save(filename))
-      except:
-        try:
-          tts = gTTS(tts_text, lang=language)
-          tts.save(filename)
-          print(f'No audio was received. Please change the tts voice for {tts_voice}. TTS auxiliary will be used in the segment')
-        except:
-          tts = gTTS('a', lang=language)
-          tts.save(filename)
-          print('Error: Audio will be replaced.')
+        return
+      if t2s_method == "PiperTTS":
+        piper_tts(tts_text, tts_voice, tts_speed, filename)
+        return
+      if t2s_method == "VietTTS" and language == "vi":
+        print("vietTTS::")
+        text_to_speech(tts_text, filename, tts_voice, tts_speed if tts_speed else 1)
+        return    
+    except Exception as error:
+      print("tts error:", error, tts_text)
+    return
  
