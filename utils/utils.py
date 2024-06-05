@@ -747,3 +747,9 @@ def rename_file(current_name, new_name):
     else:
         logger.error(f"File '{current_name}' does not exist.")
         return None
+
+def find_all_files(directory, extension):
+    command = ['find', directory, '-type', 'f', '-name', f'*.{extension}']
+    result = subprocess.run(command, capture_output=True, text=True)
+    files = result.stdout.strip().split('\n')
+    return files

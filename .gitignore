@@ -180,3 +180,4 @@ tmp/
 .DS_Store
 *.pt
 *.db
+test*

@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+import subprocess
 import json
 import yt_dlp
 from pathlib import Path,PureWindowsPath, PurePosixPath
@@ -27,7 +28,7 @@ from vietTTS.utils import concise_srt
 # from vietTTS.upsample import Predictor
 import soundfile as sf
 from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES
-from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, youtube_download, get_llm_models
+from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_files, youtube_download, get_llm_models
 # from utils.logging_setup import logger
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -341,8 +342,6 @@ class Main():
       self.batch_size=batch_size
       self.chunk_size=chunk_size
       self.compute_type=compute_type
-      self.SOURCE_LANGUAGE=SOURCE_LANGUAGE
-      self.TRANSLATE_AUDIO_TO=TRANSLATE_AUDIO_TO
       self.min_speakers=min_speakers
       self.max_speakers=max_speakers
       self.tts_voice00=tts_voice00
@@ -401,17 +400,28 @@ class Main():
       #         raise Exception(f"Path not exist:: {media_path}")
               
       link_inputs = link_inputs.split(',')
-      # print("link_inputs::", link_inputs)
       if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
         for url in link_inputs:
           url = url.strip()
           # print('testing url::', url.startswith( 'https://www.youtube.com' ))
-          if url.startswith('https://www.youtube.com'):
-            media_info = yt_dlp.YoutubeDL().extract_info(url, download=False)
-            download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
-            youtube_download(url, download_path)
-            media_inputs.append(download_path) 
-        
+          if url.startswith('https://'):
+            try:
+              media_info = yt_dlp.YoutubeDL().extract_info(url, download=False)
+              download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
+              youtube_download(url, download_path)
+              media_inputs.append(download_path) 
+            except Exception as e:
+              print('Error download youtube video::', e)
+          else:
+            osPath = url if not is_windows_path(url) else convert_to_wsl_path(url)
+            if os.path.isfile(osPath):
+              media_inputs.append(osPath)
+            elif os.path.isdir(osPath):
+              files = find_all_files(osPath, "mp4")
+              print(f"video found in directory:: {osPath} | ", files)
+              for file in files:
+                media_inputs.append(file)
+                
       if srt_inputs is not None and len(srt_inputs)> 0:
         for srt in srt_inputs:
           os.system(f"mv {srt.name} {srt_temp_dir}/")
@@ -420,7 +430,7 @@ class Main():
       if media_inputs is not None and len(media_inputs)> 0:
         total_input = media_inputs
         for media in media_inputs:
-          result = self.translate_from_media(media, progress)
+          result = self.translate_from_media(media, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
           total_output.append(result)
           output.append(result)
       return output
@@ -445,7 +455,7 @@ class Main():
       # sf.write(filepath, data=data[:target_samples], samplerate=48000)
       return file
 
-    def tts(self, segment, speaker_to_voice, speaker_to_speed):
+    def tts(self, segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed):
         text = segment['text']
         start = segment['start']
         end = segment['end']
@@ -463,7 +473,7 @@ class Main():
         filename = f"audio/{start}.wav"
 
         if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-            make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, self.TRANSLATE_AUDIO_TO, self.t2s_method)
+            make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, TRANSLATE_AUDIO_TO, self.t2s_method)
         elif speaker == "SPEAKER_99":
             second_of_silence = AudioSegment.silent(duration=duration_true) # or be explicit
             second_of_silence = second_of_silence.set_frame_rate(16000)
@@ -494,6 +504,8 @@ class Main():
       
     def translate_from_media(self,
         media_input,
+        SOURCE_LANGUAGE,
+        TRANSLATE_AUDIO_TO,
         progress=gr.Progress(),
         ):
         print("processing::", media_input)
@@ -516,9 +528,9 @@ class Main():
           print("DEMO; set Adjusting volumes and mixing audio")
           self.WHISPER_MODEL_SIZE="medium"
           print("DEMO; set whisper model to medium")
-        print("LANGUAGES::", self.TRANSLATE_AUDIO_TO)
-        self.TRANSLATE_AUDIO_TO = LANGUAGES[self.TRANSLATE_AUDIO_TO]
-        self.SOURCE_LANGUAGE = LANGUAGES[self.SOURCE_LANGUAGE]
+        print("LANGUAGES::", TRANSLATE_AUDIO_TO)
+        TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
+        SOURCE_LANGUAGE = LANGUAGES[SOURCE_LANGUAGE]
 
 
         if not os.path.exists('audio'):
@@ -540,10 +552,10 @@ class Main():
         OutputFile = os.path.join(temp_dir, 'Video.mp4') if is_video else os.path.join(temp_dir, 'Audio.mp3')
         file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
         mix_audio = os.path.join(temp_dir, f"{file_name}.mp3") 
-        media_output_name = f"{file_name}-{self.TRANSLATE_AUDIO_TO}{file_extension}"
+        media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
         media_output = os.path.join(temp_dir, media_output_name)
-        source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{self.SOURCE_LANGUAGE}')
-        target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{self.TRANSLATE_AUDIO_TO}') 
+        source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{SOURCE_LANGUAGE}')
+        target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
         audio_wav = f"{source_media_output_basename}.wav"
         audio_webm = f"{source_media_output_basename}.webm"
         translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.wav")
@@ -628,7 +640,7 @@ class Main():
         print("Set file complete.")
         progress(0.30, desc="Speech to Text...")
 
-        self.SOURCE_LANGUAGE = None if self.SOURCE_LANGUAGE == 'Automatic detection' else self.SOURCE_LANGUAGE
+        SOURCE_LANGUAGE = None if SOURCE_LANGUAGE == 'Automatic detection' else SOURCE_LANGUAGE
 
         # 1. Transcribe with original whisper (batched)
         print("Start transcribing source language::")
@@ -637,7 +649,7 @@ class Main():
               self.WHISPER_MODEL_SIZE,
               device,
               compute_type=self.compute_type,
-              language=self.SOURCE_LANGUAGE,
+              language=SOURCE_LANGUAGE,
               )
           del cap
         audio = whisperx.load_audio(audio_wav)
@@ -768,7 +780,7 @@ class Main():
 
 
         # 4. Spell checking
-        if self.TRANSLATE_AUDIO_TO == "en":
+        if TRANSLATE_AUDIO_TO == "en":
           print("Start spell checking::")
           progress(0.55, desc="Spell checking...")
           checker = SpellCheck()
@@ -783,10 +795,10 @@ class Main():
         # 4. Translate to target language
         print("Start translating::")
         progress(0.6, desc="Translating...")
-        if self.TRANSLATE_AUDIO_TO == "zh":
-            self.TRANSLATE_AUDIO_TO = "zh-CN"
-        if self.TRANSLATE_AUDIO_TO == "he":
-            self.TRANSLATE_AUDIO_TO = "iw"
+        if TRANSLATE_AUDIO_TO == "zh":
+            TRANSLATE_AUDIO_TO = "zh-CN"
+        if TRANSLATE_AUDIO_TO == "he":
+            TRANSLATE_AUDIO_TO = "iw"
         # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
         ## Write source segment and srt,txt to file
 
@@ -796,7 +808,7 @@ class Main():
         result_diarize['segments'] = concise_srt(result_diarize['segments'], 375 if self.t2t_method == "LLM" else 500)
         segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
         segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
-        target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{self.TRANSLATE_AUDIO_TO}-SPEAKER.srt')
+        target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
         if os.path.exists(target_srt_inputpath):
           # Start convert from srt if srt found
           print("srt file exist::", target_srt_inputpath)
@@ -804,7 +816,7 @@ class Main():
           result_diarize['segments'] = concise_srt(result_diarize['segments'])
         else:
           # Start translate if srt not found
-          result_diarize['segments'] = translate_text(result_diarize['segments'], self.TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
+          result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
           print("translated segments::", result_diarize['segments'])
         ## Write target segment and srt to file
         segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
@@ -825,7 +837,7 @@ class Main():
         N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
         print("Start TTS:: concurrency =", N_JOBS)
         with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
-          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, speaker_to_voice, speaker_to_speed) for (segment) in tqdm(result_diarize['segments']))
+          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed) for (segment) in tqdm(result_diarize['segments']))
         
         if os.getenv('UPSAMPLING_ENABLE', '') == "true":
           progress(0.75, desc="Upsampling...")
@@ -922,7 +934,9 @@ class Main():
         try:
           target_dir = os.getenv('COPY_OUTPUT_DIR', '')
           if target_dir and os.path.isdir(target_dir):
-            os.system(f"cp '{final_output}' '{target_dir}'")
+            target_dir = target_dir if media_input.startswith('/tmp') else os.path.join(target_dir, "/".join(os.path.dirname(media_input).split('/')[2:]))
+            subprocess.run(["mkdir", "-p", target_dir], capture_output=True, text=True)
+            subprocess.run(["cp", final_output, target_dir], capture_output=True, text=True)
             # os.system(f"rm -rf '{final_output}'")
         except:
           print('copy to target dir failed')
@@ -951,7 +965,7 @@ class Main():
                     with gr.Column():
                         media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'])
                         # path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
-                        link_input = gr.Textbox(label="Youtube Link",info="Example: https://www.youtube.com/watch?v=M2LksyGYPoc,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
+                        link_input = gr.Textbox(label="YT Link or OS Path",info="Example: M:\\warehouse\\video.mp4,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
                         srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
                         # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                         with gr.Row():
@@ -1439,7 +1453,7 @@ if __name__ == "__main__":
   os.system('mkdir -p downloads')
   os.system('rm -rf /tmp/gradio-vgm/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  port=6864
+  port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
