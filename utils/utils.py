@@ -5,6 +5,7 @@ import yt_dlp
 from datetime import timedelta, datetime
 import ffmpeg
 import os
+import fnmatch
 import shutil
 import zipfile
 import rarfile
@@ -14,6 +15,7 @@ import os, zipfile, rarfile, shutil, subprocess, shlex, sys # noqa
 from .logging_setup import logger
 from urllib.parse import urlparse
 from IPython.utils import capture
+from natsort import natsorted
 
 def encode_filename(filename):
     print("Encoding filename:", filename)
@@ -748,8 +750,28 @@ def rename_file(current_name, new_name):
         logger.error(f"File '{current_name}' does not exist.")
         return None
 
-def find_all_files(directory, extension):
-    command = ['find', directory, '-type', 'f', '-name', f'*.{extension}']
-    result = subprocess.run(command, capture_output=True, text=True)
-    files = result.stdout.strip().split('\n')
-    return files
+video_patterns = ['*.mp4', '*.avi', '*.mov', '*.mkv', '*.flv']
+audio_patterns = ['*.mp3', '*.wav', '*.aac', '*.flac', '*.ogg']
+
+def find_files(directory, patterns):
+    matches = []
+    for root, dirnames, filenames in os.walk(directory):
+        for pattern in patterns:
+            for filename in fnmatch.filter(filenames, pattern):
+                matches.append(os.path.join(root, filename))
+    matches = natsorted(matches, key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+    return matches
+  
+def find_all_media_files(directory):
+    video_files = find_files(directory, video_patterns)
+    audio_files = find_files(directory, audio_patterns)
+    media_files = video_files + audio_files
+    media_files = natsorted(media_files, key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+    return media_files
+
+def find_most_matching_prefix(path_list, path):
+    matching_prefix = ""
+    for prefix in path_list:
+        if path.startswith(prefix) and len(prefix) > len(matching_prefix):
+            matching_prefix = prefix
+    return matching_prefix

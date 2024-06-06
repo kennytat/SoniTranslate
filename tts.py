@@ -124,7 +124,7 @@ class TTS():
           if desired_duration > 0:
             try:
               duration_true = desired_duration
-              duration_tts = librosa.get_duration(filename=output_file)
+              duration_tts = librosa.get_duration(path=output_file)
 
               # porcentaje
               porcentaje = duration_tts / duration_true
@@ -132,13 +132,13 @@ class TTS():
               # Smooth and round
               porcentaje = math.floor(porcentaje * 10000) / 10000
               porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
-              porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
-              porcentaje = 1.0 if not self.match_length else porcentaje     
+              porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje    
             except Exception as e:
               porcentaje = 1.0 
               print('An exception occurred:', e)
             # apply aceleration or opposite to the audio file in audio2 folder
-            tmp_file = f"tmp-{output_file}"
+            name, ext = os.path.splitext(output_file)
+            tmp_file = f"{name}-tmp{ext}"
             os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje} {tmp_file}")
             os.system(f"mv {tmp_file} {output_file}")
           gc.collect(); torch.cuda.empty_cache()
@@ -202,7 +202,8 @@ class TTS():
         filepath = "{}".format(new_dir_now())
         file_name_only = encode_filename(filepath)
         paragraphs = txt_to_paragraph(input)
-
+        
+      # print("paragraphs::", paragraphs)
       ### Put segments in temp dir for concatnation later
       tmp_dirname = os.path.join(CONFIG.os_tmp, output_dir_name, filepath)
       # print("filename::", filepath, paragraphs, file_name_only, tmp_dirname)
@@ -218,10 +219,11 @@ class TTS():
       # wav_list = []
       results = []
       for (no, para) in enumerate(paragraphs):
+          # print("Processing para::", no, para)
           name = "{}.wav".format(pad_zero(no, 5))
-          print("Prepare normalized text: ", para.text)
+          # print("Prepare normalized text: ", para.text)
           temp_output = os.path.join(tmp_dirname, name)
-          print("paragraph:: ", para.text.strip(), temp_output, para.total_duration, para.start_time)
+          print("paragraph::", para.text.strip(), temp_output, para.total_duration, para.start_time)
           queue_list.put((para.text.strip(), temp_output, para.total_duration, para.start_time))
           
       # print("Parallel processing {} tasks".format(len(process_list)))
@@ -356,7 +358,7 @@ class TTS():
             with gr.TabItem("TTS"):
                 with gr.Row():
                     with gr.Column():
-                        input_files = gr.Files(label="Upload .doc|.docx|.txt|.srt file(s)", file_types=[".doc", ".docx", ".txt"])
+                        input_files = gr.Files(label="Upload .doc|.docx|.txt|.srt file(s)", file_types=[".doc", ".docx", ".txt", ".srt"])
                         textbox = gr.Textbox(label="Text for synthesize")
                         with gr.Row():
                           tts_lang = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', scale=1)
@@ -545,7 +547,7 @@ if __name__ == "__main__":
     ## Set torch multiprocessing
     mp.set_start_method('spawn', force=True)
     host = "localhost"
-    port = 7903
+    port = 7901
     tts = TTS()
     app = tts.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":

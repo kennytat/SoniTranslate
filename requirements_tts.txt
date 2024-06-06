@@ -2,7 +2,7 @@
 # --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
 ## === VietTTS ===
 regex
-gradio==4.29.0
+gradio
 srt
 docx2txt
 nltk
@@ -14,6 +14,7 @@ nest_asyncio
 yt_dlp
 rarfile
 ffmpeg-python
+IPython
 ## === TTS ===
 gTTS
 edge_tts

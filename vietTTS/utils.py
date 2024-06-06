@@ -169,7 +169,6 @@ def concise_srt(srt_list, max_word_length=500):
       for item in srt_list:
         item["text"] = item.pop("content")
     modified_paras = []
-    print(srt_list)
     ## Remove non text segment
     srt_list = [para for para in srt_list if "speaker" in para and "♪" not in para['text']]
     ## concat para
@@ -243,14 +242,16 @@ def txt_to_paragraph(txt_input):
   # print("SRT:: \n", srt)
   try:
     subs = list(srt.parse(srt_input))
-    subs = concise_srt(subs)
+    subs = list([vars(obj) for obj in subs])
+    subs = [para for para in subs if "♪" not in para['content']]    
+    # subs = concise_srt(subs)
     for i, para in enumerate(subs):
       subs[i]["duration"] = (para["end"] - para["start"]).total_seconds()
       # subs[i].start_silence = para.start.total_seconds() if i <= 0 else (para.start - subs[i - 1].end).total_seconds()
       subs[i]["start_time"] = para["start"].total_seconds()
-    return [ParaStruct(para["text"], para["duration"], para["start_time"]) for para in subs]
+    return [ParaStruct(para["content"], para["duration"], para["start_time"]) for para in subs]
   except:
-    print("Input txt is not SRT - parse normally::")
+    print("Input txt is not SRT - parse normally:::::")
     paras = txt_input.lower()
     paras = remove_comment(paras)
     paras = sent_tokenize(paras)

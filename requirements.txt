@@ -6,6 +6,7 @@ python-dotenv
 datetime
 pathlib
 gradio
+natsort
 ## Audio Upsampling
 # audiosr
 # cog

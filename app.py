@@ -28,7 +28,7 @@ from vietTTS.utils import concise_srt
 # from vietTTS.upsample import Predictor
 import soundfile as sf
 from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES
-from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_files, youtube_download, get_llm_models
+from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_media_files, find_most_matching_prefix, youtube_download, get_llm_models
 # from utils.logging_setup import logger
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -54,6 +54,12 @@ load_dotenv()
 total_input = []
 total_output = []
 upsampler = None
+gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", "/tmp/gradio-vgm")
+gradio_temp_processing_dir = os.path.join(gradio_temp_dir, "processing_dir")
+srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
+Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
+youtube_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'youtube')
+Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True) 
 
 import sys
 
@@ -250,7 +256,7 @@ list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.pat
 list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
 list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
 
-     
+
 # models, index_paths = upload_model_list()
 
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
@@ -280,9 +286,50 @@ class Main():
     def __init__(self):
         self.create_ui()
  
+    def handle_link_input(self, link_inputs):
+      
+      print("links::", link_inputs)
+      link_inputs = link_inputs.split(',')
+      media_inputs = []
+      self.input_dirs = []
+      if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
+        for url in link_inputs:
+          url = url.strip()
+          # print('testing url::', url.startswith( 'https://www.youtube.com' ))
+          ## Handle online link
+          if url.startswith('https://'):
+            try:
+              media_info = yt_dlp.YoutubeDL().extract_info(url, download=False)
+              download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
+              youtube_download(url, download_path)
+              media_inputs.append(download_path) 
+            except Exception as e:
+              print('Error downloading youtube video::', e)
+              gr.Error(f"Error downloading from link: {url}")
+          ## Handle local link
+          else:
+            osPath = url if not is_windows_path(url) else convert_to_wsl_path(url)
+            if os.path.isfile(osPath):
+              media_inputs.append(osPath)
+            elif os.path.isdir(osPath):
+              tmp_dir = os.path.join(gradio_temp_processing_dir, os.path.basename(osPath))
+              print("tmp_dir::", tmp_dir)
+              self.input_dirs.append(tmp_dir)
+              files = find_all_media_files(osPath)
+              print(f"media found in directory:: {osPath} | ", files)
+              if len(files) > 0:
+                for file in files:
+                  tmp_file = os.path.join(gradio_temp_processing_dir, file.replace(os.path.dirname(osPath),"").strip('/'))
+                  subprocess.run(["mkdir", "-p", os.path.dirname(tmp_file)], capture_output=True, text=True)
+                  shutil.copy(file, tmp_file)
+                  media_inputs.append(tmp_file)
+              else:
+                gr.Warning(f"No media files found in: {osPath}")
+      return media_inputs, ""
+      
+
     def batch_preprocess(self,
       media_inputs,
-      link_inputs,
       srt_inputs,
       s2t_method,
       t2t_method,
@@ -370,11 +417,8 @@ class Main():
       media_inputs = media_inputs if media_inputs is not None else []
       media_inputs = media_inputs if isinstance(media_inputs, list) else [media_inputs]
       output = []
-      srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
-      Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
+
       os.system(f"rm -rf {srt_temp_dir}/*")
-      youtube_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'youtube')
-      Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True)
       os.system(f"rm -rf {youtube_temp_dir}/*")
       
       # path_inputs = [item.strip() for item in path_inputs.split(',')]
@@ -399,38 +443,19 @@ class Main():
       #       else:
       #         raise Exception(f"Path not exist:: {media_path}")
               
-      link_inputs = link_inputs.split(',')
-      if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
-        for url in link_inputs:
-          url = url.strip()
-          # print('testing url::', url.startswith( 'https://www.youtube.com' ))
-          if url.startswith('https://'):
-            try:
-              media_info = yt_dlp.YoutubeDL().extract_info(url, download=False)
-              download_path = f"{os.path.join(youtube_temp_dir, media_info['title'])}.mp4"
-              youtube_download(url, download_path)
-              media_inputs.append(download_path) 
-            except Exception as e:
-              print('Error download youtube video::', e)
-          else:
-            osPath = url if not is_windows_path(url) else convert_to_wsl_path(url)
-            if os.path.isfile(osPath):
-              media_inputs.append(osPath)
-            elif os.path.isdir(osPath):
-              files = find_all_files(osPath, "mp4")
-              print(f"video found in directory:: {osPath} | ", files)
-              for file in files:
-                media_inputs.append(file)
+
                 
       if srt_inputs is not None and len(srt_inputs)> 0:
         for srt in srt_inputs:
           os.system(f"mv {srt.name} {srt_temp_dir}/")
       global total_input
       global total_output
+      print("process total files::", len(media_inputs))
+      media_inputs = [file for file in media_inputs if os.path.isfile(file)]
       if media_inputs is not None and len(media_inputs)> 0:
         total_input = media_inputs
         for media in media_inputs:
-          result = self.translate_from_media(media, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
+          result = self.translate_from_media(media, self.input_dirs, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
           total_output.append(result)
           output.append(result)
       return output
@@ -483,8 +508,7 @@ class Main():
         if os.path.isfile(filename):
           try:
             
-            duration_tts = librosa.get_duration(filename=filename)
-
+            duration_tts = librosa.get_duration(path=filename)
             # porcentaje
             porcentaje = duration_tts / duration_true
             print("change speed::", porcentaje, duration_tts, duration_true)
@@ -504,8 +528,9 @@ class Main():
       
     def translate_from_media(self,
         media_input,
-        SOURCE_LANGUAGE,
-        TRANSLATE_AUDIO_TO,
+        input_dirs = [],
+        SOURCE_LANGUAGE= "Automatic detection",
+        TRANSLATE_AUDIO_TO="Vietnamese (vi)",
         progress=gr.Progress(),
         ):
         print("processing::", media_input)
@@ -564,7 +589,7 @@ class Main():
         # os.system("rm -rf audio_origin.webm")
         # os.system("rm -rf audio_origin.wav")
 
-        progress(0.15, desc="Processing video...")
+        progress(0.15, desc=f"Processing media...")
         if os.path.exists(media_input):
             if is_video:
               if self.preview:
@@ -613,29 +638,30 @@ class Main():
                   return
 
         else:
-            if self.preview:
-                print('Creating a preview from the link, 10 seconds to disable this option, go to advanced settings and turn off preview.')
-                #https://github.com/yt-dlp/yt-dlp/issues/2220
-                mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
-                wav_ = "ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}"
-                os.system(mp4_)
-                os.system(wav_)
-            else:
-                mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
-                wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {media_input}'
+            print("path not found::", media_input)
+        #     if self.preview:
+        #         print('Creating a preview from the link, 10 seconds to disable this option, go to advanced settings and turn off preview.')
+        #         #https://github.com/yt-dlp/yt-dlp/issues/2220
+        #         mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
+        #         wav_ = "ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}"
+        #         os.system(mp4_)
+        #         os.system(wav_)
+        #     else:
+        #         mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
+        #         wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {media_input}'
 
-                os.system(wav_)
+        #         os.system(wav_)
 
-                for i in range (120):
-                    time.sleep(1)
-                    print('process audio...')
-                    if os.path.exists(audio_wav) and not os.path.exists(audio_webm):
-                        time.sleep(1)
-                        os.system(mp4_)
-                        break
-                    if i == 119:
-                      print('Error donwloading the audio')
-                      return
+        #         for i in range (120):
+        #             time.sleep(1)
+        #             print('process audio...')
+        #             if os.path.exists(audio_wav) and not os.path.exists(audio_webm):
+        #                 time.sleep(1)
+        #                 os.system(mp4_)
+        #                 break
+        #             if i == 119:
+        #               print('Error donwloading the audio')
+        #               return
 
         print("Set file complete.")
         progress(0.30, desc="Speech to Text...")
@@ -780,16 +806,19 @@ class Main():
 
 
         # 4. Spell checking
-        if TRANSLATE_AUDIO_TO == "en":
+        if SOURCE_LANGUAGE == "en":
           print("Start spell checking::")
           progress(0.55, desc="Spell checking...")
-          checker = SpellCheck()
-          for line in tqdm(range(len(result_diarize['segments']))):
-            try:
-              text = result_diarize['segments'][line]['text']
-              result_diarize['segments'][line]['text'] = checker.correct(text)
-            except Exception as e:
-              pass 
+          try:
+            checker = SpellCheck()
+            for line in tqdm(range(len(result_diarize['segments']))):
+              try:
+                text = result_diarize['segments'][line]['text']
+                result_diarize['segments'][line]['text'] = checker.correct(text)
+              except Exception as e:
+                pass 
+          except Exception as e:
+            print('Error initialize spell check::', e)
           del checker  
         
         # 4. Translate to target language
@@ -934,7 +963,9 @@ class Main():
         try:
           target_dir = os.getenv('COPY_OUTPUT_DIR', '')
           if target_dir and os.path.isdir(target_dir):
-            target_dir = target_dir if media_input.startswith('/tmp') else os.path.join(target_dir, "/".join(os.path.dirname(media_input).split('/')[2:]))
+            if media_input.startswith(gradio_temp_processing_dir) and len(input_dirs) > 0:
+              most_matching_prefix = find_most_matching_prefix(input_dirs, media_input)
+              target_dir = os.path.join(target_dir, os.path.dirname(media_input).replace(os.path.dirname(most_matching_prefix),"").strip('/')) if os.path.isdir(most_matching_prefix) else os.path.join(target_dir, "/".join(os.path.dirname(media_input).split('/')[3:]).strip('/'))
             subprocess.run(["mkdir", "-p", target_dir], capture_output=True, text=True)
             subprocess.run(["cp", final_output, target_dir], capture_output=True, text=True)
             # os.system(f"rm -rf '{final_output}'")
@@ -964,8 +995,9 @@ class Main():
                 with gr.Row():
                     with gr.Column():
                         media_input = gr.Files(label="VIDEO|AUDIO", file_types=['audio','video'])
-                        # path_input = gr.Textbox(label="Import Windows Path",info="Example: M:\\warehouse\\video.mp4", placeholder="Windows path goes here, seperate by comma...")        
-                        link_input = gr.Textbox(label="YT Link or OS Path",info="Example: M:\\warehouse\\video.mp4,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...")        
+                        with gr.Row():
+                          link_input = gr.Textbox(label="YT Link or OS Path",info="Example: M:\\warehouse\\video.mp4,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...", scale=5)        
+                          link_btn = gr.Button("Submit", size="sm", scale=1)
                         srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
                         # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                         with gr.Row():
@@ -1071,7 +1103,7 @@ class Main():
                           global total_output
                           return total_output if len(total_output) < len(total_input) else []
                         with gr.Row():
-                            video_button = gr.Button("TRANSLATE", )
+                            media_btn = gr.Button("TRANSLATE", )
                         with gr.Row():    
                             media_output = gr.Files(label="PROGRESS BAR") #gr.Video()
                         with gr.Row():
@@ -1084,6 +1116,7 @@ class Main():
                           global list_ovc
                           total_input = []
                           total_output = []
+                          self.input_dirs = []
                           os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio-vgm")}/*')
                           os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
                           list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
@@ -1245,10 +1278,9 @@ class Main():
             
             # run
             ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
-            video_button.click(self.batch_preprocess, inputs=[
+            link_btn.click(self.handle_link_input, inputs=[link_input], outputs=[media_input, link_input])
+            media_btn.click(self.batch_preprocess, inputs=[
                 media_input,
-                # path_input,
-                link_input,
                 srt_input,
                 s2t_method,
                 t2t_method,
@@ -1451,9 +1483,9 @@ if __name__ == "__main__":
   
   # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
   os.system('mkdir -p downloads')
-  os.system('rm -rf /tmp/gradio-vgm/*')
+  os.system(f'rm -rf {gradio_temp_dir}/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  port=6860
+  port=6864
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
