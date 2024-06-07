@@ -296,7 +296,7 @@ class Main():
       link_inputs = link_inputs.split(',')
       if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
         for url in link_inputs:
-          url = url.strip()
+          url = url.strip().rstrip("/")
           # print('testing url::', url.startswith( 'https://www.youtube.com' ))
           ## Handle online link
           if url.startswith('https://'):
@@ -315,10 +315,10 @@ class Main():
               media_inputs.append(osPath)
             elif os.path.isdir(osPath):
               tmp_dir = os.path.join(gradio_temp_processing_dir, os.path.basename(osPath))
-              print("tmp_dir::", tmp_dir)
+              print("tmp_dir::", tmp_dir, osPath)
               self.local_input_dirs.append(tmp_dir)
               files = find_all_media_files(osPath)
-              print(f"media found in directory:: {osPath} | ", files)
+              print(f"media found in directory:: '{osPath}' | ", files)
               if len(files) > 0:
                 for file in files:
                   tmp_file = os.path.join(gradio_temp_processing_dir, re.sub(r'[\'\"]', '', file.replace(os.path.dirname(osPath),"").strip('/')))

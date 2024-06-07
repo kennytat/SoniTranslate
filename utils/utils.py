@@ -248,7 +248,7 @@ def convert_to_wsl_path(path):
     # Convert Windows path to WSL path
     drive_letter, rest_of_path = path.split(':\\', 1)
     wsl_path = "/".join(['/mnt', drive_letter.lower(), rest_of_path.replace('\\', '/')])
-    return wsl_path
+    return wsl_path.rstrip("/")
     
 def youtube_download(url, output_path):
     ydl_opts = {
