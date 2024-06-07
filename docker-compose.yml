@@ -6,7 +6,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/mdds-labs/sonitranslate:v1.4.0
+      cache_from:
+        - type=bind,source=${HOME}/.cache/pip,target=/root/.cache/pip
+    image: ghcr.io/mdds-labs/sonitranslate:v1.4.1
     container_name: soni
     deploy:
       resources:
@@ -33,5 +35,6 @@ services:
       - /mnt/backup/AI/sonitranslate/cache:/root/.cache
       - /mnt/backup/AI/sonitranslate/model:/app/model
       - ./db:/app/db
+      - /mnt/backup/AI/sonitranslate/model/neuspell:/root/miniconda3/lib/python3.10/site-packages/data/checkpoints
       # - /mnt/hdd6tb/man-smb:/mnt/hdd6tb/man-smb
       # - /mnt/hdd6tb/tmp:/tmp

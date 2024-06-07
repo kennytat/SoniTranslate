@@ -286,7 +286,8 @@ user_settings=load_settings()
 class Main():
     def __init__(self):
         self.create_ui()
-        self.input_dirs = []
+        self.local_input_dirs = []
+        self.local_input_temp_pairs = []
  
     def handle_link_input(self, media_inputs, link_inputs):
       # print("media::", media_inputs)
@@ -315,7 +316,7 @@ class Main():
             elif os.path.isdir(osPath):
               tmp_dir = os.path.join(gradio_temp_processing_dir, os.path.basename(osPath))
               print("tmp_dir::", tmp_dir)
-              self.input_dirs.append(tmp_dir)
+              self.local_input_dirs.append(tmp_dir)
               files = find_all_media_files(osPath)
               print(f"media found in directory:: {osPath} | ", files)
               if len(files) > 0:
@@ -323,7 +324,11 @@ class Main():
                   tmp_file = os.path.join(gradio_temp_processing_dir, re.sub(r'[\'\"]', '', file.replace(os.path.dirname(osPath),"").strip('/')))
                   subprocess.run(["mkdir", "-p", os.path.dirname(tmp_file)], capture_output=True, text=True)
                   if not os.path.exists(tmp_file):
-                    shutil.copy(file, tmp_file)
+                    subprocess.run(["touch", tmp_file], capture_output=True, text=True)
+                    self.local_input_temp_pairs.append({
+                      "origin": file,
+                      "temp": tmp_file
+                    })
                     media_inputs.append(tmp_file)
               else:
                 gr.Warning(f"No media files found in: {osPath}")
@@ -544,6 +549,11 @@ class Main():
             os.environ["YOUR_HF_TOKEN"] = self.YOUR_HF_TOKEN
 
         media_input = media_input if isinstance(media_input, str) else media_input.name
+        if media_input.startswith(gradio_temp_processing_dir):
+          input_temp_pair = next((obj for obj in self.local_input_temp_pairs if obj['temp'] == media_input), None)
+          if input_temp_pair:
+            print("copying to temp::", input_temp_pair['origin'], input_temp_pair['temp'])
+            shutil.copy(input_temp_pair['origin'], input_temp_pair['temp'])
         # media_input = '/home/vgm/Desktop/WE KNOW LOVE 09 17 23 - ANAHEIM CHURCH.mp4'
         # print(media_input)
 
@@ -680,7 +690,7 @@ class Main():
               )
           del cap
         audio = whisperx.load_audio(audio_wav)
-        result = model.transcribe(self.WHISPER_MODEL_SIZE, audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
+        result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
         gc.collect(); torch.cuda.empty_cache(); del model
         print("Transcript complete::", len(result["segments"]))
 
@@ -818,9 +828,9 @@ class Main():
                 result_diarize['segments'][line]['text'] = checker.correct(text)
               except Exception as e:
                 pass 
+            del checker
           except Exception as e:
             print('Error initialize spell check::', e)
-          del checker  
         
         # 4. Translate to target language
         print("Start translating::")
@@ -964,8 +974,9 @@ class Main():
         try:
           target_dir = os.getenv('COPY_OUTPUT_DIR', '')
           if target_dir and os.path.isdir(target_dir):
-            if media_input.startswith(gradio_temp_processing_dir) and len(self.input_dirs) > 0:
-              most_matching_prefix = find_most_matching_prefix(self.input_dirs, media_input)
+            print("Copying to output directory::", media_input, self.local_input_dirs)
+            if media_input.startswith(gradio_temp_processing_dir) and len(self.local_input_dirs) > 0:
+              most_matching_prefix = find_most_matching_prefix(self.local_input_dirs, media_input)
               target_dir = os.path.join(target_dir, os.path.dirname(media_input).replace(os.path.dirname(most_matching_prefix),"").strip('/')) if os.path.isdir(most_matching_prefix) else os.path.join(target_dir, "/".join(os.path.dirname(media_input).split('/')[3:]).strip('/'))
             subprocess.run(["mkdir", "-p", target_dir], capture_output=True, text=True)
             subprocess.run(["cp", final_output, target_dir], capture_output=True, text=True)
@@ -1117,7 +1128,8 @@ class Main():
                           global list_ovc
                           total_input = []
                           total_output = []
-                          self.input_dirs = []
+                          self.local_input_dirs = []
+                          self.local_input_temp_pairs = []
                           os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio-vgm")}/*')
                           os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
                           list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
@@ -1486,7 +1498,7 @@ if __name__ == "__main__":
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {gradio_temp_dir}/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  port=6864
+  port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()

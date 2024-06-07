@@ -1,20 +1,20 @@
 # TTS
-# --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
-## === VietTTS ===
-regex
-gradio
-srt
-docx2txt
-nltk
-cryptography
-langdetect
-vietnam_number
-python-dotenv
-nest_asyncio
+gradio==4.29.0
 yt_dlp
 rarfile
 ffmpeg-python
 IPython
+langdetect
+regex
+srt
+python-dotenv
+
+## === VietTTS ===
+docx2txt
+nltk
+cryptography
+vietnam_number
+nest_asyncio
 ## === TTS ===
 gTTS
 edge_tts
@@ -28,6 +28,7 @@ pyworld==0.3.2
 faiss-cpu==1.7.3
 torchcrepe
 gdown
+antlr4-python3-runtime==4.8
 ## === Open voice ===
 librosa
 faster-whisper
@@ -44,6 +45,9 @@ cn2an
 jieba
 langid
 huggingface-hub
+## === Audio Upsampling ===
+# audiosr
+# cog
 ## === FastAPI ===
 fastapi
 starlette

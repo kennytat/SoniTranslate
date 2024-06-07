@@ -1,3 +1,5 @@
+## Google translate
+deep_translator
 ## T5 transformer translate
 pytesseract
 transformers
@@ -10,8 +12,10 @@ peft
 scipy
 # VB translate
 langdetect
--e git+https://github.com/pytorch/fairseq.git@v0.12.1#egg=fairseq
+-e git+https://github.com/pytorch/fairseq.git@v0.12.3#egg=fairseq
 # LLM translate
 openai
 langchain
 langchain_community
+## === Spell check ===
+neuspell
