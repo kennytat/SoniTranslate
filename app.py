@@ -15,6 +15,7 @@ from gtts import gTTS
 import librosa
 import math
 import gc
+import re
 from tqdm import tqdm
 import os
 from audio_segments import create_translated_audio
@@ -319,7 +320,7 @@ class Main():
               print(f"media found in directory:: {osPath} | ", files)
               if len(files) > 0:
                 for file in files:
-                  tmp_file = os.path.join(gradio_temp_processing_dir, file.replace(os.path.dirname(osPath),"").strip('/'))
+                  tmp_file = os.path.join(gradio_temp_processing_dir, re.sub(r'[\'\"]', '', file.replace(os.path.dirname(osPath),"").strip('/')))
                   subprocess.run(["mkdir", "-p", os.path.dirname(tmp_file)], capture_output=True, text=True)
                   if not os.path.exists(tmp_file):
                     shutil.copy(file, tmp_file)
