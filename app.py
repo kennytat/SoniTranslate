@@ -285,13 +285,13 @@ user_settings=load_settings()
 class Main():
     def __init__(self):
         self.create_ui()
+        self.input_dirs = []
  
-    def handle_link_input(self, link_inputs):
-      
-      print("links::", link_inputs)
+    def handle_link_input(self, media_inputs, link_inputs):
+      # print("media::", media_inputs)
+      media_inputs = media_inputs if media_inputs and len(media_inputs) > 0 else []
+      # print("links::", link_inputs)
       link_inputs = link_inputs.split(',')
-      media_inputs = []
-      self.input_dirs = []
       if link_inputs is not None and len(link_inputs) > 0 and link_inputs[0] != '':
         for url in link_inputs:
           url = url.strip()
@@ -321,8 +321,9 @@ class Main():
                 for file in files:
                   tmp_file = os.path.join(gradio_temp_processing_dir, file.replace(os.path.dirname(osPath),"").strip('/'))
                   subprocess.run(["mkdir", "-p", os.path.dirname(tmp_file)], capture_output=True, text=True)
-                  shutil.copy(file, tmp_file)
-                  media_inputs.append(tmp_file)
+                  if not os.path.exists(tmp_file):
+                    shutil.copy(file, tmp_file)
+                    media_inputs.append(tmp_file)
               else:
                 gr.Warning(f"No media files found in: {osPath}")
       return media_inputs, ""
@@ -455,7 +456,7 @@ class Main():
       if media_inputs is not None and len(media_inputs)> 0:
         total_input = media_inputs
         for media in media_inputs:
-          result = self.translate_from_media(media, self.input_dirs, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
+          result = self.translate_from_media(media, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
           total_output.append(result)
           output.append(result)
       return output
@@ -528,7 +529,6 @@ class Main():
       
     def translate_from_media(self,
         media_input,
-        input_dirs = [],
         SOURCE_LANGUAGE= "Automatic detection",
         TRANSLATE_AUDIO_TO="Vietnamese (vi)",
         progress=gr.Progress(),
@@ -963,8 +963,8 @@ class Main():
         try:
           target_dir = os.getenv('COPY_OUTPUT_DIR', '')
           if target_dir and os.path.isdir(target_dir):
-            if media_input.startswith(gradio_temp_processing_dir) and len(input_dirs) > 0:
-              most_matching_prefix = find_most_matching_prefix(input_dirs, media_input)
+            if media_input.startswith(gradio_temp_processing_dir) and len(self.input_dirs) > 0:
+              most_matching_prefix = find_most_matching_prefix(self.input_dirs, media_input)
               target_dir = os.path.join(target_dir, os.path.dirname(media_input).replace(os.path.dirname(most_matching_prefix),"").strip('/')) if os.path.isdir(most_matching_prefix) else os.path.join(target_dir, "/".join(os.path.dirname(media_input).split('/')[3:]).strip('/'))
             subprocess.run(["mkdir", "-p", target_dir], capture_output=True, text=True)
             subprocess.run(["cp", final_output, target_dir], capture_output=True, text=True)
@@ -1278,7 +1278,7 @@ class Main():
             
             # run
             ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
-            link_btn.click(self.handle_link_input, inputs=[link_input], outputs=[media_input, link_input])
+            link_btn.click(self.handle_link_input, inputs=[media_input, link_input], outputs=[media_input, link_input])
             media_btn.click(self.batch_preprocess, inputs=[
                 media_input,
                 srt_input,
