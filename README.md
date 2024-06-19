@@ -39,6 +39,7 @@ pip install -r requirements_stt.txt
 pip install -r requirements_ttt.txt
 pip install -r requirements_tts.txt
 pip install -r requirements_extra.txt
+python -m spacy download en_core_web_sm
 conda install -y nvidia/label/cuda-11.8.0::libcusparse
 conda install -y -c pytorch -c conda-forge cudatoolkit=11.1
 

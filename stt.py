@@ -100,8 +100,9 @@ def STT(
   input_files,
   whisper_model,
   LANGUAGE,
-  batch_size, 
-  chunk_size
+  batch_size,
+  chunk_size,
+  compute_type
   ):
     output_dir_name = new_dir_now()
     output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
@@ -119,7 +120,7 @@ def STT(
         print('file_path::',file_path)
         tmp_dir = os.path.join(output_dir_path, encode_filename(file_path))
         Path(tmp_dir).mkdir(parents=True, exist_ok=True)
-        whisper_args = ['whisperx', '--model', whisper_model, '--no_align', '--batch_size', str(batch_size),'--chunk_size', str(chunk_size), file_path ,'-o', tmp_dir]
+        whisper_args = ['whisperx', '--model', whisper_model, '--no_align', '--batch_size', str(batch_size), '--compute_type', compute_type, '--chunk_size', str(chunk_size), file_path ,'-o', tmp_dir]
         if LANGUAGE != 'Automatic detection':
           whisper_args.extend(['--language', LANGUAGE])
         subprocess.run(whisper_args)
@@ -161,8 +162,9 @@ def web_interface(port):
                         WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                         LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
                       with gr.Row():
-                        batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
-                        chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
+                        batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, scale=1)
+                        chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1, scale=1)
+                        compute_type = gr.Dropdown(['float16','float32'], value='float32',label='Compute Type', scale=1)
                   with gr.Column():
                       def update_output_list():
                         global total_input
@@ -186,7 +188,7 @@ def web_interface(port):
                           return gr.update(label="Audio Files Output"),gr.update(visible=False)
                         btn = gr.Button(value="Generate!", variant="primary")
                         btn.click(STT,
-                                inputs=[input_files, WHISPER_MODEL,LANGUAGE,batch_size, chunk_size],
+                                inputs=[input_files, WHISPER_MODEL,LANGUAGE,batch_size, chunk_size, compute_type],
                                 outputs=[files_output], concurrency_limit=1).then(
                         fn=update_output_visibility,
                         inputs=[],

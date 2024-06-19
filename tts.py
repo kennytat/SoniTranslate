@@ -88,6 +88,7 @@ list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = [voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))]
+list_xtts = [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))]
 list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
 list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
 list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
@@ -230,6 +231,7 @@ class TTS():
       print("Queue list:: ", queue_list.qsize())
       CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
       N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
+      N_JOBS = N_JOBS if self.tts_method != "XTTS" else 1
       
       print("Start TTS:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
@@ -377,7 +379,7 @@ class TTS():
                 with gr.Column():
                   with gr.Accordion("T2S - VC Method", open=False):
                     with gr.Row():
-                      tts_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS"], label='T2S', value="VietTTS", visible=True, elem_id="tts_method",interactive=True)
+                      tts_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS","XTTS"], label='T2S', value="VietTTS", visible=True, elem_id="tts_method",interactive=True)
                       vc_method = gr.Dropdown(["None", "SVC", "RVC", "OpenVoice"], label='Voice Conversion', value="None", visible=True, elem_id="vc_method",interactive=True)
 
                       ## update t2s method
@@ -390,6 +392,8 @@ class TTS():
                             list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
                           case 'PiperTTS':
                             list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
+                          case 'XTTS':
+                            list_tts = list_xtts
                           case _:
                             list_tts = list_gtts
                         return gr.update(choices=list_tts, value=list_tts[0])

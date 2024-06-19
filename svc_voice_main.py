@@ -8,14 +8,6 @@ class SVCClassVoices:
       
     def __call__(self, speaker_list, audio_files, speaker_to_model):
       try:
-        # speaker_to_model = {
-        #     'SPEAKER_00': self.model_voice_path00,
-        #     'SPEAKER_01': self.model_voice_path01,
-        #     'SPEAKER_02': self.model_voice_path02,
-        #     'SPEAKER_03': self.model_voice_path03,
-        #     'SPEAKER_04': self.model_voice_path04,
-        #     'SPEAKER_05': self.model_voice_path05,
-        # }
         speakers = list(dict.fromkeys(speaker_list))
         for speaker in speakers:
           speaker_dir = os.path.join("audio2", speaker)
@@ -30,15 +22,16 @@ class SVCClassVoices:
         for speaker in speakers:
           input_dir = os.path.join('audio2',speaker)
           model_name = speaker_to_model[speaker]
-          SVC_MODEL_DIR = os.path.join(os.getcwd(),"model","svc", model_name)
-          model_path = os.path.join(SVC_MODEL_DIR, "G.pth")
-          config_path = os.path.join(SVC_MODEL_DIR, "config.json")
-          output_dir = f'{input_dir}.out'
-          print('svc command:', f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
-          os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
-          if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
-          os.system(f'mv {output_dir}/* audio2/audio')
-          if os.path.exists(output_dir): shutil.rmtree(output_dir, ignore_errors=True)
+          if model_name != "None":
+            SVC_MODEL_DIR = os.path.join(os.getcwd(),"model","svc", model_name)
+            model_path = os.path.join(SVC_MODEL_DIR, "G.pth")
+            config_path = os.path.join(SVC_MODEL_DIR, "config.json")
+            output_dir = f'{input_dir}.out'
+            print('svc command:', f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
+            os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
+            if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
+            os.system(f'mv {output_dir}/* audio2/audio')
+            if os.path.exists(output_dir): shutil.rmtree(output_dir, ignore_errors=True)
       except KeyError:
         print('SVC Error:: Skip SVC')
     

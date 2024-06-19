@@ -15,6 +15,17 @@ nltk
 cryptography
 vietnam_number
 nest_asyncio
+## === xTTS ===
+# TTS @ git+https://github.com/thinhlpg/TTS.git@add-vietnamese-xtts
+typing-extensions
+cutlet
+deepspeed
+# mecab-python3==1.0.6
+# unidic-lite==1.0.8
+# unidic==1.1.0
+# langid
+# vinorm
+# underthesea
 ## === TTS ===
 gTTS
 edge_tts

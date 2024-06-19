@@ -253,9 +253,10 @@ list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = [voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))]
-list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
-list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
-list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
+list_xtts = [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))]
+list_svc = ["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
+list_rvc = ["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
+list_ovc = ["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
 
 
 # models, index_paths = upload_model_list()
@@ -875,6 +876,7 @@ class Main():
 
         
         N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
+        N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
         print("Start TTS:: concurrency =", N_JOBS)
         with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
           tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed) for (segment) in tqdm(result_diarize['segments']))
@@ -1197,7 +1199,7 @@ class Main():
                     with gr.Row():
                       s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['s2t'], visible=True, elem_id="s2t_method", interactive=True)
                       t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method",interactive=True)
-                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
+                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS","XTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
                       vc_method = gr.Dropdown(["None", "SVC", "RVC", "OpenVoice"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc_method",interactive=True)
                       s2t_method.change(None, s2t_method, None, js="(v) => setStorage('s2t_method',v)")
                       t2t_method.change(None, t2t_method, None, js="(v) => setStorage('t2t_method',v)")
@@ -1232,6 +1234,8 @@ class Main():
                           list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
                         case 'PiperTTS':
                           list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
+                        case 'XTTS':
+                          list_tts = list_xtts
                         case _:
                           list_tts = list_gtts
                       visibility_dict = {
@@ -1502,7 +1506,7 @@ if __name__ == "__main__":
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
-  
+
   ## Enable Auth
   if os.getenv('ENABLE_AUTH', '') == "true":
     root = gr.mount_gradio_app(root, mainApp.app, path="/app", auth_dependency=is_authenticated)

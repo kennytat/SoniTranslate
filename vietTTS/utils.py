@@ -265,7 +265,7 @@ def txt_to_paragraph(txt_input):
           else:
               p_list.append(1)
       else:
-          p_list.append(ParaStruct(p, 0, 0))
+          p_list.append(ParaStruct(p, -1, -1))
 
     # paras = [x for x in paras if x]
     print("Total paras: {}".format(len(p_list)))
@@ -273,13 +273,14 @@ def txt_to_paragraph(txt_input):
     return p_list
   
 def combine_wav_segment(wav_list, output_file):
-    print("synthesization done, start concatenating:: ")
+    print("synthesization done, start concatenating:: ", wav_list[0].start_time)
     if len(wav_list) == 1 and wav_list[0].start_time == 0:
       # move wav_list[0] to output_file
       shutil.move(wav_list[0].wav_path, output_file)
       return (output_file, None)
     else:
-      if wav_list[0].start_time > 0:
+      if wav_list[0].start_time >= 0:
+        print("Enable timeline::::")
       ## If wav_list contain time code, concatenate by time code
         # Calculate the total duration of the combined audio tracks
         audio, sample_rate = librosa.load(wav_list[0].wav_path)
@@ -299,7 +300,7 @@ def combine_wav_segment(wav_list, output_file):
         # Add each audio track to the combined audio array and check if any track overlap each other
         wav_overlap = []
         for i in range(len(wav_list)):
-            print("Combining wav:: ", i, wav_list[i].wav_path)
+            print("Combining wav:: ", i, wav_list[i].start_time)
             # Calculate the start and end sample indices for the current audio track
             start_sample = int((wav_list[i].start_time - start_time) * sample_rate)
             print("start_sample:: ", start_sample)
@@ -330,6 +331,7 @@ def combine_wav_segment(wav_list, output_file):
           print("Combined wav:: ", combined_wav)
         return (output_file, log_file)
       else:
+        print("Disable timeline::::")
       ## If wav_list don't contain time code, concatenate normally
         ### concatenate using sox
         # cbn = sox.Combiner()

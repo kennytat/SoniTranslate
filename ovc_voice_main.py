@@ -40,7 +40,8 @@ class OpenVoice():
     for audio, speaker in segments:
       file_input = f"audio2/{audio}"
       file_output = audio
-      self.convert_voice(file_input, speaker_to_voice[speaker], file_output, speaker_to_vc[speaker])
+      if speaker_to_vc[speaker] != "None":
+        self.convert_voice(file_input, speaker_to_voice[speaker], file_output, speaker_to_vc[speaker])
     os.system(f'mv audio/* audio2/audio')
 
 # if __name__ == "__main__":

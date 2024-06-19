@@ -492,7 +492,7 @@ class RVCClassVoices:
 
             #vc(_speak, _values, audio_files)
 
-            if _speak == "SPEAKER_00":
+            if _speak == "SPEAKER_00" and self.file_index200 != "None":
               self.custom_voice(
                     _values, # filteredd
                     audio_files,
@@ -502,7 +502,7 @@ class RVCClassVoices:
                     f0method=self.f0method,
                     file_index=self.file_index,
                     )
-            elif _speak == "SPEAKER_01":
+            elif _speak == "SPEAKER_01" and self.file_index201 != "None":
                 self.custom_voice(
                     _values,
                     audio_files,
@@ -512,7 +512,7 @@ class RVCClassVoices:
                     f0method=self.f0method,
                     file_index=self.file_index,
                 )
-            elif _speak == "SPEAKER_02":
+            elif _speak == "SPEAKER_02" and self.file_index202 != "None":
                 self.custom_voice(
                     _values,
                     audio_files,
@@ -522,7 +522,7 @@ class RVCClassVoices:
                     f0method=self.f0method,
                     file_index=self.file_index,
                 )
-            elif _speak == "SPEAKER_03":
+            elif _speak == "SPEAKER_03" and self.file_index203 != "None":
                 self.custom_voice(
                     _values,
                     audio_files,
@@ -532,7 +532,7 @@ class RVCClassVoices:
                     f0method=self.f0method,
                     file_index=self.file_index,
                 )
-            elif _speak == "SPEAKER_04":
+            elif _speak == "SPEAKER_04" and self.file_index204 != "None":
                 self.custom_voice(
                     _values,
                     audio_files,
@@ -542,7 +542,7 @@ class RVCClassVoices:
                     f0method=self.f0method,
                     file_index=self.file_index,
                 )
-            elif _speak == "SPEAKER_05":
+            elif _speak == "SPEAKER_05" and self.file_index205 != "None":
                 self.custom_voice(
                     _values,
                     audio_files,
@@ -552,7 +552,7 @@ class RVCClassVoices:
                     f0method=self.f0method,
                     file_index=self.file_index,
                 )
-            elif _speak == "SPEAKER_99":
+            elif _speak == "SPEAKER_99" and self.file_index299 != "None":
                 self.custom_voice(
                     _values,
                     audio_files,

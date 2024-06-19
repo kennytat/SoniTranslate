@@ -32,13 +32,13 @@ class LLM():
                   "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
               ),
               # The `variable_name` here is what must align with memory
-              MessagesPlaceholder(variable_name="history"),
+              # MessagesPlaceholder(variable_name="history"),
               HumanMessagePromptTemplate.from_template("{input}"),
           ]
       )
     
   def initLLM(self, endpoints, model, temp=0.3, k=30):
-    self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
+    # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
     endpoints = endpoints.split(',')
     for endpoint in endpoints:
       try:
@@ -62,7 +62,7 @@ class LLM():
             )
             llm_chain = LLMChain(llm=llm, 
                                 prompt=self.prompt,
-                                memory=self.memory, 
+                                # memory=self.memory, 
                                 verbose=True)
             self.llm_chain.append(llm_chain)
       except Exception as e:
@@ -87,38 +87,40 @@ class LLM():
       print("start llm_translate::")
       # N_JOBS = os.cpu_count()
       # print("Start LLM Translate:: concurrency =", N_JOBS)
-      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(1)):
+      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(10)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text']) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]
       return segments  
 
-if __name__ == '__main__':
-  input_file = '/home/vgm/Desktop/en.srt'
-  segments = srt_to_segments(input_file)
-  # segments = concise_srt(segments)
-  # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
-  print(segments, len(segments))
+# if __name__ == '__main__':
+#   llm = LLM()
+#   llm.initLLM( 
+#     endpoints="https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1", 
+#     model="bible-translator-llama3-5b4e", ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
+#     temp=0.3,
+#     k=10
+#   )
+  
+#   ## Translate segments
+#   input_file = '/home/vgm/Desktop/en.srt'
+#   segments = srt_to_segments(input_file)
+#   # segments = concise_srt(segments)
+#   # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
+#   print(segments, len(segments))
+#   segments = llm.translate(segments)
+#   print("results::",  segments, len(segments))
+#   segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
 
-  # input_texts = [
-  # "Perhaps the most common type of bible reading aid is a calendar-based, daily devotional and in this short tutorial i want to show you how, how easy it is to get to your favorite daily devotional, utilizing the dashboard card we set in a previous tutorial, take a look at my screen, you'll see i've already opened the homepage, if your homepage is not open, click the home icon on the toolbar and, and there's our dashboard card, for me, i set my utmost for his highest",
-  # "You set your favorite, all we have to do to get to today's reading, is click the title on the card, so i'll click my utmost for his highest, and notice that devotional opens right to today's reading, easy breezy, and please notice for me, there's a cross-reference to 2 samuel 23:16, and this is not just true for your daily devotionals, but for all of your logos resources, when you come to a bible reference in a resource notice it's blue, it's hyperlinked, hover over it, rest your cursor on it",
-  # "And you will get a pop-up preview from your preferred bible, if you want your bible to jump there, then click the reference, so i'll click 2 samuel 23:16 and my preferred bible, jumps right there, in logos, there's no page turning, all you have to do is click a reference and logos will, automatically look it up for you, isn't that cool? now let's say, you have your favorite daily devotional open, but you want to read another devotional",
-  # "Notice on the devotionals toolbar, there is the slanted parallel lines, click on it and here are all of your daily devotionals all you have to do, is click one in the list, and that devotional will open again to today's day, so if you want to read your bible along with a daily devotional, make sure you have that dashboard card set"
-  # ]
+
+#   ## Translate texts
+#   # input_texts = [
+#   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+#   # ]
+#   # for text in input_texts:
+#   #   result = llm.process(text)
+#   #   print("result::", result)
+    
   
-  # # input_file = '/home/vgm/Desktop/test.srt'
-  # # output_file = f'{input_file}.txt'
-  # # input_texts = [line.strip() for line in open(input_file, 'r')]
-  # input_texts = [ {"text": text} for text in input_texts]
-  # print("input_texts::", len(input_texts))
-  llm = LLM()
-  llm.initLLM("https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1", "nampdn-ai/vietmistral-chatvgm-3072") ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
-  segments = llm.translate(segments)
-  print("results::",  segments, len(segments))
-  segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
-  
-  # with open(output_file, 'a') as file:
-  #   for item in results:
-  #     file.write(item["text"] + '\n')
+
 

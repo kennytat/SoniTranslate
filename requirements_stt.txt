@@ -5,6 +5,9 @@ yt-dlp
 python-dotenv
 ffmpeg-python
 rarfile
+jmespath
+babel
+colorama
 ## === FastAPI ===
 fastapi
 starlette
