@@ -2,5 +2,4 @@
 # --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
 natsort
 omegaconf==2.1.0
-pyannote.audio==3.0.1
 charset_normalizer==3.3.2

@@ -204,7 +204,7 @@ def concise_srt(srt_list, max_word_length=500):
             test_combined_text = last_para['text'] + " . " + srt_list[i]['text']
             # test_combined_text = fix_special(str(test_combined_text).capitalize())
             # print("test_combined_text length::", len(test_combined_text))
-            if para['speaker'] == last_para['speaker'] and len(test_combined_text) < max_word_length and (para['start'] - last_para['end']).total_seconds() <= 0.5:
+            if para['speaker'] == last_para['speaker'] and len(test_combined_text) < max_word_length and para['start'] - last_para['end'] <= 0.5:
               if "text" in last_para:
                 srt_list[i]['text'] = ""
                 last_para['text'] = test_combined_text

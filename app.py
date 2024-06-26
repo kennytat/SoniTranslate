@@ -814,7 +814,7 @@ class Main():
             'SPEAKER_04': self.vc_voice04,
             'SPEAKER_05': self.vc_voice05
         }
-        result_diarize['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if item['speaker'] != None else "", 'speed': speaker_to_speed[item['speaker']]} for item in result_diarize['segments']]
+        result_diarize['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if 'speaker' in item else "", 'speed': speaker_to_speed[item['speaker']] if 'speaker' in item else 1} for item in result_diarize['segments']]
         print("Diarize complete::", result_diarize['segments'][0])
 
 
@@ -1503,7 +1503,7 @@ if __name__ == "__main__":
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {gradio_temp_dir}/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  port=6860
+  port=6864
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
