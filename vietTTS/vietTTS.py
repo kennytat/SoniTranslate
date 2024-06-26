@@ -12,7 +12,7 @@ import gc
 import numpy as np
 import regex
 from vietTTS.models import DurationNet, SynthesizerTrn
-from vietTTS.utils import normalize, num_to_str, read_number
+from vietTTS.utils import normalize, num_to_str, read_number, replace_dict
 
 TTS_MODEL_DIR = os.path.join(os.getcwd(),"model","vits")
 
@@ -166,6 +166,7 @@ def text_to_speech(text, output_file, model_name,speed = 1):
     else:
       duration_net, generator = load_models(tts_voice_ckpt_dir, voice_data[model_name]["config"])
       text = text if detect(text) == 'vi' else ' . '
+      text = replace_dict(text)
       tts_result = inference(duration_net, generator, text, voice_data[model_name]["phone_set"], voice_data[model_name]["config"], speed)
       wav = np.concatenate([tts_result])
       # Equalize and Normalize

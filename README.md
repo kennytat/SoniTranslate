@@ -40,8 +40,8 @@ pip install -r requirements_ttt.txt
 pip install -r requirements_tts.txt
 pip install -r requirements_extra.txt
 python -m spacy download en_core_web_sm
-conda install -y nvidia/label/cuda-11.8.0::libcusparse
-conda install -y -c pytorch -c conda-forge cudatoolkit=11.1
+conda install -y nvidia/label/cuda-12.2.2::libcusparse
+conda install -y nvidia/label/cuda-12.2.2::cuda-toolkit
 
 rm -rf $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/data/checkpoints
 ln -s model/neuspell $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/data/checkpoints

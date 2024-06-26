@@ -4,4 +4,3 @@ natsort
 omegaconf==2.1.0
 pyannote.audio==3.0.1
 charset_normalizer==3.3.2
-TTS @ git+https://github.com/kennytat/TTS.git@vietnamese

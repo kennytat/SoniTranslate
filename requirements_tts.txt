@@ -16,10 +16,11 @@ cryptography
 vietnam_number
 nest_asyncio
 ## === xTTS ===
-# TTS @ git+https://github.com/thinhlpg/TTS.git@add-vietnamese-xtts
+TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
 typing-extensions
 cutlet
 deepspeed
+pinyin
 # mecab-python3==1.0.6
 # unidic-lite==1.0.8
 # unidic==1.1.0

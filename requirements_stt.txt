@@ -1,4 +1,4 @@
---extra-index-url https://download.pytorch.org/whl/cu117 torch==2.0.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2+cu117
+--extra-index-url https://download.pytorch.org/whl/cu121 torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1+cu121
 whisperx @ git+https://github.com/m-bain/whisperx.git #git+https://github.com/R3gm/whisperX.git@cuda_11_8 #git+https://github.com/kennytat/whisperx.git@large-v3
 gradio==4.29.0
 yt-dlp

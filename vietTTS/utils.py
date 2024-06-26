@@ -128,6 +128,9 @@ def normalize(text):
   text = parser.parseBibleVerse(text)
   del parser
   text = fix_special(text)
+  return text
+
+def replace_dict(text):
   for word, replacement in dictOfStrings.items():
     text = text.replace(word, replacement)
   return text
@@ -144,66 +147,87 @@ def remove_comment(txt_input):
   txt = re.sub(pattern, "", txt_input, flags=re.MULTILINE|re.DOTALL)
   return txt
 
-def combine_sentences(sentences_list, max_word_length=750):
-    combined_sentences_list = []
-    current_sentence = ""
-
-    for sentence in sentences_list:
+def combine_sentences(sentences, min_word_length=50, max_word_length=250):
+    processed_sentences = []
+    peak_word_length = max_word_length + 100
+    i = 0
+    while i < len(sentences):
+        sentence = sentences[i]
         if sentence.strip().isnumeric():
-          if current_sentence:
-            combined_sentences_list.append(current_sentence)
-          combined_sentences_list.append(sentence)
-        elif len(current_sentence + sentence) <= max_word_length:
-            current_sentence += sentence
+           processed_sentences.append(sentence)
+        elif len(sentence) > peak_word_length:
+            words = sentence.split()
+            mid_index = len(words) // 2
+            # Find the split point around the middle index
+            left_part = " ".join(words[:mid_index])
+            right_part = " ".join(words[mid_index:])
+            processed_sentences.append(left_part)
+            processed_sentences.append(right_part)
+        elif max_word_length < len(sentence) <= peak_word_length:
+            processed_sentences.append(sentence)
+        elif len(sentence) < min_word_length:
+            if i + 1 < len(sentences):
+                next_sentence = sentences[i + 1]
+                concatenated_sentence = sentence + " " + next_sentence
+                sentences[i + 1] = concatenated_sentence
+            else:
+                processed_sentences.append(sentence)
         else:
-            combined_sentences_list.append(current_sentence)
-            current_sentence = sentence
+            processed_sentences.append(sentence)
+        i += 1
 
-    combined_sentences_list.append(current_sentence)
-    combined_sentences_list = [item for item in combined_sentences_list if item != ""]
-    return combined_sentences_list
+    # Handling case where last sentence may still be less than 50 characters
+    if len(processed_sentences) > 1 and len(processed_sentences[-1]) < min_word_length:
+        processed_sentences[-2] += " " + processed_sentences[-1]
+        processed_sentences.pop()
+
+    return processed_sentences
   
 def concise_srt(srt_list, max_word_length=500):
-    if isinstance(srt_list[0], srt.Subtitle):
-      srt_list = list([vars(obj) for obj in srt_list])
-      for item in srt_list:
-        item["text"] = item.pop("content")
-    modified_paras = []
-    ## Remove non text segment
-    srt_list = [para for para in srt_list if "speaker" in para and "♪" not in para['text']]
-    ## concat para
-    for i, para in enumerate(srt_list):
-      try:
-        if len(modified_paras) == 0:
-          modified_paras.append(para)
-        # print("processing::", i)
-        if i > 0 and srt_list[i]['text'] != "":
-          last_para = modified_paras[-1]
-          test_combined_text = last_para['text'] + " . " + srt_list[i]['text']
-          test_combined_text = fix_special(str(test_combined_text).capitalize())
-          # print("test_combined_text length::", len(test_combined_text))
-          if para['speaker'] == last_para['speaker'] and len(test_combined_text) < max_word_length and para['start'] - last_para['end'] <= 0.5:
-            if "text" in last_para:
-              srt_list[i]['text'] = ""
-              last_para['text'] = test_combined_text
-            if "words" in last_para:
-              last_para['words'].extend(srt_list[i]['words'])
-            if "chars" in last_para:
-              last_para['chars'].extend(srt_list[i]['chars'])
-            last_para['end'] = srt_list[i]['end'] 
-            modified_paras[-1] = last_para
-          else:
-            para['text'] = fix_special(str(para['text']).capitalize())
+    try:
+      if isinstance(srt_list[0], srt.Subtitle):
+        srt_list = list([vars(obj) for obj in srt_list])
+        for item in srt_list:
+          item["text"] = item.pop("content")
+          item["speaker"] = "SPEAKER_00"
+      modified_paras = []
+      ## Remove non text segment
+      srt_list = [para for para in srt_list if "speaker" in para and "♪" not in para['text']]
+      ## concat para
+      for i, para in enumerate(srt_list):
+        try:
+          if len(modified_paras) == 0:
             modified_paras.append(para)
-      except Exception as error:
-        print("error::", i, error)
-        pass
-    ## Input index number
-    for i, para in enumerate(modified_paras):
-      if "index" in para:
-        para['index'] = i + 1
-    # print("modified_paras::", len(modified_paras), modified_paras)
-    return modified_paras
+          # print("processing::", i)
+          if i > 0 and srt_list[i]['text'] != "":
+            last_para = modified_paras[-1]
+            test_combined_text = last_para['text'] + " . " + srt_list[i]['text']
+            # test_combined_text = fix_special(str(test_combined_text).capitalize())
+            # print("test_combined_text length::", len(test_combined_text))
+            if para['speaker'] == last_para['speaker'] and len(test_combined_text) < max_word_length and (para['start'] - last_para['end']).total_seconds() <= 0.5:
+              if "text" in last_para:
+                srt_list[i]['text'] = ""
+                last_para['text'] = test_combined_text
+              if "words" in last_para:
+                last_para['words'].extend(srt_list[i]['words'])
+              if "chars" in last_para:
+                last_para['chars'].extend(srt_list[i]['chars'])
+              last_para['end'] = srt_list[i]['end'] 
+              modified_paras[-1] = last_para
+            else:
+              # para['text'] = fix_special(str(para['text']).capitalize())
+              modified_paras.append(para)
+        except Exception as error:
+          print("error::", i, error)
+          pass
+      ## Input index number
+      for i, para in enumerate(modified_paras):
+        if "index" in para:
+          para['index'] = i + 1
+      # print("modified_paras::", len(modified_paras), modified_paras)
+      return modified_paras
+    except Exception as e:
+      print('Concise SRT Error:', e)
   
 def transcript_to_srt(txt_input):
   try:
@@ -242,19 +266,18 @@ def txt_to_paragraph(txt_input):
   # print("SRT:: \n", srt)
   try:
     subs = list(srt.parse(srt_input))
-    subs = list([vars(obj) for obj in subs])
-    subs = [para for para in subs if "♪" not in para['content']]    
-    # subs = concise_srt(subs)
+    subs = concise_srt(subs)
     for i, para in enumerate(subs):
       subs[i]["duration"] = (para["end"] - para["start"]).total_seconds()
       # subs[i].start_silence = para.start.total_seconds() if i <= 0 else (para.start - subs[i - 1].end).total_seconds()
       subs[i]["start_time"] = para["start"].total_seconds()
     return [ParaStruct(para["content"], para["duration"], para["start_time"]) for para in subs]
-  except:
-    print("Input txt is not SRT - parse normally:::::")
+  except Exception as e:
+    print("Input txt is not SRT - parse normally:::::", e)
     paras = txt_input.lower()
     paras = remove_comment(paras)
     paras = sent_tokenize(paras)
+    paras = combine_sentences(sentences=paras, min_word_length=10, max_word_length=500)
     # Each new line between paragraphs add more silence duration
     p_list = []
     for p in paras:

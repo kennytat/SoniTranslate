@@ -596,6 +596,7 @@ class Main():
         audio_wav = f"{source_media_output_basename}.wav"
         audio_webm = f"{source_media_output_basename}.webm"
         translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.wav")
+        max_word_length = 375 if self.t2t_method == "LLM" else 500
         
         # os.system("rm -rf Video.mp4")
         # os.system("rm -rf audio_origin.webm")
@@ -846,7 +847,7 @@ class Main():
         with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
           srtFile.write(json.dumps(result_diarize['segments']))
         segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}-origin.srt')
-        result_diarize['segments'] = concise_srt(result_diarize['segments'], 375 if self.t2t_method == "LLM" else 500)
+        result_diarize['segments'] = concise_srt(result_diarize['segments'], max_word_length)
         segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
         segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
         target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
@@ -854,7 +855,7 @@ class Main():
           # Start convert from srt if srt found
           print("srt file exist::", target_srt_inputpath)
           result_diarize['segments'] = srt_to_segments(target_srt_inputpath)
-          result_diarize['segments'] = concise_srt(result_diarize['segments'])
+          result_diarize['segments'] = concise_srt(result_diarize['segments'], max_word_length)
         else:
           # Start translate if srt not found
           result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)

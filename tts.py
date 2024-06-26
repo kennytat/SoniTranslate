@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import sys
 import gc
+from natsort import natsorted
 from pathlib import Path
 import atexit
 from datetime import datetime
@@ -21,7 +22,6 @@ from types import SimpleNamespace
 import joblib
 from joblib import Parallel, delayed
 from pydub import AudioSegment
-from langdetect import detect
 from queue import Queue
 import gradio as gr
 import numpy as np
@@ -87,11 +87,11 @@ class CONFIG():
 list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
-list_vtts = [voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))]
-list_xtts = [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))]
-list_svc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
-list_rvc = [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
-list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
+list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_svc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
+list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 class TTS():
   def __init__(self):
@@ -118,7 +118,6 @@ class TTS():
             second_of_silence.export(output_file, format="wav")
         else:
           # duration_net, generator = self.load_models(tts_voice_ckpt_dir, hps)
-          text = text if detect(text) == self.tts_lang else ' . '
           make_voice_gradio(text, tts_voice, speed, output_file, self.tts_lang, self.tts_method)
         
           ## For tts with timeline
@@ -194,7 +193,6 @@ class TTS():
       paragraphs = ""
       file_name_only = ""
       basename, ext = os.path.splitext(os.path.basename(input))
-      print(basename, ext)
       if is_file:
         file_name_only = Path(basename)
         filepath = encode_filename(input)
@@ -551,7 +549,7 @@ if __name__ == "__main__":
     ## Set torch multiprocessing
     mp.set_start_method('spawn', force=True)
     host = "localhost"
-    port = 7901
+    port = 7904
     tts = TTS()
     app = tts.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":
