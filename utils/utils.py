@@ -775,3 +775,27 @@ def find_most_matching_prefix(path_list, path):
         if path.startswith(prefix) and len(prefix) > len(matching_prefix):
             matching_prefix = prefix
     return matching_prefix
+  
+def split_and_join_by_comma(long_string, max_length=250):
+    # Split the string by commas
+    parts = long_string.split(',')
+    
+    # Initialize the result list and a temporary buffer
+    result = []
+    temp_buffer = ""
+    
+    for part in parts:
+        if len(temp_buffer) + len(part) + 1 <= max_length:
+            if temp_buffer:
+                temp_buffer += "," + part
+            else:
+                temp_buffer = part
+        else:
+            result.append(temp_buffer)
+            temp_buffer = part
+    
+    # Append the remaining buffer if it's not empty
+    if temp_buffer:
+        result.append(temp_buffer)
+    
+    return result

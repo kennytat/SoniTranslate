@@ -1,1 +1,10 @@
-{"s2t": "Whisper", "t2t": "LLM", "t2s": "VietTTS", "vc": "None", "llm_url": "http://infer-2.vgm.chat/v1,http://infer-3.vgm.chat/v1", "llm_models": ["bible-translator-llama3-5b4e", "trust-translator-4e"], "llm_model": "bible-translator-llama3-5b4e"}
+{
+  "s2t": "Whisper",
+  "t2t": "Google",
+  "t2s": "XTTS",
+  "t2s_lang": "Vietnamese (vi)",
+  "vc": "None",
+  "llm_url": "http://infer-2.vgm.chat,http://infer-3.vgm.chat",
+  "llm_models": ["bible-translator-llama3-5b4e", "trust-translator-4e"],
+  "llm_model": "bible-translator-llama3-5b4e"
+}

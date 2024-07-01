@@ -41,7 +41,7 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
-from text_to_speech import make_voice_gradio
+from text_to_speech import TTSClient
 from utils.tts_utils import edge_tts_voices_list, piper_tts_voices_list
 from utils.language_configuration import LANGUAGES
 from ovc_voice_main import OpenVoice
@@ -81,6 +81,7 @@ class CONFIG():
     empty_wav = Path(os.path.join(f'{os_tmp}', "test.wav"))
     tts_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "vits"))
     svc_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "svc"))
+    gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", "/tmp/gradio-vgm")
     # salt = Path(os.path.join(os.getcwd(), "model","tts", "salt.salt"))
     # key = "^VGMAI*607#"
 
@@ -93,11 +94,97 @@ list_svc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("mo
 list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
 list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
+# Function to save settings to a JSON file
+def save_settings(settings, filename='user_settings.json'):
+    with open(filename, 'w') as f:
+        json.dump(settings, f)
+
+# Function to load settings from a JSON file
+def load_settings(filename='user_settings.json'):
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+user_settings=load_settings()
+
+def get_tts_list(method, language):
+  print("method::", method, language)
+  match method:
+    case 'VietTTS':
+      list_tts = list_vtts
+    case 'EdgeTTS':
+      list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
+    case 'PiperTTS':
+      list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
+    case 'XTTS':
+      list_tts = list_xtts
+    case _:
+      list_tts = list_gtts
+  return list_tts
+
+def get_vc_list(method):
+  match method:
+    case 'SVC':
+      list_vc = list_svc
+    case 'RVC':
+      list_vc = list_rvc
+    case 'OpenVoice':
+      list_vc = list_ovc
+    case _:
+      list_vc = [""]
+  return list_vc
+
+get_local_storage = """
+function() {
+  globalThis.setStorage = (key, value) => {
+    localStorage.setItem(key, JSON.stringify(value));
+  };
+  globalThis.getStorage = (key, value) => {
+    return JSON.parse(localStorage.getItem(key));
+  };
+  const t2s_method = getStorage("t2s_method");
+  const vc_method = getStorage("vc_method");
+
+  const tts_voice = getStorage("tts_voice");
+  const tts_speed = getStorage("tts_speed");
+  const vc_voice = getStorage("vc_voice");
+  const TRANSLATE_AUDIO_TO = getStorage("TRANSLATE_AUDIO_TO");
+
+
+  return [
+    t2s_method || "VietTTS",
+    vc_method || "None",
+    tts_voice,
+    tts_speed || 1,
+    vc_voice,
+    TRANSLATE_AUDIO_TO || "Vietnamese (vi)",
+  ];
+}
+"""
+
+play_sample_audio_js = """
+(method, voice) => {
+  console.log('play sample::', method, voice)
+  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${method}-${voice.split(".")[0]}.wav`);
+  audio.play().then(() => {
+    console.log("Audio is playing");
+  }).catch(error => {
+    console.error("Error playing audio:", error);
+  });
+  return
+}
+"""
+
 class TTS():
   def __init__(self):
     self.upsampler = None
+    self.tts_client = TTSClient()
+    self.list_vc = get_vc_list(user_settings["vc"])
+    self.list_tts = get_tts_list(user_settings["t2s"], user_settings["t2s_lang"])
           
-  def tts(self, text, output_file, tts_voice, speed = 1, desired_duration = 0, start_time = 0):
+  def tts(self, text, output_file, tts_voice, speed, desired_duration, start_time, tts_client):
       # tts_voice_ckpt_dir = os.path.join(CONFIG.tts_ckpt_dir, tts_voice)
       # print("selected TTS voice:", tts_voice_ckpt_dir)
       try:
@@ -118,7 +205,7 @@ class TTS():
             second_of_silence.export(output_file, format="wav")
         else:
           # duration_net, generator = self.load_models(tts_voice_ckpt_dir, hps)
-          make_voice_gradio(text, tts_voice, speed, output_file, self.tts_lang, self.tts_method)
+          tts_client.make_voice_gradio(text, tts_voice, speed, output_file, self.TRANSLATE_AUDIO_TO, self.t2s_method)
         
           ## For tts with timeline
           if desired_duration > 0:
@@ -229,11 +316,15 @@ class TTS():
       print("Queue list:: ", queue_list.qsize())
       CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
       N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-      N_JOBS = N_JOBS if self.tts_method != "XTTS" else 1
-      
+      N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
       print("Start TTS:: concurrency =", N_JOBS)
+      
+      if self.tts_client.tts_client == None:
+        self.tts_client.init_tts_client(self.t2s_method)
+      print("Initializing TTS Client::", self.t2s_method)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
-        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence) for (text, output_file, total_duration, start_silence) in queue_list.queue)
+        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence, self.tts_client) for (text, output_file, total_duration, start_silence) in queue_list.queue)
+      self.tts_client.tts_client = None
       
       if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
         print("Start Upsampling::")
@@ -274,18 +365,18 @@ class TTS():
     self,
     input_files,
     input_text,
-    tts_lang,
+    TRANSLATE_AUDIO_TO,
     tts_voice,
     vc_voice,
     speed=1,
     method="join",
-    tts_method="VietTTS",
+    t2s_method="VietTTS",
     vc_method="None"
     ):
-      self.tts_lang = LANGUAGES[tts_lang]
+      self.TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
       self.tts_voice = tts_voice
       self.vc_voice = vc_voice
-      self.tts_method = tts_method
+      self.t2s_method = t2s_method
       self.vc_method = vc_method
       output_dir_name = new_dir_now()
       output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
@@ -323,10 +414,10 @@ class TTS():
       print("[DONE] {} tasks: {}".format(len(results_list), results_list))
       return results_list, result_text, logs_list
 
-  def refresh_model(self, tts_method):
-    if tts_method == "SVC":
+  def refresh_model(self, t2s_method):
+    if t2s_method == "SVC":
       vc_list = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
-    if tts_method == "OpenVoice":
+    if t2s_method == "OpenVoice":
       vc_list = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
     return gr.update(choices=vc_list)
   
@@ -336,13 +427,33 @@ class TTS():
     gr.Info(f'Created voice: {model_name}')
     del ov
     return None, None
-   
+
+  def create_sample_audio(self, method, voice):
+    file_name = f"{method}-{voice.split('.')[0]}.wav"
+    voice_path = os.path.join("sample_audio", file_name)
+    voice_tmp_path = os.path.join(CONFIG.gradio_temp_dir, "voices", file_name)
+    sample_text = "Đoạn trường tân thanh, thường được biết đến với cái tên đơn giản là Truyện Kiều, là một truyện thơ của đại thi hào Nguyễn Du."
+    if self.tts_client.tts_client == None:
+      gr.Info(f'Initializing: {method} - please wait for 10 seconds')
+      self.tts_client.init_tts_client(method)
+    if not os.path.isfile(voice_path):
+      gr.Info(f'Creating sample audio: {method} - {voice}')
+      self.tts_client.make_voice_gradio(sample_text, voice, 1, voice_path, "vi", method)
+      if os.path.isfile(voice_path):
+        shutil.copy(voice_path, voice_tmp_path)
+      else:
+        gr.Warning(f'TTS_Client not ready | Please wait and try again in 30 seconds.')
+    return gr.update(value="")
+    
   def web_interface(self, port):
     css = """
     .btn-active {background-color: "orange"}
     #logout_btn {
       align-self: self-end;
       width: 65px;
+    }
+    .sample-button {
+      min-width: 100px;
     }
     """
     # title="VGM Text To Speech",
@@ -361,11 +472,18 @@ class TTS():
                         input_files = gr.Files(label="Upload .doc|.docx|.txt|.srt file(s)", file_types=[".doc", ".docx", ".txt", ".srt"])
                         textbox = gr.Textbox(label="Text for synthesize")
                         with gr.Row():
-                          tts_lang = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language', scale=1)
-                          tts_voice = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker', visible=True, elem_id="tts_voice")
-                          vc_voice = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker', visible=False, elem_id="vc_voice")
-                        duration_slider = gr.Slider(minimum=0.5, maximum=1.5, value=1, step=0.02, label='Speed')
+                          TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language')
+                          tts_voice = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker', visible=True, elem_id="tts_voice")
+                          vc_voice = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker', visible=False, elem_id="vc_voice")
+                          sample_button = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_classes="sample-button", scale=0)
+                        tts_speed = gr.Slider(minimum=0.5, maximum=1.5, value=1, step=0.02, label='Speed')
                         method = gr.Radio(label="Method", value="join", choices=["join","split"])
+                        
+                        TRANSLATE_AUDIO_TO.change(None, TRANSLATE_AUDIO_TO, None, js="(v) => setStorage('TRANSLATE_AUDIO_TO',v)")
+                        tts_voice.change(None, tts_voice, None, js="(v) => setStorage('tts_voice',v)")
+                        vc_voice.change(None, vc_voice, None, js="(v) => setStorage('vc_voice',v)")
+                        tts_speed.change(None, tts_speed, None, js="(v) => setStorage('tts_speed',v)")
+                        
                     with gr.Column():
                         files_output = gr.Files(label="Files Audio Output")
                         audio_output = gr.Audio(label="Text Audio Output", elem_id="tts-audio")
@@ -377,44 +495,62 @@ class TTS():
                 with gr.Column():
                   with gr.Accordion("T2S - VC Method", open=False):
                     with gr.Row():
-                      tts_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS","XTTS"], label='T2S', value="VietTTS", visible=True, elem_id="tts_method",interactive=True)
+                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS","XTTS"], label='T2S', value="VietTTS", visible=True, elem_id="t2s_method",interactive=True)
                       vc_method = gr.Dropdown(["None", "SVC", "RVC", "OpenVoice"], label='Voice Conversion', value="None", visible=True, elem_id="vc_method",interactive=True)
+                      t2s_method.change(None, t2s_method, None, js="(v) => setStorage('t2s_method',v)")
+                      vc_method.change(None, vc_method, None, js="(v) => setStorage('vc_method',v)")
 
-                      ## update t2s method
-                      def update_t2s_list(method, language):
-                        # print("method::", method, language, media_input)
-                        match method:
-                          case 'VietTTS':
-                            list_tts = list_vtts
-                          case 'EdgeTTS':
-                            list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
-                          case 'PiperTTS':
-                            list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
-                          case 'XTTS':
-                            list_tts = list_xtts
-                          case _:
-                            list_tts = list_gtts
-                        return gr.update(choices=list_tts, value=list_tts[0])
-                    tts_method.change(update_t2s_list, [tts_method, tts_lang], tts_voice)
-                    tts_lang.change(update_t2s_list, [tts_method, tts_lang], tts_voice)
+                      ## update tts method
+                      def update_t2s_list(method="", language=""):
+                        method = method if method else user_settings['t2s']
+                        language = language if language else user_settings['t2s_lang']
+                        print("tts method changed::", method)
+                        user_settings['t2s_lang'] = language
+                        save_settings(user_settings)
+                        self.list_tts = get_tts_list(method, language)
+                        print("update_t2s_list called::", method, language, self.list_tts)
+                        return gr.update(choices=self.list_tts)
+                    t2s_method.change(self.tts_client.init_tts_client, [t2s_method], None)
+                    t2s_method.change(update_t2s_list, [t2s_method, TRANSLATE_AUDIO_TO], tts_voice)
+                    TRANSLATE_AUDIO_TO.change(update_t2s_list, [t2s_method, TRANSLATE_AUDIO_TO], tts_voice)
                   with gr.Accordion("Open Voice", visible=False) as open_voice_accordion:
                     ov_file = gr.File(label="Upload audio file", file_types=["audio"])
                     ov_name = gr.Textbox(label="Model Name")
                     ov_btn = gr.Button(value="Create Voice", variant="primary")
-                    
-                def update_voice_conversion(method):
+                def update_vc_list(method):
                   visible = True if method != "None" else False
+                  self.list_vc = get_vc_list(method)
                   return  gr.update(visible=visible), gr.update(visible=method=='OpenVoice')
-                vc_method.change(update_voice_conversion, [vc_method], [vc_voice, open_voice_accordion])    
+                vc_method.change(update_vc_list, [vc_method], [vc_voice, open_voice_accordion])    
                     
         ## Run function
-        clear_btn.click(self.refresh_model, inputs=[tts_method], outputs=[vc_voice])
+        clear_btn.click(self.refresh_model, inputs=[t2s_method], outputs=[vc_voice])
+        sample_button.click(self.create_sample_audio, inputs=[t2s_method, tts_voice], outputs=sample_button).then(
+          None, inputs=[t2s_method, tts_voice], outputs=None, js=play_sample_audio_js
+        )
         ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
         btn.click(self.speak,
-                inputs=[input_files, textbox, tts_lang, tts_voice, vc_voice, duration_slider, method, tts_method, vc_method],
+                inputs=[input_files, textbox, TRANSLATE_AUDIO_TO, tts_voice, vc_voice, tts_speed, method, t2s_method, vc_method],
                 outputs=[files_output, audio_output, logs_output], concurrency_limit=1)
-                                              
-    app.queue()
+        
+        app.load(
+          update_t2s_list,
+          inputs=None,
+          outputs=tts_voice
+          ).then(
+            None,
+            inputs=None,
+            outputs=[
+            t2s_method,
+            vc_method,
+            tts_voice,
+            tts_speed,
+            vc_voice,
+            TRANSLATE_AUDIO_TO,
+            ],
+            js=get_local_storage,
+        )                                          
+        app.queue()
     return app
 
 @atexit.register
@@ -544,12 +680,14 @@ if __name__ == "__main__":
     print("Application running on::", sys.platform)
     os.makedirs( CONFIG.os_tmp, exist_ok=True)
     os.system(f'rm -rf { CONFIG.os_tmp}/*')
-    os.system(f'rm -rf /tmp/gradio-vgm/*')
+    os.system(f'rm -rf { CONFIG.gradio_temp_dir}/*')
+    os.system(f'mkdir -p { CONFIG.gradio_temp_dir}/voices')
+    os.system(f'cp -r sample_audio/* {CONFIG.gradio_temp_dir}/voices/')
     CONFIG.empty_wav.touch(exist_ok=True)
     ## Set torch multiprocessing
     mp.set_start_method('spawn', force=True)
     host = "localhost"
-    port = 7904
+    port = 7901
     tts = TTS()
     app = tts.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":

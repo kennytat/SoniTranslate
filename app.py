@@ -5,6 +5,7 @@ import yt_dlp
 from pathlib import Path,PureWindowsPath, PurePosixPath
 import joblib
 from joblib import Parallel, delayed
+from natsort import natsorted
 import gradio as gr
 import whisperx
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
@@ -19,7 +20,7 @@ import re
 from tqdm import tqdm
 import os
 from audio_segments import create_translated_audio
-from text_to_speech import make_voice_gradio
+from text_to_speech import TTSClient
 from translate_segments import translate_text
 import time
 import shutil
@@ -99,6 +100,9 @@ css = """
 #logout_btn {
   align-self: self-end;
   width: 65px;
+}
+.sample-button {
+  min-width: 100px;
 }
 """
 get_local_storage = """
@@ -194,6 +198,19 @@ function() {
 }
 """
 
+play_sample_audio_js = """
+(method, voice) => {
+  console.log('play sample::', method, voice)
+  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${method}-${voice.split(".")[0]}.wav`);
+  audio.play().then(() => {
+    console.log("Audio is playing");
+  }).catch(error => {
+    console.error("Error playing audio:", error);
+  });
+  return
+}
+"""
+
 title = "<strong><font size='7'>VGM Translate</font></strong>"
 
 description = """
@@ -252,12 +269,11 @@ else:
 list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
-list_vtts = [voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))]
-list_xtts = [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))]
-list_svc = ["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
-list_rvc = ["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]
-list_ovc = ["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
-
+list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_svc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
+list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # models, index_paths = upload_model_list()
 
@@ -283,12 +299,42 @@ def load_settings(filename='user_settings.json'):
         return {}
 
 user_settings=load_settings()
- 
+
+def get_tts_list(method, language):
+  print("method::", method, language)
+  match method:
+    case 'VietTTS':
+      list_tts = list_vtts
+    case 'EdgeTTS':
+      list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
+    case 'PiperTTS':
+      list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
+    case 'XTTS':
+      list_tts = list_xtts
+    case _:
+      list_tts = list_gtts
+  return list_tts
+
+def get_vc_list(method):
+  match method:
+    case 'SVC':
+      list_vc = list_svc
+    case 'RVC':
+      list_vc = list_rvc
+    case 'OpenVoice':
+      list_vc = list_ovc
+    case _:
+      list_vc = [""]
+  return list_vc
+    
 class Main():
     def __init__(self):
-        self.create_ui()
         self.local_input_dirs = []
         self.local_input_temp_pairs = []
+        self.tts_client = TTSClient()
+        self.list_tts = get_tts_list(user_settings["t2s"], user_settings["t2s_lang"])
+        self.list_vc = get_vc_list(user_settings["vc"])
+        self.create_ui()
  
     def handle_link_input(self, media_inputs, link_inputs):
       # print("media::", media_inputs)
@@ -488,7 +534,7 @@ class Main():
       # sf.write(filepath, data=data[:target_samples], samplerate=48000)
       return file
 
-    def tts(self, segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed):
+    def tts(self, segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, tts_client):
         text = segment['text']
         start = segment['start']
         end = segment['end']
@@ -505,8 +551,8 @@ class Main():
         # make the tts audio
         filename = f"audio/{start}.wav"
 
-        if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None':
-            make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, TRANSLATE_AUDIO_TO, self.t2s_method)
+        if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None' and tts_client and tts_client.tts_client != None:
+            tts_client.make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, TRANSLATE_AUDIO_TO, self.t2s_method)
         elif speaker == "SPEAKER_99":
             second_of_silence = AudioSegment.silent(duration=duration_true) # or be explicit
             second_of_silence = second_of_silence.set_frame_rate(16000)
@@ -879,8 +925,13 @@ class Main():
         N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
         N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
         print("Start TTS:: concurrency =", N_JOBS)
+        
+        if self.tts_client.tts_client == None:
+          self.tts_client.init_tts_client(self.t2s_method)
+        print("Initializing TTS Client::", self.t2s_method)
         with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
-          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed) for (segment) in tqdm(result_diarize['segments']))
+          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(result_diarize['segments']))
+        self.tts_client.tts_client = None
         
         if os.getenv('UPSAMPLING_ENABLE', '') == "true":
           progress(0.75, desc="Upsampling...")
@@ -994,7 +1045,24 @@ class Main():
       gr.Info(f'Created voice: {model_name}')
       del ov
       return None, None  
-       
+
+    def create_sample_audio(self, method, voice):
+      file_name = f"{method}-{voice.split('.')[0]}.wav"
+      voice_path = os.path.join("sample_audio", file_name)
+      voice_tmp_path = os.path.join(gradio_temp_dir, "voices", file_name)
+      sample_text = "Đoạn trường tân thanh, thường được biết đến với cái tên đơn giản là Truyện Kiều, là một truyện thơ của đại thi hào Nguyễn Du."
+      if self.tts_client.tts_client == None:
+        gr.Info(f'Initializing: {method} - please wait for 10 seconds')
+        self.tts_client.init_tts_client(method)
+      if not os.path.isfile(voice_path):
+        gr.Info(f'Creating sample audio: {method} - {voice}')
+        self.tts_client.make_voice_gradio(sample_text, voice, 1, voice_path, "vi", method)
+        if os.path.isfile(voice_path):
+          shutil.copy(voice_path, voice_tmp_path)
+        else:
+          gr.Warning(f'TTS_Client not ready | Please wait and try again in 30 seconds.')
+      return gr.update(value="")
+         
     def create_ui(self):
         self.app = gr.Blocks(title="VGM Translate", theme=theme, css=css)
         with self.app:
@@ -1036,47 +1104,53 @@ class Main():
                         max_speakers.change(None, max_speakers, None, js="(v) => setStorage('max_speakers',v)")
                         gr.Markdown("Select the voice you want for each speaker.")
                         with gr.Row() as tts_voice00_row:
-                          tts_voice00 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 1', visible=True, elem_id="tts_voice00")
+                          tts_voice00 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 1', visible=True, elem_id="tts_voice00")
                           tts_speed00 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 1", step=0.02, elem_id="tts_speed00", interactive=True)
-                          vc_voice00 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker 1', visible=False, elem_id="vc_voice00")
+                          vc_voice00 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 1', visible=user_settings['vc']!="None", elem_id="vc_voice00")
                           tts_voice00.change(None, tts_voice00, None, js="(v) => setStorage('tts_voice00',v)")
                           tts_speed00.change(None, tts_speed00, None, js="(v) => setStorage('tts_speed00',v)")
                           vc_voice00.change(None, vc_voice00, None, js="(v) => setStorage('vc_voice00',v)")
+                          sample_button00 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button00", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice01_row:
-                          tts_voice01 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 2', visible=True, elem_id="tts_voice01")
+                          tts_voice01 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 2', visible=True, elem_id="tts_voice01")
                           tts_speed01 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 2", step=0.02, elem_id="tts_speed01", interactive=True)
-                          vc_voice01 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker 2', visible=False, elem_id="vc_voice01")
+                          vc_voice01 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 2', visible=user_settings['vc']!="None", elem_id="vc_voice01")
                           tts_voice01.change(None, tts_voice01, None, js="(v) => setStorage('tts_voice01',v)")
                           tts_speed01.change(None, tts_speed01, None, js="(v) => setStorage('tts_speed01',v)")
                           vc_voice01.change(None, vc_voice01, None, js="(v) => setStorage('vc_voice01',v)")
+                          sample_button01 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button01", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice02_row:
-                          tts_voice02 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 3', visible=True, elem_id="tts_voice02")
+                          tts_voice02 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 3', visible=True, elem_id="tts_voice02")
                           tts_speed02 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 3", step=0.02, elem_id="tts_speed02", interactive=True)
-                          vc_voice02 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker 3', visible=False, elem_id="vc_voice02")
+                          vc_voice02 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 3', visible=user_settings['vc']!="None", elem_id="vc_voice02")
                           tts_voice02.change(None, tts_voice02, None, js="(v) => setStorage('tts_voice02',v)")
                           tts_speed02.change(None, tts_speed02, None, js="(v) => setStorage('tts_speed02',v)")
                           vc_voice02.change(None, vc_voice02, None, js="(v) => setStorage('vc_voice02',v)")
+                          sample_button02 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button02", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice03_row:
-                          tts_voice03 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 4', visible=True, elem_id="tts_voice03")
+                          tts_voice03 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 4', visible=True, elem_id="tts_voice03")
                           tts_speed03 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 4", step=0.02, elem_id="tts_speed03", interactive=True)
-                          vc_voice03 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker 4', visible=False, elem_id="vc_voice03")
+                          vc_voice03 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 4', visible=user_settings['vc']!="None", elem_id="vc_voice03")
                           tts_voice03.change(None, tts_voice03, None, js="(v) => setStorage('tts_voice03',v)")
                           tts_speed03.change(None, tts_speed03, None, js="(v) => setStorage('tts_speed03',v)")
                           vc_voice03.change(None, vc_voice03, None, js="(v) => setStorage('vc_voice03',v)")
+                          sample_button03 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button03", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice04_row:
-                          tts_voice04 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 5', visible=True, elem_id="tts_voice04")
+                          tts_voice04 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 5', visible=True, elem_id="tts_voice04")
                           tts_speed04 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 5", step=0.02, elem_id="tts_speed04", interactive=True)
-                          vc_voice04 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker 5', visible=False, elem_id="vc_voice04")
+                          vc_voice04 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 5', visible=user_settings['vc']!="None", elem_id="vc_voice04")
                           tts_voice04.change(None, tts_voice04, None, js="(v) => setStorage('tts_voice04',v)")
                           tts_speed04.change(None, tts_speed04, None, js="(v) => setStorage('tts_speed04',v)")
                           vc_voice04.change(None, vc_voice04, None, js="(v) => setStorage('vc_voice04',v)")
+                          sample_button04 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button04", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice05_row:
-                          tts_voice05 = gr.Dropdown(choices=list_vtts, value=list_vtts[0], label='TTS Speaker 6', visible=True, elem_id="tts_voice05")
+                          tts_voice05 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 6', visible=True, elem_id="tts_voice05")
                           tts_speed05 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 6", step=0.02, elem_id="tts_speed05", interactive=True)
-                          vc_voice05 = gr.Dropdown(choices=list_svc, value=list_svc[0], label='VC Speaker 6', visible=False, elem_id="vc_voice05")
+                          vc_voice05 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 6', visible=user_settings['vc']!="None", elem_id="vc_voice05")
                           tts_voice05.change(None, tts_voice05, None, js="(v) => setStorage('tts_voice05',v)")
                           tts_speed05.change(None, tts_speed05, None, js="(v) => setStorage('tts_speed05',v)")
                           vc_voice05.change(None, vc_voice05, None, js="(v) => setStorage('vc_voice05',v)")
+                          sample_button05 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button05", elem_classes="sample-button", scale=0)
                           
                         def update_speaker_visibility(value):
                             visibility_dict = {
@@ -1209,44 +1283,30 @@ class Main():
                     ## update t2s method
                     def update_vc_list(method):
                       visible = True if method != "None" else False
-                      # print("method::", method, language, media_input)
-                      match method:
-                        case 'SVC':
-                          list_vc = list_svc
-                        case 'RVC':
-                          list_vc = list_rvc
-                        case 'OpenVoice':
-                          list_vc = list_ovc
-                        case _:
-                          list_vc = [""]
+                      self.list_vc = get_vc_list(method)
                       visibility_dict = {
-                          f'vc_voice{i:02d}': gr.update(choices=list_vc, value=list_vc[0], visible=visible) for i in range(6)
+                          f'vc_voice{i:02d}': gr.update(choices=self.list_vc, visible=visible) for i in range(6)
                       }
                       return [value for value in visibility_dict.values()]               
                     vc_method.change(update_vc_list, [vc_method], [vc_voice00, vc_voice01, vc_voice02, vc_voice03, vc_voice04, vc_voice05])
                     
                     ## update t2s method
-                    def update_t2s_list(method, language):
-                      print("method::", method, language)
-                      match method:
-                        case 'VietTTS':
-                          list_tts = list_vtts
-                        case 'EdgeTTS':
-                          list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
-                        case 'PiperTTS':
-                          list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
-                        case 'XTTS':
-                          list_tts = list_xtts
-                        case _:
-                          list_tts = list_gtts
+                    def update_t2s_list(method="", language=""):
+                      method = method if method else user_settings['t2s']
+                      language = language if language else user_settings['t2s_lang']
+                      user_settings['t2s_lang'] = language
+                      save_settings(user_settings)
+                      self.list_tts = get_tts_list(method, language)
+                      print("update_t2s_list called::", method, language, self.list_tts)
                       visibility_dict = {
-                          f'tts_voice{i:02d}': gr.update(choices=list_tts, value=list_tts[0]) for i in range(6)
+                          f'tts_voice{i:02d}': gr.update(choices=self.list_tts) for i in range(6)
                       }
                       return [value for value in visibility_dict.values()]
+                    t2s_method.change(self.tts_client.init_tts_client, [t2s_method], None)
                     t2s_method.change(update_t2s_list, [t2s_method, TRANSLATE_AUDIO_TO], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
                     TRANSLATE_AUDIO_TO.change(update_t2s_list, [t2s_method, TRANSLATE_AUDIO_TO], [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05])
                     
-                  with gr.Accordion("LLM Settings", open=True) as LLM_Setting:
+                  with gr.Accordion("LLM Settings", open=True, visible=t2t_method.value=='LLM') as LLM_Setting:
                     with gr.Row():
                       llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url", scale=5)
                       llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model",scale=5)        
@@ -1254,23 +1314,33 @@ class Main():
                       llm_k = gr.Slider(10, 3000, value=3000, step=10, label="K",scale=5, interactive=True)
                       llm_refresh = gr.Button("Refresh", scale=2)
                       ## Config LLM Settings
-                      def update_llm_model(llm_url, s2t_method, t2t_method, t2s_method, vc_method):
+                      def update_llm_model(llm_url):
                         models = get_llm_models(llm_url)
-                        user_settings['s2t'] = s2t_method
-                        user_settings['t2t'] = t2t_method
-                        user_settings['t2s'] = t2s_method
-                        user_settings['vc'] = vc_method
                         user_settings['llm_url'] = llm_url
                         user_settings['llm_models'] = models
                         user_settings['llm_model'] = models[0]
-                        save_settings(settings=user_settings)
+                        save_settings(user_settings)
                         return gr.update(choices=models)
                       llm_url.blur(update_llm_model, [llm_url], [llm_model])
                       llm_url.change(None, llm_url, None, js="(v) => setStorage('llm_url',v)")
                       llm_model.change(None, llm_model, None, js="(v) => setStorage('llm_model',v)")
                       llm_temp.change(None, llm_temp, None, js="(v) => setStorage('llm_temp',v)")
                       llm_k.change(None, llm_k, None, js="(v) => setStorage('llm_k',v)")
-                      llm_refresh.click(update_llm_model, [llm_url,s2t_method,t2t_method,t2s_method,vc_method], [llm_model])
+                      llm_refresh.click(update_llm_model, [llm_url], [llm_model])
+                      
+                  with gr.Row():
+                    def save_user_setting(llm_url, s2t_method, t2t_method, t2s_method, vc_method, TRANSLATE_AUDIO_TO):
+                      user_settings['llm_url'] = llm_url
+                      user_settings['s2t'] = s2t_method
+                      user_settings['t2t'] = t2t_method
+                      user_settings['t2s'] = t2s_method
+                      user_settings['vc'] = vc_method
+                      user_settings['t2s_lang'] = TRANSLATE_AUDIO_TO
+                      save_settings(settings=user_settings)
+                      gr.Info("Setting Saved!!")
+                      return None                    
+                    save_setting_button = gr.Button("Save Setting")
+                    save_setting_button.click(save_user_setting, [llm_url,s2t_method,t2t_method,t2s_method,vc_method, TRANSLATE_AUDIO_TO], None)
                       
                   def update_llm_setting(method):
                     return gr.update(visible=method=='LLM')
@@ -1295,6 +1365,12 @@ class Main():
               return gr.update(label="TRANSLATED VIDEO"),gr.update(visible=False)
             
             # run
+            buttons = [sample_button00, sample_button01, sample_button02, sample_button03, sample_button04, sample_button05]
+            voices = [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05]
+            for button, voice in zip(buttons, voices):
+                button.click(self.create_sample_audio, inputs=[t2s_method, voice], outputs=button).then(
+                    None, inputs=[t2s_method, voice], outputs=None, js=play_sample_audio_js)     
+
             ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
             link_btn.click(self.handle_link_input, inputs=[media_input, link_input], outputs=[media_input, link_input])
             media_btn.click(self.batch_preprocess, inputs=[
@@ -1347,6 +1423,10 @@ class Main():
                 )
                 
           self.app.load(
+            update_t2s_list,
+            inputs=None,
+            outputs=[tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05]
+            ).then(
               None,
               inputs=None,
               outputs=[
@@ -1388,6 +1468,7 @@ class Main():
                 ],
               js=get_local_storage,
           )
+          
           self.app.queue()
 
 ## Fast API Initialization
@@ -1503,7 +1584,9 @@ if __name__ == "__main__":
   os.system('mkdir -p downloads')
   os.system(f'rm -rf {gradio_temp_dir}/*')
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  port=6864
+  os.system(f'mkdir -p {gradio_temp_dir}/voices')
+  os.system(f'cp -r sample_audio/* {gradio_temp_dir}/voices/')
+  port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
