@@ -16,10 +16,11 @@ def split_array_odd_even(input_array):
             odd_array.append(element)
     return even_array, odd_array
 
-def create_translated_audio(result_diarize, audio_files, Output_name_file, match_start):
+def create_translated_audio(result_diarize, Output_name_file, match_start):
+  
   if match_start:
     # Split even, odd audio files path and time segments
-    even_audio_files, odd_audio_files = split_array_odd_even(audio_files)
+    # even_audio_files, odd_audio_files = split_array_odd_even(audio_files)
     even_segments, odd_segments = split_array_odd_even(result_diarize['segments'])
     
     total_duration = result_diarize['segments'][-1]['end'] # in seconds
@@ -29,26 +30,29 @@ def create_translated_audio(result_diarize, audio_files, Output_name_file, match
     # silent audio with total_duration
       combined_audio = AudioSegment.silent(duration=int(total_duration * 1000))
       output_base, output_ext = os.path.splitext(Output_name_file)
-      file_array = even_audio_files if method == "even" else (odd_audio_files if method == "odd" else audio_files)
+      # file_array = even_audio_files if method == "even" else (odd_audio_files if method == "odd" else audio_files)
       segments = even_segments if method == "even" else (odd_segments if method == "odd" else result_diarize['segments'])
       output_path = f"{output_base}_even{output_ext}" if method == "even" else (f"{output_base}_odd{output_ext}" if method == "odd" else Output_name_file)
-      print("file_array::", method, len(file_array))
-      for line, audio_file in tqdm(zip(segments, file_array)):
-        start = float(line['start'])
+      # print("file_array::", method, len(file_array))
+      for line in tqdm(zip(segments)):
+        start = float()
+        audio_file = f"audio/{line['start']}.wav"
         # Overlay each audio at the corresponding time
-        try:
-          audio = AudioSegment.from_file(audio_file)
-          ###audio_a = audio.speedup(playback_speed=1.5)
-          start_time = start * 1000  # to ms
-          combined_audio = combined_audio.overlay(audio, position=start_time)
-        except:
-          print(f'ERROR AUDIO FILE {audio_file}')
+        if os.path.isfile(audio_file):
+          try:
+            audio = AudioSegment.from_file(audio_file)
+            ###audio_a = audio.speedup(playback_speed=1.5)
+            start_time = start * 1000  # to ms
+            combined_audio = combined_audio.overlay(audio, position=start_time)
+          except:
+            print(f'ERROR AUDIO FILE {audio_file}')
       # combined audio as a file
       combined_audio.export(output_path, format="wav", bitrate="16k") # best than ogg, change if the audio is anomalous
- 
   else:
     concatenated_audio = AudioSegment.empty()
-    for audio_file in audio_files:
+    for line in result_diarize['segments']:
+      audio_file = f"audio/{line['start']}.wav"
+      if os.path.isfile(audio_file):
         audio = AudioSegment.from_file(audio_file)
         concatenated_audio += audio
     # Export the concatenated audio to a file

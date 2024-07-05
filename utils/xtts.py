@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import time
 import torch
@@ -19,6 +20,7 @@ import pinyin
 voice_dir = os.path.join(os.getcwd(),"model", "viXTTS", "voices")
 checkpoint_dir = os.path.join(os.getcwd(),"model", "viXTTS", "base_model")
 os.makedirs(checkpoint_dir, exist_ok=True)
+# use_deepspeed = False if platform.system() == "Linux" and "microsoft" in platform.release() else True ## Disable deepspeed if is WSL cause not supported yet
 
 class XTTS():
   def __init__(self):
@@ -28,12 +30,10 @@ class XTTS():
     self.config = XttsConfig()
     self.config.load_json(self.xtts_config)
     self.MODEL = Xtts.init_from_config(self.config)
-    self.MODEL.load_checkpoint(self.config, checkpoint_dir=checkpoint_dir, use_deepspeed=True)
+    self.MODEL.load_checkpoint(self.config, checkpoint_dir=checkpoint_dir, use_deepspeed=False)
+    self.current_voice = ""
     if torch.cuda.is_available():
         self.MODEL.cuda()
-    self.supported_languages = self.config.languages
-    if not "vi" in self.supported_languages:
-        self.supported_languages.append("vi")
 
   def calculate_keep_len(self, text, lang):
       """Simple hack for short sentences"""
@@ -57,49 +57,50 @@ class XTTS():
       tts_speed,
       language,
   ):
+      
       speaker_wav = os.path.join(voice_dir, tts_voice)
+      
 
       # if len(text) < 2:
       #     metrics_text = gr.Warning("Please give a longer text text")
       #     return (None, metrics_text)
 
       # if len(text) > 250:
-      #     metrics_text = gr.Warning(
-      #         str(len(text))
-      #         + " characters.\n"
-      #         + "Your text is too long, please keep it under 250 characters\n"
-      #         + "Văn bản quá dài, vui lòng giữ dưới 250 ký tự."
-      #     )
-      #     return (None, metrics_text)
+      #     text = text[:250]
     
       try:
           metrics_text = ""
           t_latent = time.time()
 
           try:
-            (
-                gpt_cond_latent,
-                speaker_embedding,
-            ) = self.MODEL.get_conditioning_latents(
-                audio_path=speaker_wav,
-                gpt_cond_chunk_len=4,
-                gpt_cond_len=self.MODEL.config.gpt_cond_len, 
-                max_ref_length=self.MODEL.config.max_ref_len, 
-                sound_norm_refs=self.MODEL.config.sound_norm_refs
-            )
+            if self.current_voice != tts_voice:
+              (
+                  gpt_cond_latent,
+                  speaker_embedding,
+              ) = self.MODEL.get_conditioning_latents(
+                  audio_path=speaker_wav,
+                  gpt_cond_chunk_len=self.MODEL.config.gpt_cond_chunk_len,
+                  gpt_cond_len=self.MODEL.config.gpt_cond_len, 
+                  max_ref_length=self.MODEL.config.max_ref_len, 
+                  sound_norm_refs=self.MODEL.config.sound_norm_refs
+              )
+              self.current_voice = tts_voice
+              self.gpt_cond_latent = gpt_cond_latent
+              self.speaker_embedding = speaker_embedding
+              
 
           except Exception as e:
               print("Speaker encoding error", str(e))
 
           text = re.sub("([^\x00-\x7F]|\w)(\.|\。|\?)", r"\1 \2\2", text)
-
+          print("xtts::", f"{len(text)}|{text}" )
           print("I: Generating new audio...")
           t0 = time.time()
           out = self.MODEL.inference(
               text=text,
               language=language,
-              gpt_cond_latent=gpt_cond_latent,
-              speaker_embedding=speaker_embedding,
+              gpt_cond_latent=self.gpt_cond_latent,
+              speaker_embedding=self.speaker_embedding,
               speed=tts_speed,
               temperature=self.MODEL.config.temperature,
               length_penalty=self.MODEL.config.length_penalty,
@@ -129,7 +130,7 @@ class XTTS():
 
   def text_to_speech(self, text, output_file, tts_voice, tts_speed, language):
       text = pinyin.get(text, format="numerical")
-      print("tts text::", text)
+      print("xtts text::", text)
       if re.sub(r'^sil\s+','',text).isnumeric():
           silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
           print("Got integer::", text, silence_duration) 
@@ -144,7 +145,8 @@ class XTTS():
       else:
           self.predict(text, output_file, tts_voice, tts_speed, language)
           print("Wav segment written at: {}".format(output_file))
-      gc.collect(); torch.cuda.empty_cache()
+      # gc.collect(); torch.cuda.empty_cache()
+      # time.sleep(2)
       return "Done"
       
 

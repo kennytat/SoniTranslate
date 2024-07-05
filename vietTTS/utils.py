@@ -7,7 +7,6 @@ import numpy as np
 import soundfile as sf
 import math
 import hashlib
-from langdetect import detect
 from vietnam_number import n2w
 from vietTTS.BibleVerseParser import BibleVerseParser
 from vietTTS.replace_dict import dictOfStrings
@@ -114,13 +113,14 @@ def num_to_str(text):
   
 def fix_special(text):
   # verse = TTSnorm(verse)
-  text = text.strip()
-  text = text.replace(" , ", ", ").replace(" . ", ". ")
-  text = re.sub(r"[\s\.]+(?=\s)",". ",text)
+  text = re.sub(r"[\“\”\’\‘\!\@\#\$\%\^\&\*\(\)\_\=\+\(\)\[\]\{\}\;\:\"\'\,\.\<\>\/\?\\\|\`\~]+", ",", text)
+  text = re.sub(r"^\,", "", text)
+  text = re.sub(r"[\—\-\–]+", " ", text)
+  text = re.sub(r"[\s\.\,]+(?=\s)", ", ", text)
   text = re.sub(r"\s+", " ", text)
-  text = text.replace('.', ',')
-  text = re.sub(r"\,+", ",", text)
+  text = text.strip()
   text = text[:-1] if text.endswith(',') else text
+  text = text + "." if not text.endswith('.') else text
   return text
 
 def normalize(text):
@@ -190,6 +190,8 @@ def concise_srt(srt_list, max_word_length=500):
         for item in srt_list:
           item["text"] = item.pop("content")
           item["speaker"] = "SPEAKER_00"
+          item["start"] = item["start"].total_seconds()
+          item["end"] = item["end"].total_seconds()
       modified_paras = []
       ## Remove non text segment
       srt_list = [para for para in srt_list if "speaker" in para and "♪" not in para['text']]
@@ -268,10 +270,10 @@ def txt_to_paragraph(txt_input):
     subs = list(srt.parse(srt_input))
     subs = concise_srt(subs)
     for i, para in enumerate(subs):
-      subs[i]["duration"] = (para["end"] - para["start"]).total_seconds()
+      subs[i]["duration"] = para["end"] - para["start"]
       # subs[i].start_silence = para.start.total_seconds() if i <= 0 else (para.start - subs[i - 1].end).total_seconds()
-      subs[i]["start_time"] = para["start"].total_seconds()
-    return [ParaStruct(para["content"], para["duration"], para["start_time"]) for para in subs]
+      subs[i]["start_time"] = para["start"]
+    return [ParaStruct(para["text"], para["duration"], para["start_time"]) for para in subs]
   except Exception as e:
     print("Input txt is not SRT - parse normally:::::", e)
     paras = txt_input.lower()
@@ -323,6 +325,7 @@ def combine_wav_segment(wav_list, output_file):
         # Add each audio track to the combined audio array and check if any track overlap each other
         wav_overlap = []
         for i in range(len(wav_list)):
+          if os.path.isfile(wav_list[i].wav_path):
             print("Combining wav:: ", i, wav_list[i].start_time)
             # Calculate the start and end sample indices for the current audio track
             start_sample = int((wav_list[i].start_time - start_time) * sample_rate)

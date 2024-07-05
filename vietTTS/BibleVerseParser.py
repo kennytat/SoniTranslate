@@ -60,7 +60,7 @@ class BibleVerseParser:
         text = text.replace("nt", " ")
         text = text.replace("Nt", " ")
         text = text.replace("ctd", " ")
-        text = text.replace("asterisk", "")
+        text = text.replace("asterisk", " ")
         text = text.replace("!!", " ")
         text = re.sub(r'[\—\–\“\”\’\‘\!\@\#\$\%\^\&\*\(\)\_\=\+\(\)\[\]\{\}\;\:\"\'\,\.\<\>\/\?\\\|\`\~\n\t]+', ' ', text)
         words = text.split()
@@ -97,15 +97,15 @@ class BibleVerseParser:
             abbreviation = self.nonAbbreviation[bookNo]
             # if verse number equal 0, then return chapter only
             if v == 0:
-                return "{0} chương {1}".format(abbreviation, c)
+                return " {0} chương {1} ".format(abbreviation, c)
             if args and len(args) == 2:
                 c2, v2 = args
                 if c2 == c and v2 > v:
-                    return "{0} chương {1} từ câu {2} đến câu {3}".format(abbreviation, c, v, v2)
+                    return " {0} chương {1} từ câu {2} đến câu {3} ".format(abbreviation, c, v, v2)
                 elif c2 > c:
-                    return "{0} chương {1} câu {2} và chương {3} câu {4}".format(abbreviation, c, v, c2, v2)
+                    return " {0} chương {1} câu {2} và chương {3} câu {4} ".format(abbreviation, c, v, c2, v2)
             else:
-                return "{0} chương {1} câu {2}".format(abbreviation, c, v)
+                return " {0} chương {1} câu {2} ".format(abbreviation, c, v)
         else:
             return "BOOK 0:0"
 
@@ -158,9 +158,10 @@ class BibleVerseParser:
             # get assigned book standard abbreviation name from dictionary
             # bookAbbreviationName = next(iter(self.standardAbbreviation))[bookNumber]
             bookName = name
-            normalisedName = re.sub(r"[\s]+", "", name)
+            normalisedName = re.sub(r"[\s]+", " ", name)
             # print('book::', bookNumber, bookAbbreviationName)
             # search & replace for marking book
+            # print("name::" f"{name}|{normalisedName}")
             text = text.replace(name, normalisedName)
             searchReplace = (
                 ('\.', r'[\.]*?'), # make dot "." optional for an abbreviation

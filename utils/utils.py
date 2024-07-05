@@ -15,6 +15,7 @@ import os, zipfile, rarfile, shutil, subprocess, shlex, sys # noqa
 from .logging_setup import logger
 from urllib.parse import urlparse
 from IPython.utils import capture
+from vietnam_number import n2w
 from natsort import natsorted
 
 def encode_filename(filename):
@@ -156,6 +157,29 @@ def new_dir_now():
     date_time = now.strftime("%Y%m%d%H%M")
     return date_time  
 
+def num_to_str(text):
+  try:
+    words = text.split()
+    for index, word in enumerate(words):
+        # print(words)
+        match = re.search(pattern='(\d+\,\d+)', string=word)
+        if match:
+          word = word.replace(",", " phẩy ")
+        # Detect word is number
+        match = re.search(pattern='(\d[\d*\—\-\–\“\”\’\‘\!\@\#\$\%\^\&\*\(\)\_\=\+\(\)\[\]\{\}\;\:\"\'\,\.\<\>\/\?\\\|\`\~]*)', string=word)
+        if match:
+            num = re.findall(r'\d+', match[1])
+            to_be_replaced = match[1]
+            for i in num:
+              to_be_replaced = to_be_replaced.replace(i, n2w(i))
+              to_be_replaced = to_be_replaced.replace("không trăm", "") if to_be_replaced.endswith("không trăm") else to_be_replaced
+              to_be_replaced = to_be_replaced.replace("nghìn", "ngàn")
+            words[index] = word.replace((match[1]), to_be_replaced)
+    w = " ".join(words).strip()
+    return w
+  except:
+    print("num_to_str error:::")
+    
 def fix_special(text):
   # verse = TTSnorm(verse)
   text = text.strip()
@@ -165,6 +189,7 @@ def fix_special(text):
   text = text.replace('.', ',')
   text = re.sub(r"\,+", ",", text)
   text = text[:-1] if text.endswith(',') else text
+  text = text + "." if not text.endswith('.') else text
   return text
 
 def segments_to_srt(segments, output_path):
@@ -776,7 +801,7 @@ def find_most_matching_prefix(path_list, path):
             matching_prefix = prefix
     return matching_prefix
   
-def split_and_join_by_comma(long_string, max_length=250):
+def split_and_join_by_comma(long_string, max_length=200, min_length=50):
     # Split the string by commas
     parts = long_string.split(',')
     
@@ -796,6 +821,8 @@ def split_and_join_by_comma(long_string, max_length=250):
     
     # Append the remaining buffer if it's not empty
     if temp_buffer:
-        result.append(temp_buffer)
-    
+        if len(temp_buffer) <= min_length and result:
+            result[-1] += "," + temp_buffer
+        else:
+            result.append(temp_buffer)
     return result

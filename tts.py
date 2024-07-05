@@ -41,7 +41,7 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
-from text_to_speech import TTSClient
+from text_to_speech import TTSClient, voice_conversion
 from utils.tts_utils import edge_tts_voices_list, piper_tts_voices_list
 from utils.language_configuration import LANGUAGES
 from ovc_voice_main import OpenVoice
@@ -79,8 +79,6 @@ class CONFIG():
     # ckpt
     os_tmp = Path(os.path.join(tempfile.gettempdir(), "tts"))
     empty_wav = Path(os.path.join(f'{os_tmp}', "test.wav"))
-    tts_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "vits"))
-    svc_ckpt_dir = Path(os.path.join(os.getcwd(), "model", "svc"))
     gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", "/tmp/gradio-vgm")
     # salt = Path(os.path.join(os.getcwd(), "model","tts", "salt.salt"))
     # key = "^VGMAI*607#"
@@ -165,9 +163,10 @@ function() {
 """
 
 play_sample_audio_js = """
-(method, voice) => {
-  console.log('play sample::', method, voice)
-  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${method}-${voice.split(".")[0]}.wav`);
+(tts_method, tts_voice, vc_method, vc_voice) => {
+  console.log('play sample::', tts_method, tts_voice, vc_method, vc_voice)
+  const filename = `${tts_method}-${tts_voice.split(".")[0]}-${vc_method}-${vc_voice.split('.')[0]}`;
+  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}.wav`);
   audio.play().then(() => {
     console.log("Audio is playing");
   }).catch(error => {
@@ -185,16 +184,8 @@ class TTS():
     self.list_tts = get_tts_list(user_settings["t2s"], user_settings["t2s_lang"])
           
   def tts(self, text, output_file, tts_voice, speed, desired_duration, start_time, tts_client):
-      # tts_voice_ckpt_dir = os.path.join(CONFIG.tts_ckpt_dir, tts_voice)
-      # print("selected TTS voice:", tts_voice_ckpt_dir)
       try:
         print("Starting TTS {}".format(output_file), desired_duration, start_time)
-        ### Get hifigan path
-        # config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
-        # with open(config_file, "rb") as f:
-        #   hps = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
-        # sample_rate = hps.data.sampling_rate
-        # print("tts text::", text)
 
         if re.sub(r'^sil\s+','',text).isnumeric():
             silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
@@ -249,30 +240,6 @@ class TTS():
     # target_samples = int(source_duration * 48000)
     # sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
     return file
-    
-  def start_svc_voice(self, input_dir, model_dir):
-    print("start svc_voice::", input_dir, model_dir)
-    model_path = os.path.join(model_dir, "G.pth")
-    config_path = os.path.join(model_dir, "config.json")
-    output_dir = f'{input_dir}.out'
-    os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
-    if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
-    shutil.move(output_dir, input_dir)
-    gc.collect(); torch.cuda.empty_cache()
-
-  def start_ovc_voice(self, input_dir, tts_voice, open_voice):
-    print("start open_voice::", input_dir, tts_voice, open_voice)
-    output_dir = f"{input_dir}-out"
-    os.system(f"mkdir -p {output_dir}")
-    ov = OpenVoice()
-    for file in sorted(Path(input_dir).glob("*.wav")):
-      file_output = str(file).replace(input_dir, output_dir)
-      print("openvoice::", file_output)
-      ov.convert_voice(file, tts_voice, file_output, open_voice)
-    del ov
-    if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
-    shutil.move(output_dir, input_dir)
-    gc.collect(); torch.cuda.empty_cache()
       
   def synthesize(self, output_dir_name, input, is_file, speed, method):
       print("start synthesizing::", output_dir_name, input, is_file, speed)
@@ -324,7 +291,6 @@ class TTS():
       print("Initializing TTS Client::", self.t2s_method)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
         results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence, self.tts_client) for (text, output_file, total_duration, start_silence) in queue_list.queue)
-      self.tts_client.tts_client = None
       
       if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
         print("Start Upsampling::")
@@ -334,14 +300,8 @@ class TTS():
       
       ## TTS Done - Start converting voice
       print("TTS Done::")
-      if self.vc_method == "SVC":
-        svc_voice_ckpt_dir = os.path.join(CONFIG.svc_ckpt_dir, self.vc_voice)
-        print("Start Voice Convertion::")
-        self.start_svc_voice(tmp_dirname, svc_voice_ckpt_dir)
-
-      if self.vc_method == "OpenVoice":
-        print("Start Voice Convertion::")
-        self.start_ovc_voice(tmp_dirname, self.tts_voice, self.vc_voice)    
+      if self.vc_method != "None":
+        voice_conversion(tmp_dirname, self.tts_voice, self.vc_method, self.vc_voice)
         
       ## Return join or split output files  
       if method == 'join':
@@ -428,17 +388,19 @@ class TTS():
     del ov
     return None, None
 
-  def create_sample_audio(self, method, voice):
-    file_name = f"{method}-{voice.split('.')[0]}.wav"
+  def create_sample_audio(self, tts_method="", tts_voice="", vc_method="", vc_voice=""):
+    file_name = f"{tts_method}-{tts_voice.split('.')[0]}-{vc_method}-{vc_voice.split('.')[0]}.wav"
     voice_path = os.path.join("sample_audio", file_name)
     voice_tmp_path = os.path.join(CONFIG.gradio_temp_dir, "voices", file_name)
     sample_text = "Đoạn trường tân thanh, thường được biết đến với cái tên đơn giản là Truyện Kiều, là một truyện thơ của đại thi hào Nguyễn Du."
     if self.tts_client.tts_client == None:
-      gr.Info(f'Initializing: {method} - please wait for 10 seconds')
-      self.tts_client.init_tts_client(method)
+      gr.Info(f'Initializing: {tts_method} - please wait for 10 seconds')
+      self.tts_client.init_tts_client(tts_method)
     if not os.path.isfile(voice_path):
-      gr.Info(f'Creating sample audio: {method} - {voice}')
-      self.tts_client.make_voice_gradio(sample_text, voice, 1, voice_path, "vi", method)
+      gr.Info(f'Creating sample audio: {tts_method} - {tts_voice}')
+      self.tts_client.make_voice_gradio(sample_text, tts_voice, 1, voice_path, "vi", tts_method)
+      if vc_method and vc_method != "None" and vc_voice and vc_voice != "None":
+        voice_conversion(voice_path, tts_voice, vc_method, vc_voice)
       if os.path.isfile(voice_path):
         shutil.copy(voice_path, voice_tmp_path)
       else:
@@ -520,13 +482,13 @@ class TTS():
                 def update_vc_list(method):
                   visible = True if method != "None" else False
                   self.list_vc = get_vc_list(method)
-                  return  gr.update(visible=visible), gr.update(visible=method=='OpenVoice')
+                  return  gr.update(choices=self.list_vc, visible=visible), gr.update(visible=method=='OpenVoice')
                 vc_method.change(update_vc_list, [vc_method], [vc_voice, open_voice_accordion])    
                     
         ## Run function
         clear_btn.click(self.refresh_model, inputs=[t2s_method], outputs=[vc_voice])
-        sample_button.click(self.create_sample_audio, inputs=[t2s_method, tts_voice], outputs=sample_button).then(
-          None, inputs=[t2s_method, tts_voice], outputs=None, js=play_sample_audio_js
+        sample_button.click(self.create_sample_audio, inputs=[t2s_method, tts_voice, vc_method, vc_voice], outputs=sample_button).then(
+          None, inputs=[t2s_method, tts_voice, vc_method, vc_voice], outputs=None, js=play_sample_audio_js
         )
         ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
         btn.click(self.speak,

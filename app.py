@@ -20,7 +20,7 @@ import re
 from tqdm import tqdm
 import os
 from audio_segments import create_translated_audio
-from text_to_speech import TTSClient
+from text_to_speech import TTSClient, voice_conversion
 from translate_segments import translate_text
 import time
 import shutil
@@ -199,9 +199,10 @@ function() {
 """
 
 play_sample_audio_js = """
-(method, voice) => {
-  console.log('play sample::', method, voice)
-  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${method}-${voice.split(".")[0]}.wav`);
+(tts_method, tts_voice, vc_method, vc_voice) => {
+  console.log('play sample::', tts_method, tts_voice, vc_method, vc_voice)
+  const filename = `${tts_method}-${tts_voice.split(".")[0]}-${vc_method}-${vc_voice.split('.')[0]}`;
+  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}.wav`);
   audio.play().then(() => {
     console.log("Audio is playing");
   }).catch(error => {
@@ -930,7 +931,7 @@ class Main():
           self.tts_client.init_tts_client(self.t2s_method)
         print("Initializing TTS Client::", self.t2s_method)
         with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
-          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(result_diarize['segments']))
+          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result_diarize['segments'], key=lambda x: x['speaker'])))
         self.tts_client.tts_client = None
         
         if os.getenv('UPSAMPLING_ENABLE', '') == "true":
@@ -975,7 +976,7 @@ class Main():
         
         # 7. Join target language audio files
         progress(0.85, desc="Creating final translated media...")
-        create_translated_audio(result_diarize, audio_files, translated_output_file, self.match_start)
+        create_translated_audio(result_diarize, translated_output_file, self.match_start)
 
         # # 8. Transribe target language for smaller chunk
         # print("Start transcribing target language::")
@@ -1046,17 +1047,19 @@ class Main():
       del ov
       return None, None  
 
-    def create_sample_audio(self, method, voice):
-      file_name = f"{method}-{voice.split('.')[0]}.wav"
+    def create_sample_audio(self, tts_method="", tts_voice="", vc_method="", vc_voice=""):
+      file_name = f"{tts_method}-{tts_voice.split('.')[0]}-{vc_method}-{vc_voice.split('.')[0]}.wav"
       voice_path = os.path.join("sample_audio", file_name)
       voice_tmp_path = os.path.join(gradio_temp_dir, "voices", file_name)
       sample_text = "Đoạn trường tân thanh, thường được biết đến với cái tên đơn giản là Truyện Kiều, là một truyện thơ của đại thi hào Nguyễn Du."
       if self.tts_client.tts_client == None:
-        gr.Info(f'Initializing: {method} - please wait for 10 seconds')
-        self.tts_client.init_tts_client(method)
+        gr.Info(f'Initializing: {tts_method} - please wait for 10 seconds')
+        self.tts_client.init_tts_client(tts_method)
       if not os.path.isfile(voice_path):
-        gr.Info(f'Creating sample audio: {method} - {voice}')
-        self.tts_client.make_voice_gradio(sample_text, voice, 1, voice_path, "vi", method)
+        gr.Info(f'Creating sample audio: {tts_method} - {tts_voice}')
+        self.tts_client.make_voice_gradio(sample_text, tts_voice, 1, voice_path, "vi", tts_method)
+        if vc_method and vc_method != "None" and vc_voice and vc_voice != "None":
+          voice_conversion(voice_path, tts_voice, vc_method, vc_voice)
         if os.path.isfile(voice_path):
           shutil.copy(voice_path, voice_tmp_path)
         else:
@@ -1366,10 +1369,11 @@ class Main():
             
             # run
             buttons = [sample_button00, sample_button01, sample_button02, sample_button03, sample_button04, sample_button05]
-            voices = [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05]
-            for button, voice in zip(buttons, voices):
-                button.click(self.create_sample_audio, inputs=[t2s_method, voice], outputs=button).then(
-                    None, inputs=[t2s_method, voice], outputs=None, js=play_sample_audio_js)     
+            tts_voices = [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05]
+            vc_voices = [vc_voice00, vc_voice01, vc_voice02, vc_voice03, vc_voice04, vc_voice05]
+            for button, tts_voice, vc_voice in zip(buttons, tts_voices, vc_voices):
+                button.click(self.create_sample_audio, inputs=[t2s_method, tts_voice, vc_method, vc_voice], outputs=button).then(
+                    None, inputs=[t2s_method, tts_voice, vc_method, vc_voice], outputs=None, js=play_sample_audio_js)     
 
             ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
             link_btn.click(self.handle_link_input, inputs=[media_input, link_input], outputs=[media_input, link_input])
