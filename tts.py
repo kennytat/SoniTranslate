@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import sys
 import gc
+import glob
 from natsort import natsorted
 from pathlib import Path
 import atexit
@@ -21,6 +22,7 @@ import unicodedata
 from types import SimpleNamespace
 import joblib
 from joblib import Parallel, delayed
+from tqdm import tqdm
 from pydub import AudioSegment
 from queue import Queue
 import gradio as gr
@@ -197,6 +199,11 @@ class TTS():
         else:
           # duration_net, generator = self.load_models(tts_voice_ckpt_dir, hps)
           tts_client.make_voice_gradio(text, tts_voice, speed, output_file, self.TRANSLATE_AUDIO_TO, self.t2s_method)
+          
+          ## Export text to file
+          txt_path = f"{os.path.splitext(output_file)[0]}.txt"
+          with open(txt_path, "w") as f:
+            f.write(text)
         
           ## For tts with timeline
           if desired_duration > 0:
@@ -217,7 +224,7 @@ class TTS():
             # apply aceleration or opposite to the audio file in audio2 folder
             name, ext = os.path.splitext(output_file)
             tmp_file = f"{name}-tmp{ext}"
-            os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje} {tmp_file}")
+            os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje},agate=threshold=-15dB {tmp_file}")
             os.system(f"mv {tmp_file} {output_file}")
           gc.collect(); torch.cuda.empty_cache()
       except Exception as error:
@@ -261,7 +268,7 @@ class TTS():
       tmp_dirname = os.path.join(CONFIG.os_tmp, output_dir_name, filepath)
       # print("filename::", filepath, paragraphs, file_name_only, tmp_dirname)
       Path(tmp_dirname).mkdir(parents=True, exist_ok=True)
-      final_name = "{}.wav".format(file_name_only)
+      final_name = f"{file_name_only}.wav"
       final_output = os.path.join(CONFIG.os_tmp, output_dir_name, final_name)
       log_output = None
       print("Output Temp: ", final_output)
@@ -273,7 +280,7 @@ class TTS():
       results = []
       for (no, para) in enumerate(paragraphs):
           # print("Processing para::", no, para)
-          name = "{}.wav".format(pad_zero(no, 5))
+          name = f"{self.tts_voice.split('.')[0]}_{pad_zero(no, 5)}.wav"
           # print("Prepare normalized text: ", para.text)
           temp_output = os.path.join(tmp_dirname, name)
           print("paragraph::", para.text.strip(), temp_output, para.total_duration, para.start_time)
@@ -290,7 +297,7 @@ class TTS():
         self.tts_client.init_tts_client(self.t2s_method)
       print("Initializing TTS Client::", self.t2s_method)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
-        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence, self.tts_client) for (text, output_file, total_duration, start_silence) in queue_list.queue)
+        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence, self.tts_client) for (text, output_file, total_duration, start_silence) in tqdm(queue_list.queue))
       
       if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
         print("Start Upsampling::")
@@ -310,6 +317,21 @@ class TTS():
         final_output = result_path
         log_output = log_path
       if method == 'split':
+        wav_path = Path(os.path.join(tmp_dirname, "wavs"))
+        wav_path.mkdir(exist_ok=True)
+        for item in Path(tmp_dirname).iterdir():
+            if item.is_file() and item.name != "wavs":
+                item.rename(wav_path / item.name)
+        txt_files = glob.glob(os.path.join(wav_path, "*.txt"))
+        print("txt_files::", txt_files)
+        transcript_path = os.path.join(tmp_dirname, "transcript.txt")
+        with open(transcript_path, "a") as transcript:
+          for txt in txt_files:
+            print("processing::", txt)
+            with open(txt, "r") as f:
+              content = f.read()
+              print("content::", content)
+              transcript.write(f"wavs/{os.path.basename(txt)}|{content}\n")
         archive_path = re.sub(r'\.wav$', '', final_output)
         shutil.make_archive(archive_path, 'zip', tmp_dirname)
         final_output = "{}.zip".format(archive_path)
@@ -376,10 +398,10 @@ class TTS():
 
   def refresh_model(self, t2s_method):
     if t2s_method == "SVC":
-      vc_list = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
+      self.list_vc = [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]
     if t2s_method == "OpenVoice":
-      vc_list = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
-    return gr.update(choices=vc_list)
+      self.list_vc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
+    return gr.update(choices=self.list_vc)
   
   def create_open_voice(self, file_path, model_name):
     ov = OpenVoice()

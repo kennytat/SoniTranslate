@@ -34,8 +34,8 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
       segments = even_segments if method == "even" else (odd_segments if method == "odd" else result_diarize['segments'])
       output_path = f"{output_base}_even{output_ext}" if method == "even" else (f"{output_base}_odd{output_ext}" if method == "odd" else Output_name_file)
       # print("file_array::", method, len(file_array))
-      for line in tqdm(zip(segments)):
-        start = float()
+      for line in tqdm(segments):
+        start = float(line['start'])
         audio_file = f"audio/{line['start']}.wav"
         # Overlay each audio at the corresponding time
         if os.path.isfile(audio_file):

@@ -576,7 +576,7 @@ class Main():
             porcentaje = 1.0 
             print('An exception occurred:', e)
           # apply aceleration or opposite to the audio file in audio2 folder
-          os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje} audio2/{filename}")
+          os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje},agate=threshold=-15dB audio2/{filename}")
         gc.collect(); torch.cuda.empty_cache()
         # duration_create = librosa.get_duration(filename=f"audio2/{filename}")
         return (filename, speaker) 

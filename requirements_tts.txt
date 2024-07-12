@@ -42,7 +42,7 @@ torchcrepe
 gdown
 antlr4-python3-runtime==4.8
 ## === Open voice ===
-librosa
+librosa==0.10.0
 faster-whisper
 pydub
 wavmark
