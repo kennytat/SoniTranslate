@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
-import os
-import shutil
-import json
+# import os
+# import shutil
+# import json
 import random
 from tqdm import tqdm
 import joblib
@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 import requests
 from langdetect import detect
 # from vietTTS.utils import concise_srt
-from utils.utils import srt_to_segments, segments_to_srt
+# from utils.utils import srt_to_segments, segments_to_srt
 
 load_dotenv()
 
@@ -24,13 +24,12 @@ from langchain.prompts import (
 )
 
 class LLM():
-  def __init__(self) -> None:
+  def __init__(self, systemPrompt = "") -> None:
     self.llm_chain = []
+    self.systemPrompt = systemPrompt if systemPrompt != "" else "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
     self.prompt = ChatPromptTemplate(
           messages=[
-              SystemMessagePromptTemplate.from_template(
-                  "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
-              ),
+              SystemMessagePromptTemplate.from_template(self.systemPrompt),
               # The `variable_name` here is what must align with memory
               # MessagesPlaceholder(variable_name="history"),
               HumanMessagePromptTemplate.from_template("{input}"),
@@ -96,8 +95,8 @@ class LLM():
 # if __name__ == '__main__':
 #   llm = LLM()
 #   llm.initLLM( 
-#     endpoints="https://infer-2.vgm.chat/v1,https://infer-3.vgm.chat/v1", 
-#     model="bible-translator-llama3-5b4e", ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
+#     endpoints="https://infer-2.vn.chattrust.ai/v1", 
+#     model="trast-ai/trust-translator-llama3-5b4e", ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
 #     temp=0.3,
 #     k=10
 #   )

@@ -637,7 +637,7 @@ class Main():
         file_name, file_extension = os.path.splitext(os.path.basename(media_input.strip().replace(' ','_')))
         mix_audio = os.path.join(temp_dir, f"{file_name}.mp3") 
         media_output_name = f"{file_name}-{TRANSLATE_AUDIO_TO}{file_extension}"
-        media_output = os.path.join(temp_dir, media_output_name)
+        media_output_path = os.path.join(temp_dir, media_output_name)
         source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{SOURCE_LANGUAGE}')
         target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
         audio_wav = f"{source_media_output_basename}.wav"
@@ -1003,24 +1003,24 @@ class Main():
         # TYPE MIX AUDIO
         if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
             # volume mix
-            os.system(f'ffmpeg -y -i {audio_wav} -i {translated_output_file} -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
+            os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
         else:
             try:
                 # background mix
-                os.system(f'ffmpeg -i {audio_wav} -i {translated_output_file} -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] {mix_audio}')
+                os.system(f'ffmpeg -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
             except:
                 # volume mix except
-                os.system(f'ffmpeg -y -i {audio_wav} -i {translated_output_file} -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame {mix_audio}')
+                os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
 
         print("Mixing target audio and video::")
-        os.system(f"rm -rf {media_output}")
+        os.system(f"rm -rf {media_output_path}")
         if is_video:
-          os.system(f"ffmpeg -i {OutputFile} -i {mix_audio} -c:v copy -c:a aac -map 0:v -map 1:a -shortest {media_output}")
+          os.system(f"ffmpeg -i '{OutputFile}' -i '{mix_audio}' -c:v copy -c:a aac -map 0:v -map 1:a -shortest '{media_output_path}'")
         os.remove(OutputFile)
         if media_input.startswith('/tmp'):
           os.remove(media_input)
         ## Archve all files and return output
-        archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output))[0])
+        archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output_path))[0])
         shutil.make_archive(archive_path, 'zip', temp_dir)
         shutil.rmtree(temp_dir)
         final_output = f"{archive_path}.zip"
@@ -1298,7 +1298,8 @@ class Main():
                       method = method if method else user_settings['t2s']
                       language = language if language else user_settings['t2s_lang']
                       user_settings['t2s_lang'] = language
-                      save_settings(user_settings)
+                      if 't2s' in user_settings:
+                        save_settings(settings=user_settings)
                       self.list_tts = get_tts_list(method, language)
                       print("update_t2s_list called::", method, language, self.list_tts)
                       visibility_dict = {
@@ -1322,7 +1323,8 @@ class Main():
                         user_settings['llm_url'] = llm_url
                         user_settings['llm_models'] = models
                         user_settings['llm_model'] = models[0]
-                        save_settings(user_settings)
+                        if 't2s' in user_settings:
+                          save_settings(settings=user_settings)
                         return gr.update(choices=models)
                       llm_url.blur(update_llm_model, [llm_url], [llm_model])
                       llm_url.change(None, llm_url, None, js="(v) => setStorage('llm_url',v)")
