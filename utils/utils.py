@@ -1,4 +1,3 @@
-#%cd SoniTranslate
 import srt
 import re
 import yt_dlp

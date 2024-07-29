@@ -1,10 +1,7 @@
-
-# --extra-index-url https://download.pytorch.org/whl/cu118 torch torchaudio
 natsort
 omegaconf==2.1.0
 charset_normalizer==3.3.2
 pygame
 emoji
-webrtcvad
 botocore
 termcolor

@@ -47,8 +47,9 @@ from text_to_speech import TTSClient, voice_conversion
 from utils.tts_utils import edge_tts_voices_list, piper_tts_voices_list
 from utils.language_configuration import LANGUAGES
 from ovc_voice_main import OpenVoice
+import nltk
+nltk.data.path.append("model/nltk")
 load_dotenv()
-
 
 ## Exit Hooks called when app terminating
 class ExitHooks(object):
@@ -167,6 +168,8 @@ function() {
 play_sample_audio_js = """
 (tts_method, tts_voice, vc_method, vc_voice) => {
   console.log('play sample::', tts_method, tts_voice, vc_method, vc_voice)
+  tts_voice = vc_voice ? tts_voice : "None";
+  vc_voice = vc_voice ? vc_voice : "None";
   const filename = `${tts_method}-${tts_voice.split(".")[0]}-${vc_method}-${vc_voice.split('.')[0]}`;
   var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}.wav`);
   audio.play().then(() => {

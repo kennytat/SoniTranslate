@@ -10,10 +10,10 @@ deep_translator
 # bitsandbytes
 # peft
 # scipy
-# VB translate
+## VB translate
 langdetect
 -e git+https://github.com/pytorch/fairseq.git@v0.12.3#egg=fairseq
-# LLM translate
+## LLM translate
 openai
 langchain
 langchain_community

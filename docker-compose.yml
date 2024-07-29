@@ -8,8 +8,9 @@ services:
       dockerfile: Dockerfile
       cache_from:
         - type=bind,source=${HOME}/.cache/pip,target=/root/.cache/pip
-    image: ghcr.io/mdds-labs/sonitranslate:v1.4.1
+    image: ghcr.io/mdds-labs/sonitranslate:v1.5.0
     container_name: soni
+    # command: ["executable", "arg"]
     deploy:
       resources:
         reservations:
@@ -20,6 +21,7 @@ services:
     # shm_size: 1024m
     ports:
       - 6860:6860
+      - 8321:8321
       - 7901:7901
       - 3100:3100
     environment:

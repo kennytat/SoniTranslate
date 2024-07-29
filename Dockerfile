@@ -17,9 +17,9 @@ RUN wget \
 	&& bash Miniconda3-py310_23.5.2-0-Linux-x86_64.sh -b \
 	&& rm -f Miniconda3-py310_23.5.2-0-Linux-x86_64.sh
 
-RUN conda install -y nvidia/label/cuda-11.8.0::libcusparse
-RUN conda install -y -c pytorch -c conda-forge cudatoolkit=11.1
-RUN mkdir -p  /root/miniconda3/lib/python3.10/site-packages/data/checkpoints
+RUN conda install -y nvidia/label/cuda-12.2.2::libcusparse
+RUN conda install -y nvidia/label/cuda-12.2.2::cuda-toolkit
+RUN mkdir -p /root/miniconda3/lib/python3.10/site-packages/data/checkpoints
 
 COPY requirement*.txt ./
 # Install dependencies with cache mounting
@@ -27,17 +27,18 @@ RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} 
 RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} -r requirements_ttt.txt
 RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} -r requirements_tts.txt
 RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} -r requirements_extra.txt
+RUN python -m spacy download en_core_web_sm
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu121 torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1+cu121
 
 RUN rm -rf /var/cache/apt/*
 
 COPY . .
+RUN chmod u+x run.sh
 
 EXPOSE 6860
+EXPOSE 8321
 EXPOSE 7901
 EXPOSE 3100
 
-COPY entrypoint.sh /
-
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+CMD /bin/bash run.sh --api --stt --tts --soni
+## /bin/bash run.sh --api --stt --tts --soni

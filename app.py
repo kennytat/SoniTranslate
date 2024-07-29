@@ -201,6 +201,8 @@ function() {
 play_sample_audio_js = """
 (tts_method, tts_voice, vc_method, vc_voice) => {
   console.log('play sample::', tts_method, tts_voice, vc_method, vc_voice)
+  tts_voice = vc_voice ? tts_voice : "None";
+  vc_voice = vc_voice ? vc_voice : "None";
   const filename = `${tts_method}-${tts_voice.split(".")[0]}-${vc_method}-${vc_voice.split('.')[0]}`;
   var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}.wav`);
   audio.play().then(() => {
@@ -534,6 +536,16 @@ class Main():
       # target_samples = int(source_duration * 48000)
       # sf.write(filepath, data=data[:target_samples], samplerate=48000)
       return file
+    
+    def speaker_order_correction(self, segments):
+        if 'speaker' in segments[0] and segments[0]['speaker'] != "SPEAKER_00":
+          first_speaker_num = re.search(r"\d+", segments[0]['speaker']).group()
+          speaker_array = list(range(self.max_speakers))
+          speaker_remap = {
+              f'SPEAKER_{i:02d}': f'SPEAKER_{(speaker_array[i - int(first_speaker_num)]):02d}' for i in speaker_array
+          }
+          segments = [{**segment, 'speaker': speaker_remap[segment['speaker']] if 'speaker' in segment else "SPEAKER_00"} for segment in segments]
+        return segments
 
     def tts(self, segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, tts_client):
         text = segment['text']
@@ -831,6 +843,7 @@ class Main():
               min_speakers=self.min_speakers,
               max_speakers=self.max_speakers)
           result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
+          result_diarize['segments'] = self.speaker_order_correction(result_diarize['segments'])
           gc.collect(); torch.cuda.empty_cache(); del diarize_model
         else:
           result_diarize = result

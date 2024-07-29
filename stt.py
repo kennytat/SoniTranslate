@@ -21,6 +21,9 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
+import whisperx
+from whisperx.utils import get_writer
+
 from dotenv import load_dotenv
 load_dotenv()
 total_input = []
@@ -96,106 +99,134 @@ class CONFIG():
     # ckpt
     os_tmp = Path(os.path.join(tempfile.gettempdir(), "STT"))
 
-def STT(
-  input_files,
-  whisper_model,
-  LANGUAGE,
-  batch_size,
-  chunk_size,
-  compute_type
-  ):
-    output_dir_name = new_dir_now()
-    output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
-    Path(output_dir_path).mkdir(parents=True, exist_ok=True)
-    print("stt called::",   input_files, whisper_model, LANGUAGE, batch_size, chunk_size)
-    file_list = [f.name for f in input_files]
-    results_list = []
-    LANGUAGE = LANGUAGES[LANGUAGE]
-    print("Start transcribing source language::")
-    global total_input
-    global total_output
-    total_input = input_files
-    for index, file_path in enumerate(file_list):
-      try:
-        print('file_path::',file_path)
-        tmp_dir = os.path.join(output_dir_path, encode_filename(file_path))
-        Path(tmp_dir).mkdir(parents=True, exist_ok=True)
-        whisper_args = ['whisperx', '--model', whisper_model, '--no_align', '--batch_size', str(batch_size), '--compute_type', compute_type, '--chunk_size', str(chunk_size), file_path ,'-o', tmp_dir]
-        if LANGUAGE != 'Automatic detection':
-          whisper_args.extend(['--language', LANGUAGE])
-        subprocess.run(whisper_args)
-        print(f'Done:: {index}/{len(file_list)} task::', file_path)
-        archive_path = os.path.join(Path(output_dir_path).absolute(), os.path.splitext(os.path.basename(file_path))[0])
-        shutil.make_archive(archive_path, 'zip', tmp_dir)   
-        results_list.append(f"{archive_path}.zip")
-        total_output.append(f"{archive_path}.zip")
-        ## Remove tmp files
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        os.remove(file_path)
-      except:
-          print("Skip error file while stt: {}".format(file_path))
-    print("[DONE] {} tasks: {}".format(len(results_list), results_list))
-    return results_list
 
-def web_interface(port):
-  css = """
-  .btn-active {background-color: "orange"}
-  #logout_btn {
-    align-self: self-end;
-    width: 65px;
-  }
-  """
-  app = gr.Blocks(title="VGM Speech To Text", theme=gr.themes.Default(), css=css)
-  with app:
-      with gr.Row():
-        with gr.Column():
-          gr.Markdown("# VGM Speech To Text")
-        if os.getenv('ENABLE_AUTH', '') == "true":
+class Whisper:
+    def __init__(self, whisper_model="", device="", compute_type=compute_type_default, language='en'):
+        self.current_model = whisper_model
+        self.current_language = language
+        self.model = whisperx.load_model(
+            whisper_arch=whisper_model,
+            device=device,
+            compute_type=compute_type,
+            language=None if language == 'Automatic detection' else language,
+            )
+
+    def stt(self, file_path="", batch_size=16, chunk_size=5):
+        try:
+          audio_bytes = whisperx.load_audio(file_path)
+          result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)
+          return result
+        except Exception as e:
+          print('Error stt::', e)
+          return ""
+        
+class STT():
+  def __init__(self):
+    self.stt_client = Whisper(whisper_model="large-v3", device=device)
+      
+  def speech_to_text(
+    self,
+    input_files,
+    whisper_model,
+    LANGUAGE,
+    batch_size,
+    chunk_size
+    ):
+        
+      output_dir_name = new_dir_now()
+      output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
+      Path(output_dir_path).mkdir(parents=True, exist_ok=True)
+      print("stt called::",   input_files, whisper_model, LANGUAGE, batch_size, chunk_size)
+      file_list = [f.name for f in input_files]
+      results_list = []
+      LANGUAGE = LANGUAGES[LANGUAGE]
+      print("Start transcribing source language::")
+      if self.stt_client.current_model != whisper_model or self.stt_client.current_language != LANGUAGE:
+        self.stt_client = Whisper(whisper_model=whisper_model, device=device, language=LANGUAGE)
+      global total_input
+      global total_output
+      total_input = input_files
+      for index, file_path in enumerate(file_list):
+        try:
+          print('file_path::',file_path)
+          output_format = "all"
+          tmp_dir = os.path.join(output_dir_path, encode_filename(file_path))
+          Path(tmp_dir).mkdir(parents=True, exist_ok=True)
+          result = self.stt_client.stt(file_path=file_path, batch_size=batch_size, chunk_size=chunk_size)
+          writer_args = {"highlight_words": False, "max_line_count": None, "max_line_width": None}
+          writer = get_writer(output_format, tmp_dir)
+          writer(result, file_path, writer_args)
+          print(f'Done:: {index}/{len(file_list)} task::', file_path)
+          archive_path = os.path.join(Path(output_dir_path).absolute(), os.path.splitext(os.path.basename(file_path))[0])
+          shutil.make_archive(archive_path, 'zip', tmp_dir)   
+          results_list.append(f"{archive_path}.zip")
+          total_output.append(f"{archive_path}.zip")
+          ## Remove tmp files
+          shutil.rmtree(tmp_dir, ignore_errors=True)
+          os.remove(file_path)
+        except:
+            print("Skip error file while stt: {}".format(file_path))
+      print("[DONE] {} tasks: {}".format(len(results_list), results_list))
+      return results_list
+
+  def web_interface(self, port):
+    css = """
+    .btn-active {background-color: "orange"}
+    #logout_btn {
+      align-self: self-end;
+      width: 65px;
+    }
+    """
+    app = gr.Blocks(title="VGM Speech To Text", theme=gr.themes.Default(), css=css)
+    with app:
+        with gr.Row():
           with gr.Column():
-            gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn")
-      with gr.Tabs():
-          with gr.TabItem("STT"):
-              with gr.Row():
-                  with gr.Column():
-                      input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
-                      with gr.Row():
-                        WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
-                        LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
-                      with gr.Row():
-                        batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, scale=1)
-                        chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1, scale=1)
-                        compute_type = gr.Dropdown(['float16','float32'], value='float32',label='Compute Type', scale=1)
-                  with gr.Column():
-                      def update_output_list():
-                        global total_input
-                        global total_output
-                        return total_output if len(total_output) < len(total_input) else []
-                      with gr.Row():
-                        files_output = gr.Files(label="PROGRESS BAR")
-                      with gr.Row():
-                        tmp_output = gr.Files(label="Audio Files Output", every=10, value=update_output_list) #gr.Video()                     
-                      with gr.Row():
-                        ## Clear Button
-                        def reset_param():
+            gr.Markdown("# VGM Speech To Text")
+          if os.getenv('ENABLE_AUTH', '') == "true":
+            with gr.Column():
+              gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn")
+        with gr.Tabs():
+            with gr.TabItem("STT"):
+                with gr.Row():
+                    with gr.Column():
+                        input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
+                        with gr.Row():
+                          WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                          LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
+                        with gr.Row():
+                          batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, scale=1)
+                          chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1, scale=1)
+                    with gr.Column():
+                        def update_output_list():
                           global total_input
                           global total_output
-                          total_input = []
-                          total_output = []
-                          return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="Audio Files Output", visible=True)
-                        clear_btn = gr.ClearButton([input_files,files_output])
-                        clear_btn.click(reset_param,[],[files_output,tmp_output])
-                        def update_output_visibility():
-                          return gr.update(label="Audio Files Output"),gr.update(visible=False)
-                        btn = gr.Button(value="Generate!", variant="primary")
-                        btn.click(STT,
-                                inputs=[input_files, WHISPER_MODEL,LANGUAGE,batch_size, chunk_size, compute_type],
-                                outputs=[files_output], concurrency_limit=1).then(
-                        fn=update_output_visibility,
-                        inputs=[],
-                        outputs=[files_output,tmp_output]
-                        )
-  app.queue()
-  return app
+                          return total_output if len(total_output) < len(total_input) else []
+                        with gr.Row():
+                          files_output = gr.Files(label="PROGRESS BAR")
+                        with gr.Row():
+                          tmp_output = gr.Files(label="Audio Files Output", every=10, value=update_output_list) #gr.Video()                     
+                        with gr.Row():
+                          ## Clear Button
+                          def reset_param():
+                            global total_input
+                            global total_output
+                            total_input = []
+                            total_output = []
+                            return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="Audio Files Output", visible=True)
+                          clear_btn = gr.ClearButton([input_files,files_output])
+                          clear_btn.click(reset_param,[],[files_output,tmp_output])
+                          def update_output_visibility():
+                            return gr.update(label="Audio Files Output"),gr.update(visible=False)
+                          btn = gr.Button(value="Generate!", variant="primary")
+                          btn.click(self.speech_to_text,
+                                  inputs=[input_files, WHISPER_MODEL,LANGUAGE,batch_size, chunk_size],
+                                  outputs=[files_output], concurrency_limit=1).then(
+                          fn=update_output_visibility,
+                          inputs=[],
+                          outputs=[files_output,tmp_output]
+                          )
+    app.queue()
+    return app
 
 @atexit.register
 def cleanup_tmp():
@@ -328,7 +359,8 @@ if __name__ == "__main__":
     os.system(f'rm -rf /tmp/gradio-vgm/*')
     host = "localhost"
     port = 3100
-    app = web_interface(port)
+    stt = STT()
+    app = stt.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":
       print("Starting Authentication:")
       root = gr.mount_gradio_app(root, app, path="/app", auth_dependency=is_authenticated)
