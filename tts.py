@@ -205,11 +205,13 @@ class TTS():
           
           ## Export text to file
           txt_path = f"{os.path.splitext(output_file)[0]}.txt"
-          with open(txt_path, "w") as f:
+          print('write to file::', txt_path, text)
+          with open(txt_path, "w", encoding="utf-8") as f:
             f.write(text)
         
           ## For tts with timeline
           if desired_duration > 0:
+            
             try:
               duration_true = desired_duration
               duration_tts = librosa.get_duration(path=output_file)
@@ -229,6 +231,8 @@ class TTS():
             tmp_file = f"{name}-tmp{ext}"
             os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje},agate=threshold=-15dB {tmp_file}")
             os.system(f"mv {tmp_file} {output_file}")
+          else:
+            print("No desired duration")
           gc.collect(); torch.cuda.empty_cache()
       except Exception as error:
         print("tts error::", text, "\n", error)

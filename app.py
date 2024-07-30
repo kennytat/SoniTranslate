@@ -59,7 +59,6 @@ upsampler = None
 gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", "/tmp/gradio-vgm")
 gradio_temp_processing_dir = os.path.join(gradio_temp_dir, "processing_dir")
 srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
-Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
 youtube_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'youtube')
 Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True) 
 
@@ -503,6 +502,7 @@ class Main():
 
                 
       if srt_inputs is not None and len(srt_inputs)> 0:
+        Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
         for srt in srt_inputs:
           os.system(f"mv {srt.name} {srt_temp_dir}/")
       global total_input
