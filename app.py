@@ -289,8 +289,9 @@ svc_voices = SVCClassVoices()
 
 # Function to save settings to a JSON file
 def save_settings(settings, filename='user_settings.json'):
-    with open(filename, 'w') as f:
-        json.dump(settings, f)
+    if settings:
+      with open(filename, 'w') as f:
+          json.dump(settings, f)
 
 # Function to load settings from a JSON file
 def load_settings(filename='user_settings.json'):

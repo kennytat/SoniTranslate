@@ -97,6 +97,7 @@ list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("mo
 
 # Function to save settings to a JSON file
 def save_settings(settings, filename='user_settings.json'):
+  if settings:
     with open(filename, 'w') as f:
         json.dump(settings, f)
 
@@ -418,6 +419,8 @@ class TTS():
     return None, None
 
   def create_sample_audio(self, tts_method="", tts_voice="", vc_method="", vc_voice=""):
+    tts_voice = tts_voice if tts_voice else "None"
+    vc_voice = vc_voice if vc_voice else "None"
     file_name = f"{tts_method}-{tts_voice.split('.')[0]}-{vc_method}-{vc_voice.split('.')[0]}.wav"
     voice_path = os.path.join("sample_audio", file_name)
     voice_tmp_path = os.path.join(CONFIG.gradio_temp_dir, "voices", file_name)

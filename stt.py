@@ -122,7 +122,7 @@ class Whisper:
         
 class STT():
   def __init__(self):
-    self.stt_client = Whisper(whisper_model="large-v3", device=device)
+    self.stt_client = Whisper(whisper_model=whisper_model_default, device=device)
       
   def speech_to_text(
     self,

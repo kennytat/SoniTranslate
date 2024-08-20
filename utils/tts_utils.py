@@ -133,25 +133,23 @@ def load_piper_model(
         data_dir = [os.path.join(data_dir[0], download_dir)]
 
     # Download voice if file doesn't exist
-    model_path = Path(model)
+    model_path = Path(os.path.join(download_dir, f"{model}.onnx"))
+    
     if not model_path.exists():
         # Load voice info
         voices_info = get_voices(download_dir, update_voices=update_voices)
-
         # Resolve aliases for backwards compatibility with old voice names
         aliases_info: Dict[str, Any] = {}
         for voice_info in voices_info.values():
             for voice_alias in voice_info.get("aliases", []):
                 aliases_info[voice_alias] = {"_is_alias": True, **voice_info}
-
         voices_info.update(aliases_info)
         ensure_voice_exists(model, data_dir, download_dir, voices_info)
-        model, config = find_voice(model, data_dir)
-
-        replace_text_in_json(
-            config, "phoneme_type", "espeak", "PhonemeType.ESPEAK"
-        )
-
+        
+    model, config = find_voice(model, data_dir)
+    replace_text_in_json(
+        config, "phoneme_type", "espeak", "PhonemeType.ESPEAK"
+    )
     # Load voice
     voice = PiperVoice.load(model, config_path=config, use_cuda=cuda)
 
@@ -176,7 +174,7 @@ def piper_tts(tts_text, tts_voice, tts_speed, filename):
     Install:
     pip install -q piper-tts==1.2.0 onnxruntime-gpu # for cuda118
     """
-	
+  
     data_dir = [
         str(Path.cwd())
     ]  # "Data directory to check for downloaded models (default: current directory)"
@@ -211,8 +209,7 @@ def piper_tts(tts_text, tts_voice, tts_speed, filename):
             file=filename,
             samplerate=sampling_rate,
             data=speech_output,
-            format="ogg",
-            subtype="vorbis",
+            format="wav",
         )
 
     except Exception as error:
