@@ -191,7 +191,7 @@ class STT():
                     with gr.Column():
                         input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
                         with gr.Row():
-                          WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'small', 'medium', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                          WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'base.en', 'small','small.en', 'medium', 'medium.en', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                           LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
                         with gr.Row():
                           batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, scale=1)

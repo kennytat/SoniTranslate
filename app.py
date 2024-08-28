@@ -400,9 +400,9 @@ class Main():
       match_start,
       YOUR_HF_TOKEN,
       preview=False,
-      WHISPER_MODEL_SIZE="large-v3",
+      WHISPER_MODEL_SIZE="medium.en",
       batch_size=16,
-      chunk_size=5,
+      chunk_size=24,
       compute_type="float16",
       SOURCE_LANGUAGE= "Automatic detection",
       TRANSLATE_AUDIO_TO="English (en)",
@@ -1031,7 +1031,7 @@ class Main():
         if is_video:
           os.system(f"ffmpeg -i '{OutputFile}' -i '{mix_audio}' -c:v copy -c:a aac -map 0:v -map 1:a -shortest '{media_output_path}'")
         os.remove(OutputFile)
-        if media_input.startswith('/tmp'):
+        if media_input.startswith('/tmp') and os.path.isfile(media_input):
           os.remove(media_input)
         ## Archve all files and return output
         archive_path = os.path.join(Path(temp_dir).parent.absolute(), os.path.splitext(os.path.basename(media_output_path))[0])
@@ -1043,13 +1043,14 @@ class Main():
         try:
           target_dir = os.getenv('COPY_OUTPUT_DIR', '')
           if target_dir and os.path.isdir(target_dir):
-            print("Copying to output directory::", media_input, self.local_input_dirs)
             if media_input.startswith(gradio_temp_processing_dir) and len(self.local_input_dirs) > 0:
               most_matching_prefix = find_most_matching_prefix(self.local_input_dirs, media_input)
               target_dir = os.path.join(target_dir, os.path.dirname(media_input).replace(os.path.dirname(most_matching_prefix),"").strip('/')) if os.path.isdir(most_matching_prefix) else os.path.join(target_dir, "/".join(os.path.dirname(media_input).split('/')[3:]).strip('/'))
+            print("Copying to output directory::", final_output, target_dir)
             subprocess.run(["mkdir", "-p", target_dir], capture_output=True, text=True)
             subprocess.run(["cp", final_output, target_dir], capture_output=True, text=True)
-            # os.system(f"rm -rf '{final_output}'")
+            os.system(f"rm -rf '{final_output}'")
+            os.system(f"touch '{final_output}'")
         except:
           print('copy to target dir failed')
         return final_output
@@ -1189,7 +1190,7 @@ class Main():
                                   with gr.Row():
                                     batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1)
                                     batch_size.change(None, batch_size, None, js="(v) => setStorage('batch_size',v)")
-                                    chunk_size = gr.Slider(2, 30, value=5, label="Chunk size", step=1)
+                                    chunk_size = gr.Slider(2, 30, value=24, label="Chunk size", step=1)
                                     chunk_size.change(None, chunk_size, None, js="(v) => setStorage('chunk_size',v)")
                                   # gr.HTML("<hr>")
                                   # MEDIA_OUTPUT_NAME = gr.Textbox(label="Translated file name" ,value="media_output.mp4", info="The name of the output file")

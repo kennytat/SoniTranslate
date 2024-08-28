@@ -32,6 +32,17 @@ SonyTranslate is a powerful and user-friendly web application that allows you to
 ## Installation
 
 ```
+sudo apt-get update -y && apt-get upgrade -y
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+export last_public_key=3bf863cc # SEE NOTE BELOW
+sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/${last_public_key}.pub
+sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+sudo apt-get update
+sudo apt-get install libcudnn8
+sudo apt-get install libcudnn8-dev
+sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux
+
 conda create -n soni python=3.10.12
 conda activate soni
 git submodule update --init --recursive
@@ -43,9 +54,16 @@ python -m spacy download en_core_web_sm
 conda install -y nvidia/label/cuda-12.2.2::libcusparse
 conda install -y nvidia/label/cuda-12.2.2::cuda-toolkit
 
+
+
+
+
 rm -rf $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/data/checkpoints
 ln -s model/neuspell $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/data/checkpoints
 python app.py
+
+mount smb:
+sudo mount -t cifs //192.168.1.12/vgm-translate/ai1 /home/vgm/mount/output -o username=Administrator,password=,uid=1000,gid=1000,forceuid,forcegid
 ```
 
 ## Example:
