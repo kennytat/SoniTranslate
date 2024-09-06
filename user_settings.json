@@ -4,7 +4,7 @@
   "t2s": "VietTTS",
   "t2s_lang": "Vietnamese (vi)",
   "vc": "SVC",
-  "llm_url": "https://infer-2.vn.chattrust.ai/v1",
+  "llm_url": "http://172.27.188.31:8081/v1",
   "llm_models": ["bible-translator-llama3-5b4e", "trust-translator-4e"],
   "llm_model": "bible-translator-llama3-5b4e"
 }

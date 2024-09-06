@@ -63,7 +63,7 @@ ln -s model/neuspell $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/dat
 python app.py
 
 mount smb:
-sudo mount -t cifs //192.168.1.12/vgm-translate/ai1 /home/vgm/mount/output -o username=Administrator,password=,uid=1000,gid=1000,forceuid,forcegid
+sudo mount -t cifs //192.168.1.12/vgm-translate/ai1 /home/vgm/mount/output -o username=Administrator,password=,uid=1000,gid=1000,forceuid,forcegid,_netdev,auto,x-systemd.automount,x-systemd.mount-timeout=30
 ```
 
 ## Example:

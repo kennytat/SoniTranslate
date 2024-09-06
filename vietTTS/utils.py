@@ -279,7 +279,7 @@ def txt_to_paragraph(txt_input):
     paras = txt_input.lower()
     paras = remove_comment(paras)
     paras = sent_tokenize(paras)
-    paras = combine_sentences(sentences=paras, min_word_length=10, max_word_length=500)
+    paras = combine_sentences(sentences=paras, min_word_length=50, max_word_length=500)
     # Each new line between paragraphs add more silence duration
     p_list = []
     for p in paras:
