@@ -123,6 +123,10 @@ class XTTS():
           out["wav"] = out["wav"][:keep_len]
 
           torchaudio.save(outpath, torch.tensor(out["wav"]).unsqueeze(0), 24000)
+          name, ext = os.path.splitext(outpath)
+          output_temp = f"{name}-tmp{ext}"
+          os.system(f"mv {outpath} {output_temp}")
+          os.system(f"ffmpeg -y -hide_banner -loglevel error -i '{output_temp}' -ac 1 -af 'silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,aformat=dblp,areverse,silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,aformat=dblp,areverse,adelay=300:all=true,apad=pad_dur=0.2' '{outpath}'")		
           
       except RuntimeError as e:
           print("RuntimeError::", e)
