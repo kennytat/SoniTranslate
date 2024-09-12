@@ -801,27 +801,30 @@ def find_most_matching_prefix(path_list, path):
     return matching_prefix
   
 def split_and_join_by_comma(long_string, max_length=200, min_length=50):
-    # Split the string by commas
-    parts = long_string.split(',')
-    
-    # Initialize the result list and a temporary buffer
-    result = []
-    temp_buffer = ""
-    
-    for part in parts:
-        if len(temp_buffer) + len(part) + 1 <= max_length:
-            if temp_buffer:
-                temp_buffer += "," + part
-            else:
-                temp_buffer = part
-        else:
-            result.append(temp_buffer)
-            temp_buffer = part
-    
-    # Append the remaining buffer if it's not empty
-    if temp_buffer:
-        if len(temp_buffer) <= min_length and result:
-            result[-1] += "," + temp_buffer
-        else:
-            result.append(temp_buffer)
-    return result
+    if ',' in long_string:  
+      # Split the string by commas
+      parts = long_string.split(',')
+      
+      # Initialize the result list and a temporary buffer
+      result = []
+      temp_buffer = ""
+      
+      for part in parts:
+          if len(temp_buffer) + len(part) + 1 <= max_length:
+              if temp_buffer:
+                  temp_buffer += "," + part
+              else:
+                  temp_buffer = part
+          else:
+              result.append(temp_buffer)
+              temp_buffer = part
+      
+      # Append the remaining buffer if it's not empty
+      if temp_buffer:
+          if len(temp_buffer) <= min_length and result:
+              result[-1] += "," + temp_buffer
+          else:
+              result.append(temp_buffer)
+      return result
+    else:
+      return [long_string]

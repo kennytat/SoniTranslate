@@ -71,7 +71,7 @@ class TTSClient():
           return
         if t2s_method == "XTTS" and self.tts_client and self.tts_client.name == t2s_method:
           print("xTTS::")
-          if len(tts_text) > 250:
+          if len(tts_text) > 250 and "," in tts_text:
             self.split_long_speech(tts_text, tts_voice, tts_speed, filename, language, t2s_method, 200)
           elif len(tts_text) > 50:
             self.tts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
