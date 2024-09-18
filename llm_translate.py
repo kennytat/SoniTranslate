@@ -12,8 +12,8 @@ from langdetect import detect
 # from utils.utils import srt_to_segments, segments_to_srt
 
 load_dotenv()
+from langchain_openai import ChatOpenAI
 
-from langchain_community.chat_models import ChatOpenAI
 from langchain import ConversationChain, LLMChain, PromptTemplate
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import (
@@ -53,11 +53,14 @@ class LLM():
                 max_tokens=4096,
                 temperature=temp,
                 # max_retries=2,
-                model_kwargs={
-                  "stop":["<|im_end|>"],
-                  "top_p": 0.95,
-                  # "top_k": 30
-                },
+                # model_kwargs={
+                #   "stop":["<|im_end|>"],
+                #   "frequency_penalty": 1.1
+                # },
+                top_p= 0.95,
+                frequency_penalty=1.3,
+                stop=["<|im_end|>"],
+                
             )
             llm_chain = LLMChain(llm=llm, 
                                 prompt=self.prompt,
@@ -95,7 +98,7 @@ class LLM():
 # if __name__ == '__main__':
 #   llm = LLM()
 #   llm.initLLM( 
-#     endpoints="https://infer-2.vn.chattrust.ai/v1", 
+#     endpoints="http://172.27.188.32:8081/v1", 
 #     model="trast-ai/trust-translator-llama3-5b4e", ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
 #     temp=0.3,
 #     k=10

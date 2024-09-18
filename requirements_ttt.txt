@@ -17,5 +17,6 @@ langdetect
 openai
 langchain
 langchain_community
+langchain-openai
 ## === Spell check ===
 neuspell

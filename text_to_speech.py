@@ -14,7 +14,8 @@ import torch
 import gc
 from ovc_voice_main import OpenVoice
 from pathlib import Path
-      
+from pydub import AudioSegment
+
 class TTSClient():
   def __init__(self):
     self.tts_client = None
@@ -75,52 +76,56 @@ class TTSClient():
             self.split_long_speech(tts_text, tts_voice, tts_speed, filename, language, t2s_method, 200)
           elif len(tts_text) > 50:
             self.tts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
+          else:
+            second_of_silence = AudioSegment.silent(duration=200) # or be explicit
+            second_of_silence = second_of_silence.set_frame_rate(24000)
+            second_of_silence.export(filename, format="wav")
           return   
       except Exception as error:
         print("tts error:", error, tts_text)
       return
   
 def start_svc_voice(input_path, vc_voice):
-	print("start svc_voice::", input_path, vc_voice)
-	model_path = os.path.join(vc_voice, "G.pth")
-	config_path = os.path.join(vc_voice, "config.json")
-	if os.path.isfile(input_path):
-		basename, ext = os.path.splitext(input_path)
-		output_file = f"{basename}.out{ext}"
-		os.system(f'svc infer -m {model_path} -c {config_path} {input_path}')
-		shutil.move(output_file, input_path)
-	if os.path.isdir(input_path):
-		output_dir = f'{input_path}.out'
-		os.system(f'svc infer -re -m {model_path} -c {config_path} {input_path}')
-		if os.path.exists(input_path): shutil.rmtree(input_path, ignore_errors=True)
-		shutil.move(output_dir, input_path)
-	gc.collect(); torch.cuda.empty_cache()
+  print("start svc_voice::", input_path, vc_voice)
+  model_path = os.path.join(vc_voice, "G.pth")
+  config_path = os.path.join(vc_voice, "config.json")
+  if os.path.isfile(input_path):
+    basename, ext = os.path.splitext(input_path)
+    output_file = f"{basename}.out{ext}"
+    os.system(f'svc infer -m {model_path} -c {config_path} {input_path}')
+    shutil.move(output_file, input_path)
+  if os.path.isdir(input_path):
+    output_dir = f'{input_path}.out'
+    os.system(f'svc infer -re -m {model_path} -c {config_path} {input_path}')
+    if os.path.exists(input_path): shutil.rmtree(input_path, ignore_errors=True)
+    shutil.move(output_dir, input_path)
+  gc.collect(); torch.cuda.empty_cache()
 
 def start_ovc_voice(input_path, tts_voice, vc_voice):
-	print("start vc_voice::", input_path, tts_voice, vc_voice)
-	ov = OpenVoice()
-	if os.path.isfile(input_path):
-		basename, ext = os.path.splitext(input_path)
-		output_file = f"{basename}.out{ext}"
-		ov.convert_voice(file, tts_voice, output_file, vc_voice)
-		shutil.move(output_file, input_path)
-	if os.path.isdir(input_path):
-		output_dir = f"{input_path}-out"
-		os.system(f"mkdir -p {output_dir}")
-		for file in sorted(Path(input_path).glob("*.wav")):
-			output_file = str(file).replace(input_path, output_dir)
-			print("openvoice::", output_file)
-			ov.convert_voice(file, tts_voice, output_file, vc_voice)
-		if os.path.exists(input_path): shutil.rmtree(input_path, ignore_errors=True)
-		shutil.move(output_dir, input_path)
-	del ov
-	gc.collect(); torch.cuda.empty_cache()
+  print("start vc_voice::", input_path, tts_voice, vc_voice)
+  ov = OpenVoice()
+  if os.path.isfile(input_path):
+    basename, ext = os.path.splitext(input_path)
+    output_file = f"{basename}.out{ext}"
+    ov.convert_voice(file, tts_voice, output_file, vc_voice)
+    shutil.move(output_file, input_path)
+  if os.path.isdir(input_path):
+    output_dir = f"{input_path}-out"
+    os.system(f"mkdir -p {output_dir}")
+    for file in sorted(Path(input_path).glob("*.wav")):
+      output_file = str(file).replace(input_path, output_dir)
+      print("openvoice::", output_file)
+      ov.convert_voice(file, tts_voice, output_file, vc_voice)
+    if os.path.exists(input_path): shutil.rmtree(input_path, ignore_errors=True)
+    shutil.move(output_dir, input_path)
+  del ov
+  gc.collect(); torch.cuda.empty_cache()
 
 def voice_conversion(input_path, tts_voice, vc_method, vc_voice):
-	print("Start Voice Convertion::")
-	if vc_method == "SVC":
-		svc_voice_ckpt_dir = os.path.join(os.getcwd(), "model", "svc", vc_voice)
-		start_svc_voice(input_path, svc_voice_ckpt_dir)
-	if vc_method == "OpenVoice":
-		start_ovc_voice(input_path, tts_voice, vc_voice)    
+  print("Start Voice Convertion::")
+  if vc_method == "SVC":
+    svc_voice_ckpt_dir = os.path.join(os.getcwd(), "model", "svc", vc_voice)
+    start_svc_voice(input_path, svc_voice_ckpt_dir)
+  if vc_method == "OpenVoice":
+    start_ovc_voice(input_path, tts_voice, vc_voice)    
   
