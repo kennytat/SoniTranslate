@@ -58,7 +58,7 @@ class LLM():
                 #   "frequency_penalty": 1.1
                 # },
                 top_p= 0.95,
-                frequency_penalty=1.3,
+                frequency_penalty=1.1,
                 stop=["<|im_end|>"],
                 
             )

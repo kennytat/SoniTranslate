@@ -4,12 +4,13 @@ import re
 import time
 import torch
 import torchaudio
+import librosa
 import gc
 from pydub import AudioSegment
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 import pinyin
-
+import math
 # import joblib
 # from tqdm import tqdm
 # from joblib import Parallel, delayed
@@ -32,6 +33,7 @@ class XTTS():
     self.MODEL = Xtts.init_from_config(self.config)
     self.MODEL.load_checkpoint(self.config, checkpoint_dir=checkpoint_dir, use_deepspeed=False)
     self.current_voice = ""
+    self.sample_rate = 24000
     if torch.cuda.is_available():
         self.MODEL.cuda()
 
@@ -95,9 +97,29 @@ class XTTS():
           text = re.sub("([^\x00-\x7F]|\w)(\.|\。|\?)", r"\1 \2\2", text)
           print("xtts::", f"{len(text)}|{text}" )
           print("I: Generating new audio...")
-          t0 = time.time()
+          # t0 = time.time()
+          
+          ## Concatenate extend text for short text and delete after 
+          extend_text = "the text is too short so this text is automatically appended and should be deleted after generation."
+          if len(text) < 50:
+            extend_text_out = self.MODEL.inference(
+                text=extend_text,
+                language=language,
+                gpt_cond_latent=self.gpt_cond_latent,
+                speaker_embedding=self.speaker_embedding,
+                speed=tts_speed,
+                temperature=self.MODEL.config.temperature,
+                length_penalty=self.MODEL.config.length_penalty,
+                repetition_penalty=self.MODEL.config.repetition_penalty,
+                top_k=self.MODEL.config.top_k,
+                top_p=self.MODEL.config.top_p,
+                enable_text_splitting=True,
+            )
+            extend_text_duration = librosa.get_duration(y=extend_text_out["wav"], sr=self.sample_rate)
+            print("extend_text_duration:::", extend_text_duration)           
+    
           out = self.MODEL.inference(
-              text=text,
+              text=text + " , " + extend_text if len(text) < 50 else text,
               language=language,
               gpt_cond_latent=self.gpt_cond_latent,
               speaker_embedding=self.speaker_embedding,
@@ -109,20 +131,26 @@ class XTTS():
               top_p=self.MODEL.config.top_p,
               enable_text_splitting=True,
           )
-          inference_time = time.time() - t0
-          print(f"I: Time to generate audio: {round(inference_time*1000)} milliseconds")
-          metrics_text += (
-              f"Time to generate audio: {round(inference_time*1000)} milliseconds\n"
-          )
-          real_time_factor = (time.time() - t0) / out["wav"].shape[-1] * 24000
-          print(f"Real-time factor (RTF): {real_time_factor}")
-          metrics_text += f"Real-time factor (RTF): {real_time_factor:.2f}\n"
+          if len(text) < 50:
+            duration = librosa.get_duration(y=out["wav"], sr=self.sample_rate)
+            print("duration:::", duration)  
+            out['wav'] = out['wav'][:math.ceil((duration - extend_text_duration + 0.5) * self.sample_rate)]
 
-          # Temporary hack for short sentences
-          keep_len = self.calculate_keep_len(text, language)
-          out["wav"] = out["wav"][:keep_len]
 
-          torchaudio.save(outpath, torch.tensor(out["wav"]).unsqueeze(0), 24000)
+          # inference_time = time.time() - t0
+          # print(f"I: Time to generate audio: {round(inference_time*1000)} milliseconds")
+          # metrics_text += ( f"Time to generate audio: {round(inference_time*1000)} milliseconds\n")
+          # real_time_factor = (time.time() - t0) / out["wav"].shape[-1] * self.sample_rate
+          # print(f"Real-time factor (RTF): {real_time_factor}")
+          # metrics_text += f"Real-time factor (RTF): {real_time_factor:.2f}\n"
+
+
+          # # Temporary hack for short sentences
+          # keep_len = self.calculate_keep_len(text, language)
+          # out["wav"] = out["wav"][:keep_len]
+          
+
+          torchaudio.save(outpath, torch.tensor(out["wav"]).unsqueeze(0), self.sample_rate)
           name, ext = os.path.splitext(outpath)
           output_temp = f"{name}-tmp{ext}"
           os.system(f"mv {outpath} {output_temp}")
@@ -134,7 +162,7 @@ class XTTS():
 
   def text_to_speech(self, text, output_file, tts_voice, tts_speed, language):
       text = pinyin.get(text, format="numerical")
-      print("xtts text::", text)
+      print("xtts text::", text, output_file, tts_voice, tts_speed, language)
       if re.sub(r'^sil\s+','',text).isnumeric():
           silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
           print("Got integer::", text, silence_duration) 

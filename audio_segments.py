@@ -2,7 +2,7 @@ from pydub import AudioSegment
 from tqdm import tqdm
 import os
 
-def split_array_odd_even(input_array):
+def split_by_odd_even(input_array):
     # Initialize empty arrays for odd and even elements
     even_array = []
     odd_array = []
@@ -16,23 +16,36 @@ def split_array_odd_even(input_array):
             odd_array.append(element)
     return even_array, odd_array
 
+def split_by_speaker(input_array):
+    # Initialize empty arrays for odd and even elements
+    speakers = list(set([segment['speaker'] for segment in input_array]))
+    speaker_array = {
+      'full': input_array
+    }
+    if len(speakers) > 1:
+      for speaker in speakers:
+        speaker_array[speaker] = list(filter(lambda segment: segment['speaker'] == speaker, input_array))
+    return speaker_array
+  
 def create_translated_audio(result_diarize, Output_name_file, match_start):
   
   if match_start:
     # Split even, odd audio files path and time segments
-    # even_audio_files, odd_audio_files = split_array_odd_even(audio_files)
-    even_segments, odd_segments = split_array_odd_even(result_diarize['segments'])
+    split_speaker_array = split_by_speaker(result_diarize['segments'])
+    if len(split_speaker_array.keys()) == 1:
+      even_segments, odd_segments = split_by_odd_even(result_diarize['segments'])
+      split_speaker_array['even'] = even_segments
+      split_speaker_array['odd'] = odd_segments
     
     total_duration = result_diarize['segments'][-1]['end'] # in seconds
     print(round((total_duration / 60),2), 'minutes of video')
 
-    for method in ["even", "odd", "full"]:
+    for key, segments in split_speaker_array.items():
     # silent audio with total_duration
       combined_audio = AudioSegment.silent(duration=int(total_duration * 1000))
       output_base, output_ext = os.path.splitext(Output_name_file)
       # file_array = even_audio_files if method == "even" else (odd_audio_files if method == "odd" else audio_files)
-      segments = even_segments if method == "even" else (odd_segments if method == "odd" else result_diarize['segments'])
-      output_path = f"{output_base}_even{output_ext}" if method == "even" else (f"{output_base}_odd{output_ext}" if method == "odd" else Output_name_file)
+      output_path = Output_name_file if key == "full" else f"{output_base}_{key}{output_ext}"
       # print("file_array::", method, len(file_array))
       for line in tqdm(segments):
         start = float(line['start'])

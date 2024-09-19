@@ -816,15 +816,12 @@ def split_and_join_by_comma(long_string, max_length=200, min_length=50):
               else:
                   temp_buffer = part
           else:
-              result.append(temp_buffer)
+              result.append(temp_buffer.strip())
               temp_buffer = part
       
       # Append the remaining buffer if it's not empty
       if temp_buffer:
-          if len(temp_buffer) <= min_length and result:
-              result[-1] += "," + temp_buffer
-          else:
-              result.append(temp_buffer)
-      return result
+          result.append(temp_buffer.strip())
+      return list(filter(lambda item: item, result))
     else:
       return [long_string]

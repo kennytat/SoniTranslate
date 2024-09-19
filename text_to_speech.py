@@ -74,12 +74,8 @@ class TTSClient():
           print("xTTS::")
           if len(tts_text) > 250 and "," in tts_text:
             self.split_long_speech(tts_text, tts_voice, tts_speed, filename, language, t2s_method, 200)
-          elif len(tts_text) > 50:
-            self.tts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
           else:
-            second_of_silence = AudioSegment.silent(duration=200) # or be explicit
-            second_of_silence = second_of_silence.set_frame_rate(24000)
-            second_of_silence.export(filename, format="wav")
+            self.tts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
           return   
       except Exception as error:
         print("tts error:", error, tts_text)

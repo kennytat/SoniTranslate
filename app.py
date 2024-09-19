@@ -200,7 +200,7 @@ function() {
 play_sample_audio_js = """
 (tts_method, tts_voice, vc_method, vc_voice) => {
   console.log('play sample::', tts_method, tts_voice, vc_method, vc_voice)
-  tts_voice = vc_voice ? tts_voice : "None";
+  tts_voice = tts_voice ? tts_voice : "None";
   vc_voice = vc_voice ? vc_voice : "None";
   const filename = `${tts_method}-${tts_voice.split(".")[0]}-${vc_method}-${vc_voice.split('.')[0]}`;
   var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}.wav`);
@@ -653,6 +653,7 @@ class Main():
         media_output_path = os.path.join(temp_dir, media_output_name)
         source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{SOURCE_LANGUAGE}')
         target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
+        speaker_info_path = os.path.join(temp_dir, f'speaker_info.json')
         audio_wav = f"{source_media_output_basename}.wav"
         audio_webm = f"{source_media_output_basename}.webm"
         translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.wav")
@@ -875,6 +876,23 @@ class Main():
             'SPEAKER_04': self.vc_voice04,
             'SPEAKER_05': self.vc_voice05
         }
+        
+        ## Export speaker info
+        speaker_info = {
+          'text_to_speech': {
+             'method': self.t2s_method,
+            'voice' : speaker_to_voice,
+            'speed' : speaker_to_speed
+          },
+          'voice_conversion': {
+             'method': self.vc_method,
+            'voice' : speaker_to_vc 
+          },
+        }
+        with open(f'{speaker_info_path}', 'w', encoding='utf-8') as srtFile:
+          srtFile.write(json.dumps(speaker_info, indent=4))
+        
+        ##
         result_diarize['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if 'speaker' in item else "", 'speed': speaker_to_speed[item['speaker']] if 'speaker' in item else 1} for item in result_diarize['segments']]
         print("Diarize complete::", result_diarize['segments'][0])
 
@@ -1063,6 +1081,8 @@ class Main():
       return None, None  
 
     def create_sample_audio(self, tts_method="", tts_voice="", vc_method="", vc_voice=""):
+      tts_voice = tts_voice if tts_voice else "None"
+      vc_voice = vc_voice if vc_voice else "None"
       file_name = f"{tts_method}-{tts_voice.split('.')[0]}-{vc_method}-{vc_voice.split('.')[0]}.wav"
       voice_path = os.path.join("sample_audio", file_name)
       voice_tmp_path = os.path.join(gradio_temp_dir, "voices", file_name)
