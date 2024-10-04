@@ -5,9 +5,6 @@
   "t2s_lang": "Vietnamese (vi)",
   "vc": "SVC",
   "llm_url": "http://172.27.188.32:8081/v1",
-  "llm_models": [
-    "trast-ai/trust-translator-llama3-5b4e",
-    "trust-translator-4e"
-  ],
+  "llm_models": ["trast-ai/trust-translator-llama3-5b4e"],
   "llm_model": "trast-ai/trust-translator-llama3-5b4e"
 }

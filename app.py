@@ -1035,14 +1035,14 @@ class Main():
         # TYPE MIX AUDIO
         if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
             # volume mix
-            os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+            os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0][a]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
         else:
             try:
                 # background mix
                 os.system(f'ffmpeg -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
             except:
                 # volume mix except
-                os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+                os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0][a]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
 
         print("Mixing target audio and video::")
         os.system(f"rm -rf {media_output_path}")

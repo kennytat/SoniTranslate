@@ -16,7 +16,9 @@ cryptography
 vietnam_number
 nest_asyncio
 ## === xTTS ===
-TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
+transformers==4.33.0
+spacy==3.8.0
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 typing-extensions
 cutlet
 deepspeed
@@ -32,8 +34,9 @@ gTTS
 edge_tts
 piper-tts
 onnxruntime-gpu
+TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
 ## === SVC ===
-so-vits-svc-fork
+so-vits-svc-fork==4.2.26
 ## === RVC ===
 praat-parselmouth>=0.4.3
 pyworld==0.3.2
@@ -43,14 +46,14 @@ gdown
 antlr4-python3-runtime==4.8
 ## === Open voice ===
 librosa==0.10.0
-faster-whisper
+faster-whisper==1.0.0
 pydub
 wavmark
 numpy
 eng_to_ipa
 inflect
 unidecode
-whisper-timestamped
+whisper-timestamped==1.15.4
 openai
 pypinyin
 cn2an
