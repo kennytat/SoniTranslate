@@ -20,7 +20,12 @@ load_dotenv()
 
 ## ----- Configuration -----
 temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate")
-device = "cuda" if torch.cuda.is_available() else "cpu"
+if torch.cuda.is_available():
+    device = "cuda"
+    CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
+    torch.cuda.set_device(CUDA_DEVICE)
+else:
+    device = "cpu"
 compute_type = "float32" if device == "cpu" else "float16"
 input_language = os.getenv("INPUT_LANG", "en")
 output_language = os.getenv("OUTPUT_LANG", "vi")

@@ -31,7 +31,8 @@ UNIDIRECTIONAL_L_LIST = LANGUAGES_UNIDIRECTIONAL.keys()
 LANGUAGES = {
     "Automatic detection": "Automatic detection",
     "Arabic (ar)": "ar",
-    "Chinese - Simplified (zh-CN)": "zh",
+    "Chinese (zh)": "zh-CN",
+    "Chinese traditional (zh-TW)": "zh-TW",
     "Czech (cs)": "cs",
     "Danish (da)": "da",
     "Dutch (nl)": "nl",

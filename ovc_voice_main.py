@@ -3,8 +3,12 @@ import torch
 from openvoice import se_extractor
 from openvoice.api import ToneColorConverter
 import shutil 
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
+if torch.cuda.is_available():
+    device = "cuda"
+    CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
+    torch.cuda.set_device(CUDA_DEVICE)
+else:
+    device = "cpu"
 base_converter_dir = os.path.join(os.getcwd(),"model","openvoice", "converter")
 source_voice_dir = os.path.join(os.getcwd(),"model","openvoice", "source_voice")
 target_voice_dir = os.path.join(os.getcwd(),"model","openvoice", "target_voice")

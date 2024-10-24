@@ -93,7 +93,7 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
       combined_audio = combined_audio.overlay(segment_combined_audio, position=0)
       ## Export segment audio
     ## Export final audio
-    combined_audio = normalise_volume(audio=combined_audio, target_dBFS=-16, target_max_dBFS=-4.0)
+    combined_audio = normalise_volume(audio=combined_audio, target_dBFS=-12, target_max_dBFS=0.0)
     combined_audio.export(Output_name_file, format="wav", bitrate="192k")
   else:
     concatenated_audio = AudioSegment.empty()

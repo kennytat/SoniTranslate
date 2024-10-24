@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+import argparse
 import subprocess
 import json
 import yt_dlp
@@ -258,6 +259,8 @@ Tip: You can use `Test RVC` to experiment and find the best TTS or configuration
 # Check GPU
 if torch.cuda.is_available():
     device = "cuda"
+    CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
+    torch.cuda.set_device(CUDA_DEVICE)
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
@@ -637,7 +640,6 @@ class Main():
             os.makedirs('audio2/audio')
 
         # Check GPU
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         self.compute_type = "float32" if device == "cpu" else self.compute_type
 
         temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", new_dir_now())
@@ -937,7 +939,7 @@ class Main():
           result_diarize['segments'] = concise_srt(result_diarize['segments'], max_word_length)
         else:
           # Start translate if srt not found
-          result_diarize['segments'] = translate_text(result_diarize['segments'], TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
+          result_diarize['segments'] = translate_text(result_diarize['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
           print("translated segments::", result_diarize['segments'])
         ## Write target segment and srt to file
         segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
@@ -1035,14 +1037,14 @@ class Main():
         # TYPE MIX AUDIO
         if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
             # volume mix
-            os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0][a]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+            os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
         else:
             try:
                 # background mix
                 os.system(f'ffmpeg -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
             except:
                 # volume mix except
-                os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0][a]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+                os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
 
         print("Mixing target audio and video::")
         os.system(f"rm -rf {media_output_path}")
@@ -1619,6 +1621,9 @@ async def logout():
     return response
  
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description="VGM Translate")
+  parser.add_argument("-p", "--port", help="port", default=6860)
+  args = parser.parse_args()
   mp.set_start_method('spawn', force=True)
   
   # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
@@ -1627,7 +1632,6 @@ if __name__ == "__main__":
   os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
   os.system(f'mkdir -p {gradio_temp_dir}/voices')
   os.system(f'cp -r sample_audio/* {gradio_temp_dir}/voices/')
-  port=6860
   os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
@@ -1636,7 +1640,7 @@ if __name__ == "__main__":
   if os.getenv('ENABLE_AUTH', '') == "true":
     root = gr.mount_gradio_app(root, mainApp.app, path="/app", auth_dependency=is_authenticated)
     asyncio.run(init_database())
-    uvicorn.run(root, host="0.0.0.0", port=port)
+    uvicorn.run(root, host="0.0.0.0", port=args.port)
   else:
     auth_user = os.getenv('AUTH_USER', '')
     auth_pass = os.getenv('AUTH_PASS', '')
@@ -1648,6 +1652,6 @@ if __name__ == "__main__":
       inbrowser=True,
       show_error=True,
       server_name="0.0.0.0",
-      server_port=port,
+      server_port=args.port,
       # quiet=True,
       share=False)

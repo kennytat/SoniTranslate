@@ -59,8 +59,10 @@ class TTSClient():
         if t2s_method == "GTTS" and self.tts_client and self.tts_client == t2s_method: 
           tts = gTTS(tts_text, lang=language)
           tts.save(filename)
+          sound = AudioSegment.from_mp3(filename)
+          sound.export(filename, format="wav")
           return
-        if t2s_method == "EdgeTTS and self.tts_client and self.tts_client == t2s_method":
+        if t2s_method == "EdgeTTS" and self.tts_client and self.tts_client == t2s_method:
           asyncio.run(edge_tts.Communicate(tts_text, "-".join(tts_voice.split('-')[:-1])).save(filename))
           return
         if t2s_method == "PiperTTS" and self.tts_client and self.tts_client == t2s_method:

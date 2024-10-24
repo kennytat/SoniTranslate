@@ -16,7 +16,12 @@ from vietTTS.utils import normalize, num_to_str, read_number, replace_dict
 
 TTS_MODEL_DIR = os.path.join(os.getcwd(),"model","vits")
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+if torch.cuda.is_available():
+  device = "cuda"
+  CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
+  torch.cuda.set_device(CUDA_DEVICE)
+else:
+  device = "cpu"
 space_re = regex.compile(r"\s+")
 number_re = regex.compile("([0-9]+)")
 num_re = regex.compile(r"([0-9.,]*[0-9])")

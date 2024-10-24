@@ -18,18 +18,22 @@ def post_process_text(text):
   return text
 
 ## Translate text using Google Translator
-def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.5, llm_k=30):
+def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.5, llm_k=30):
     print("start translate_text::", segments)
-    if t2t_method == "LLM" and TRANSLATE_AUDIO_TO == "vi":
-      llm = LLM()
-      llm_status = llm.initLLM(llm_endpoint, llm_model, llm_temp, llm_k)
+    if t2t_method == "LLM":
+      systemPrompt = "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp." if TRANSLATE_AUDIO_TO == "vi" else ""
+      llm_endpoint = llm_endpoint if TRANSLATE_AUDIO_TO == "vi" else ""
+      llm_model = llm_model if TRANSLATE_AUDIO_TO == "vi" else ""
+      api_key = "EMPTY" if TRANSLATE_AUDIO_TO == "vi" else ""
+      llm = LLM(systemPrompt=systemPrompt)
+      llm_status = llm.initLLM(llm_endpoint, llm_model, api_key, llm_temp, llm_k)
       if llm_status:
-        segments = llm.translate(segments)
+        segments = llm.translate(segments=segments, source_lang=SOURCE_LANGUAGE, target_lang=TRANSLATE_AUDIO_TO)
         for index, segment in enumerate(segments):
           segments[index]['text'] = post_process_text(segments[index]['text'])
         del llm
       else:
-        t2t_method = "VB"
+        t2t_method = "VB" if TRANSLATE_AUDIO_TO == "vi" else "LLM"
       
     if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
       print("vb_translator::", len(segments), "segments")
@@ -45,7 +49,7 @@ def translate_text(segments, TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint=
       # print("gg_translator::")
       try:
         text = segments[line]['text']
-        if text and detect(text.strip()) != 'vi':
+        if text and TRANSLATE_AUDIO_TO not in detect(text.strip()):
           translated_line = google_translator.translate(text.strip())
           # print("translate_text_in::", TRANSLATE_AUDIO_TO, t2t_method,f'{text}\n{translated_line}')
           segments[line]['text'] = post_process_text(translated_line)

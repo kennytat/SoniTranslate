@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-# import os
+import os
 # import shutil
 # import json
 import random
@@ -9,7 +9,8 @@ from joblib import Parallel, delayed
 import requests
 from langdetect import detect
 # from vietTTS.utils import concise_srt
-# from utils.utils import srt_to_segments, segments_to_srt
+from utils.utils import srt_to_segments, segments_to_srt
+from utils.language_configuration import LANGUAGES
 
 load_dotenv()
 from langchain_openai import ChatOpenAI
@@ -22,11 +23,10 @@ from langchain.prompts import (
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
-
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self.llm_chain = []
-    self.systemPrompt = systemPrompt if systemPrompt != "" else "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp."
+    self.systemPrompt = systemPrompt if systemPrompt != "" else "This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text."
     self.prompt = ChatPromptTemplate(
           messages=[
               SystemMessagePromptTemplate.from_template(self.systemPrompt),
@@ -36,9 +36,12 @@ class LLM():
           ]
       )
     
-  def initLLM(self, endpoints, model, temp=0.3, k=30):
+  def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=30):
     # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
     endpoints = endpoints.split(',')
+    endpoints = endpoints if len(endpoints)>0 else ["https://openrouter.ai/api/v1"]
+    model = model if model != "" else "openai/gpt-4o"
+    api_key = api_key if api_key != "" else "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"
     for endpoint in endpoints:
       try:
         if endpoint:
@@ -48,7 +51,7 @@ class LLM():
           if model in models:
             llm = ChatOpenAI(
                 model=model,
-                openai_api_key="EMPTY",
+                openai_api_key=api_key,
                 openai_api_base=endpoint,
                 max_tokens=4096,
                 temperature=temp,
@@ -62,66 +65,86 @@ class LLM():
                 stop=["<|im_end|>"],
                 
             )
-            llm_chain = LLMChain(llm=llm, 
-                                prompt=self.prompt,
-                                # memory=self.memory, 
-                                verbose=True)
+            llm_chain = self.prompt | llm
             self.llm_chain.append(llm_chain)
       except Exception as e:
         print('initLLM error:',  endpoint, e)
     return True if len(self.llm_chain) > 0 else False
         
-  def process(self, text):
+  def process(self, text, source_lang="en", target_lang="vn"):
     max_attempts = 3
     attempts = 0
+    source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
+    target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
+    print('language::', source_language, target_language)
+
     while attempts < max_attempts:
       try:
-        result = random.choice(self.llm_chain).predict(input=text)
-        if result and "im_start" not in result and "im_end" not in result and (abs(len(text) - len(result))) <= 100 and detect(result) == 'vi':
-            return result
+        result = random.choice(self.llm_chain).invoke({
+                  "input": text,
+                  "source_language": source_language,
+                  "target_language": target_language,
+              })
+        if result.content and "im_start" not in result.content and "im_end" not in result.content and target_lang in detect(result.content):
+            return result.content
       except Exception as e:
+        print("error::", e)
         result = ""
-      print(f"re-run {attempts}: {len(text)}/{len(result)}\nen: {text}\nvi: {result}")
+      print(f"re-run {attempts}: {len(text)}/{len(result.content)}\nen: {text}\nvi: {result.content}")
       attempts += 1
     return text
 
-  def translate(self, segments):
+  def translate(self, segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
       # N_JOBS = os.cpu_count()
       # print("Start LLM Translate:: concurrency =", N_JOBS)
-      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(10)):
-        t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text']) for (line) in tqdm(range(len(segments))))
+      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(1)):
+        t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text'], source_lang, target_lang) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]
       return segments  
 
 # if __name__ == '__main__':
+  
+#   systemPrompt="""This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text.
+# """
+# #   llm = LLM(systemPrompt=systemPrompt)
+# #   llm.initLLM(
+# #     endpoints="https://openrouter.ai/api/v1", ## http://172.27.188.32:8081/v1
+# #     model="openai/gpt-4o", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+# #     api_key="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",
+# #     temp=0.3,
+# #     k=10
+# #   )
+
+
 #   llm = LLM()
-#   llm.initLLM( 
-#     endpoints="http://172.27.188.32:8081/v1", 
-#     model="trast-ai/trust-translator-llama3-5b4e", ## "nampdn-ai/vietmistral-chatvgm-3072" "nampdn-ai/vietmistral-bible-translation"
+#   llm.initLLM(
+#     endpoints="http://172.27.188.31:8081/v1", ## http://172.27.188.31:8081/v1
+#     model="trast-ai/trust-translator-llama3-5b4e", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+#     api_key="EMPTY",
 #     temp=0.3,
 #     k=10
 #   )
-  
+    
 #   ## Translate segments
 #   input_file = '/home/vgm/Desktop/en.srt'
 #   segments = srt_to_segments(input_file)
 #   # segments = concise_srt(segments)
 #   # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
 #   print(segments, len(segments))
-#   segments = llm.translate(segments)
+#   segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
 #   print("results::",  segments, len(segments))
 #   segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
 
 
-#   ## Translate texts
-#   # input_texts = [
-#   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
-#   # ]
-#   # for text in input_texts:
-#   #   result = llm.process(text)
-#   #   print("result::", result)
+# #   ## Translate texts
+# #   # input_texts = [
+# #   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+# #   # ]
+# #   # for text in input_texts:
+# #   #   result = llm.process(text)
+# #   #   print("result::", result)
     
   
 
