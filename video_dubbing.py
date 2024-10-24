@@ -47,7 +47,7 @@ def translate_from_video(
     # Check GPU
     device = "cuda" if torch.cuda.is_available() else "cpu"
     CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
-    torch.cuda.set_device(CUDA_DEVICE)
+    torch.cuda.set_device(int(CUDA_DEVICE))
     compute_type = "float32" if device == "cpu" else compute_type
 
     OutputFile = 'Video.mp4'

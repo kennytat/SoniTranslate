@@ -33,7 +33,7 @@ total_output = []
 if torch.cuda.is_available():
     device = "cuda"
     CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
-    torch.cuda.set_device(CUDA_DEVICE)
+    torch.cuda.set_device(int(CUDA_DEVICE))
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None

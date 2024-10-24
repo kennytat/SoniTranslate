@@ -37,7 +37,7 @@ class XTTS():
     if torch.cuda.is_available():
         self.MODEL.cuda()
         CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
-        torch.cuda.set_device(CUDA_DEVICE)
+        torch.cuda.set_device(int(CUDA_DEVICE))
   def calculate_keep_len(self, text, lang):
       """Simple hack for short sentences"""
       if lang in ["ja", "zh-cn"]:

@@ -46,7 +46,7 @@ temp_dir = os.path.join(tempfile.gettempdir(), "vgm_voice_chat")
 Path(temp_dir).mkdir(parents=True, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
-torch.cuda.set_device(CUDA_DEVICE)
+torch.cuda.set_device(int(CUDA_DEVICE))
 compute_type = "float32" if device == "cpu" else "float16"
 pygame.mixer.init()
 
