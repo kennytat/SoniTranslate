@@ -1640,7 +1640,7 @@ if __name__ == "__main__":
   if os.getenv('ENABLE_AUTH', '') == "true":
     root = gr.mount_gradio_app(root, mainApp.app, path="/app", auth_dependency=is_authenticated)
     asyncio.run(init_database())
-    uvicorn.run(root, host="0.0.0.0", port=args.port)
+    uvicorn.run(root, host="0.0.0.0", port=int(args.port))
   else:
     auth_user = os.getenv('AUTH_USER', '')
     auth_pass = os.getenv('AUTH_PASS', '')
@@ -1652,6 +1652,6 @@ if __name__ == "__main__":
       inbrowser=True,
       show_error=True,
       server_name="0.0.0.0",
-      server_port=args.port,
+      server_port=int(args.port),
       # quiet=True,
       share=False)
