@@ -80,7 +80,7 @@ class WavStruct():
 class CONFIG():
     """Configurations"""
     # ckpt
-    os_tmp = Path(os.path.join(tempfile.gettempdir(), "tts"))
+    os_tmp = Path(os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "TTS")))
     empty_wav = Path(os.path.join(f'{os_tmp}', "test.wav"))
     gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", "/tmp/gradio-vgm")
     # salt = Path(os.path.join(os.getcwd(), "model","tts", "salt.salt"))

@@ -42,7 +42,7 @@ emoji_jack_o_lantern = emoji.emojize(":jack-o-lantern:")
 emoji_microphone = emoji.emojize(":studio_microphone:")
 emoji_rocket = emoji.emojize(":rocket:")
 
-temp_dir = os.path.join(tempfile.gettempdir(), "vgm_voice_chat")
+temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm_voice_chat"))
 Path(temp_dir).mkdir(parents=True, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)

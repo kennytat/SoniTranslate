@@ -2,7 +2,9 @@ import os
 import torch
 from openvoice import se_extractor
 from openvoice.api import ToneColorConverter
-import shutil 
+import shutil
+import tempfile
+app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 if torch.cuda.is_available():
     device = "cuda"
     CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
@@ -42,7 +44,7 @@ class OpenVoice():
   def batch_convert(self, segments, speaker_to_voice, speaker_to_vc):
     os.system(f'rm -rf audio/*')
     for audio, speaker in segments:
-      file_input = f"audio2/{audio}"
+      file_input = os.path.join(app_temp_dir, "audio2", f"{audio}")
       file_output = audio
       if speaker_to_vc[speaker] != "None":
         self.convert_voice(file_input, speaker_to_voice[speaker], file_output, speaker_to_vc[speaker])

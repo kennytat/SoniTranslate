@@ -1,6 +1,8 @@
 import os
 import shutil
 from pathlib import Path
+import tempfile
+app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 
 class SVCClassVoices:
     def __init__(self):
@@ -10,17 +12,17 @@ class SVCClassVoices:
       try:
         speakers = list(dict.fromkeys(speaker_list))
         for speaker in speakers:
-          speaker_dir = os.path.join("audio2", speaker)
+          speaker_dir = os.path.join(app_temp_dir, "audio2", speaker)
           if os.path.exists(speaker_dir): shutil.rmtree(speaker_dir, ignore_errors=True)
           Path(speaker_dir).mkdir(parents=True, exist_ok=True)
           
         for index, audio_file in enumerate(audio_files):
-          speaker_dir = os.path.join("audio2", speaker_list[index])
-          os.system(f"ln -n {os.path.join('audio2', audio_file)} {os.path.join(speaker_dir, os.path.basename(audio_file))}")
+          speaker_dir = os.path.join(app_temp_dir, 'audio2', speaker_list[index])
+          os.system(f"ln -n {os.path.join(app_temp_dir, 'audio2', audio_file)} {os.path.join(speaker_dir, os.path.basename(audio_file))}")
           # os.system(f"rm {os.path.join(speaker_dir, os.path.basename(audio_file))}")
         
         for speaker in speakers:
-          input_dir = os.path.join('audio2',speaker)
+          input_dir = os.path.join(app_temp_dir, "audio2",speaker)
           model_name = speaker_to_model[speaker]
           if model_name != "None":
             SVC_MODEL_DIR = os.path.join(os.getcwd(),"model","svc", model_name)
@@ -30,7 +32,7 @@ class SVCClassVoices:
             print('svc command:', f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
             os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
             if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
-            os.system(f'mv {output_dir}/* audio2/audio')
+            os.system(f'mv {output_dir}/* {os.path.join(app_temp_dir, "audio2", "audio")}')
             if os.path.exists(output_dir): shutil.rmtree(output_dir, ignore_errors=True)
       except KeyError:
         print('SVC Error:: Skip SVC')

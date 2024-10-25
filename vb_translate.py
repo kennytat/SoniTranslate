@@ -4,12 +4,14 @@ import os
 import shutil
 import json
 import translate_text_processor
+
 # from langdetect import detect
 load_dotenv()
+app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 
 TRANS_TOOL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "translate_tool")
 MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
-TXT_TRANS_TEMP = os.path.join(tempfile.gettempdir(), "vgm-translate", "translate_tmp")
+TXT_TRANS_TEMP = os.path.join(app_temp_dir, "translate_tmp")
 BPEROOT = os.path.join(TRANS_TOOL_DIR ,"subword-nmt")
 
 def vb_translate(raw_input):

@@ -19,7 +19,7 @@ from typing import Annotated
 load_dotenv()
 
 ## ----- Configuration -----
-temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate")
+temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 if torch.cuda.is_available():
     device = "cuda"
     CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)

@@ -99,7 +99,7 @@ hooks.hook()
 class CONFIG():
     """Configurations"""
     # ckpt
-    os_tmp = Path(os.path.join(tempfile.gettempdir(), "STT"))
+    os_tmp = Path(os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "STT")))
 
 
 class Whisper:

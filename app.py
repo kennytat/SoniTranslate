@@ -28,6 +28,7 @@ import shutil
 import logging
 import tempfile
 from vietTTS.utils import concise_srt
+import sys
 # from vietTTS.upsample import Predictor
 import soundfile as sf
 from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES
@@ -57,14 +58,29 @@ load_dotenv()
 total_input = []
 total_output = []
 upsampler = None
-gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", "/tmp/gradio-vgm")
+gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", os.path.join(tempfile.gettempdir(), "gradio-vgm"))
+os.system(f'rm -rf {gradio_temp_dir}/*')
 gradio_temp_processing_dir = os.path.join(gradio_temp_dir, "processing_dir")
-srt_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt')
-youtube_temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", 'youtube')
+app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
+os.system(f'rm -rf {app_temp_dir}/*')
+Path(os.path.join(app_temp_dir, "audio")).mkdir(parents=True, exist_ok=True)
+Path(os.path.join(app_temp_dir, "audio2", "audio")).mkdir(parents=True, exist_ok=True)
+srt_temp_dir = os.path.join(app_temp_dir, 'srt')
+Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
+youtube_temp_dir = os.path.join(app_temp_dir, 'youtube')
 Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True) 
+sample_voice_dir = os.path.join(gradio_temp_dir, 'voices')
+Path(sample_voice_dir).mkdir(parents=True, exist_ok=True)
 
-import sys
-
+def clear_cache():
+  os.system(f'rm -rf {gradio_temp_dir}/*')
+  os.system(f'cp -r sample_audio/* {sample_voice_dir}/')
+  os.system(f'rm -rf {os.path.join(app_temp_dir, "audio2")}/SPEAKER_*')
+  os.system(f'rm -rf {os.path.join(app_temp_dir, "audio2", "audio")}/*')
+  os.system(f'rm -rf {os.path.join(app_temp_dir, "audio")}/*')
+  os.system(f'rm -rf {srt_temp_dir}/*')
+  os.system(f'rm -rf {youtube_temp_dir}/*')
+   
 class Logger:
     def __init__(self, filename):
         self.terminal = sys.stdout
@@ -566,7 +582,8 @@ class Main():
             print(f"NO SPEAKER DETECT IN SEGMENT: Create blank segment --- {segment['start'], segment['text']}")
 
         # make the tts audio
-        filename = f"audio/{start}.wav"
+        filename = os.path.join(app_temp_dir, "audio", f"{start}.wav")
+        filename_temp = os.path.join(app_temp_dir, "audio2", "audio", f"{start}.wav")
 
         if speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None' and tts_client and tts_client.tts_client != None:
             tts_client.make_voice_gradio(text, speaker_to_voice[speaker], speaker_to_speed[speaker], filename, TRANSLATE_AUDIO_TO, self.t2s_method)
@@ -578,7 +595,6 @@ class Main():
         # duration
         if os.path.isfile(filename):
           try:
-            
             duration_tts = librosa.get_duration(path=filename)
             # porcentaje
             porcentaje = duration_tts / duration_true
@@ -592,7 +608,7 @@ class Main():
             porcentaje = 1.0 
             print('An exception occurred:', e)
           # apply aceleration or opposite to the audio file in audio2 folder
-          os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje},agate=threshold=-15dB audio2/{filename}")
+          os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje},agate=threshold=-15dB {filename_temp}")
         gc.collect(); torch.cuda.empty_cache()
         # duration_create = librosa.get_duration(filename=f"audio2/{filename}")
         return (filename, speaker) 
@@ -632,17 +648,10 @@ class Main():
         TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
         SOURCE_LANGUAGE = LANGUAGES[SOURCE_LANGUAGE]
 
-
-        if not os.path.exists('audio'):
-            os.makedirs('audio')
-
-        if not os.path.exists('audio2/audio'):
-            os.makedirs('audio2/audio')
-
         # Check GPU
         self.compute_type = "float32" if device == "cpu" else self.compute_type
 
-        temp_dir = os.path.join(tempfile.gettempdir(), "vgm-translate", new_dir_now())
+        temp_dir = os.path.join(app_temp_dir, new_dir_now())
         Path(temp_dir).mkdir(parents=True, exist_ok=True)
         
         is_video = is_video_file(media_input)
@@ -931,7 +940,7 @@ class Main():
         result_diarize['segments'] = concise_srt(result_diarize['segments'], max_word_length)
         segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
         segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
-        target_srt_inputpath = os.path.join(tempfile.gettempdir(), "vgm-translate", 'srt', f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
+        target_srt_inputpath = os.path.join(srt_temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
         if os.path.exists(target_srt_inputpath):
           # Start convert from srt if srt found
           print("srt file exist::", target_srt_inputpath)
@@ -1004,7 +1013,7 @@ class Main():
             del ov
             
         # replace files with the accelerates
-        os.system("mv -f audio2/audio/*.wav audio/")
+        os.system(f"mv -f {os.path.join(app_temp_dir, 'audio2', 'audio')}/*.wav {os.path.join(app_temp_dir, 'audio')}/")
 
         os.system(f"rm -rf {translated_output_file}")
         
@@ -1247,8 +1256,7 @@ class Main():
                           total_output = []
                           self.local_input_dirs = []
                           self.local_input_temp_pairs = []
-                          os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "gradio-vgm")}/*')
-                          os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
+                          clear_cache()
                           list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
                           return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
                         with gr.Row():
@@ -1621,18 +1629,11 @@ async def logout():
     return response
  
 if __name__ == "__main__":
+  clear_cache()
   parser = argparse.ArgumentParser(description="VGM Translate")
   parser.add_argument("-p", "--port", help="port", default=6860)
   args = parser.parse_args()
   mp.set_start_method('spawn', force=True)
-  
-  # os.system('rm -rf *.wav *.mp3 *.wav *.mp4')
-  os.system('mkdir -p downloads')
-  os.system(f'rm -rf {gradio_temp_dir}/*')
-  os.system(f'rm -rf {os.path.join(tempfile.gettempdir(), "vgm-translate")}/*')
-  os.system(f'mkdir -p {gradio_temp_dir}/voices')
-  os.system(f'cp -r sample_audio/* {gradio_temp_dir}/voices/')
-  os.system(f'rm -rf audio2/SPEAKER_* audio2/audio/* audio.out audio/*')
   print('Working in:: ', device)
   mainApp = Main()
 

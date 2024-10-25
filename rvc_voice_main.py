@@ -16,6 +16,8 @@ from gtts import gTTS
 import edge_tts
 import asyncio
 import nest_asyncio
+import tempfile
+app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 
 # model load
 def get_vc(sid, to_return_protect0, to_return_protect1):
@@ -363,8 +365,7 @@ class RVCClassVoices:
         )
 
         for _value_item in _values:
-            filename = "audio2/"+audio_files[_value_item] if _value_item != "test" else audio_files[0]
-            #filename = "audio2/"+audio_files[_value_item]
+            filename = os.path.join(app_temp_dir, "audio2", audio_files[_value_item] if _value_item != "test" else audio_files[0])
             try:
                 print(audio_files[_value_item], model_voice_path)
             except:

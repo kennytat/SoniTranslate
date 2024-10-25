@@ -58,7 +58,7 @@ hooks.hook()
 class CONFIG():
     """Configurations"""
     # ckpt
-    os_tmp = Path(os.path.join(tempfile.gettempdir(), "upsample"))
+    os_tmp = Path(os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "upsample")))
 
 def split_audio(input_file="", extension="", output_folder="", chunk_duration=10000):
     print("split_audio called:",input_file, extension, output_folder, chunk_duration)

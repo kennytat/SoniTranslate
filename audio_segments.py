@@ -2,6 +2,8 @@ from pydub import AudioSegment
 from pydub.utils import make_chunks
 from tqdm import tqdm
 import os
+import tempfile
+app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 
 def split_by_odd_even(input_array):
     # Initialize empty arrays for odd and even elements
@@ -77,7 +79,7 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
       # print("file_array::", method, len(file_array))
       for line in tqdm(segments):
         start = float(line['start'])
-        audio_file = f"audio/{line['start']}.wav"
+        audio_file = os.path.join(app_temp_dir, "audio", f"{line['start']}.wav")
         # Overlay each audio at the corresponding time
         if os.path.isfile(audio_file):
           try:
@@ -98,7 +100,7 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
   else:
     concatenated_audio = AudioSegment.empty()
     for line in result_diarize['segments']:
-      audio_file = f"audio/{line['start']}.wav"
+      audio_file = os.path.join(app_temp_dir, "audio", f"{line['start']}.wav")
       if os.path.isfile(audio_file):
         audio = AudioSegment.from_file(audio_file)
         concatenated_audio += audio
@@ -109,4 +111,4 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
   # Output_name_tempfile=f"{name}_temp{ext}"
   # os.system(f'ffmpeg -i "{Output_name_file}" -af "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json" -ar 24000 "{Output_name_tempfile}" && mv "{Output_name_tempfile}" "{Output_name_file}"')
   # os.system(f'ffmpeg -i "{Output_name_file}" -filter:a "volume=-1.5dB" -ar 24000 "{Output_name_tempfile}" && mv "{Output_name_tempfile}" "{Output_name_file}"')
-  os.system("rm -rf audio/*")
+  os.system(f"rm -rf {os.path.join(app_temp_dir, 'audio')}/*")
