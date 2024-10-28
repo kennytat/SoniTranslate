@@ -18,8 +18,8 @@ TTS_MODEL_DIR = os.path.join(os.getcwd(),"model","vits")
 
 if torch.cuda.is_available():
   device = "cuda"
-  CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
-  torch.cuda.set_device(int(CUDA_DEVICE))
+  CUDA_VISIBLE_DEVICES = os.getenv('CUDA_VISIBLE_DEVICES', '0')
+  torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
 else:
   device = "cpu"
 space_re = regex.compile(r"\s+")

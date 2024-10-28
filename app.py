@@ -275,8 +275,8 @@ Tip: You can use `Test RVC` to experiment and find the best TTS or configuration
 # Check GPU
 if torch.cuda.is_available():
     device = "cuda"
-    CUDA_DEVICE = os.getenv('CUDA_DEVICE', 0)
-    torch.cuda.set_device(int(CUDA_DEVICE))
+    CUDA_VISIBLE_DEVICES = os.getenv('CUDA_VISIBLE_DEVICES', '0')
+    torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
@@ -759,6 +759,7 @@ class Main():
           model = whisperx.load_model(
               self.WHISPER_MODEL_SIZE,
               device,
+							device_index=int(CUDA_VISIBLE_DEVICES),
               compute_type=self.compute_type,
               language=SOURCE_LANGUAGE,
               )
