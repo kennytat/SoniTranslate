@@ -89,8 +89,8 @@ class LLM():
             return result.content
       except Exception as e:
         print("error::", e)
-        result = ""
-      print(f"re-run {attempts}: {len(text)}/{len(result.content)}\nen: {text}\nvi: {result.content}")
+        result = {"content": ""}
+      print(f"re-run {attempts}:")
       attempts += 1
     return text
 

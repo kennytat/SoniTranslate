@@ -21,8 +21,6 @@ upsampler = None
 # Check GPU
 if torch.cuda.is_available():
     device = "cuda"
-    CUDA_VISIBLE_DEVICES = os.getenv('CUDA_VISIBLE_DEVICES', '0')
-    # torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
