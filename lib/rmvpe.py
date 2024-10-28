@@ -343,7 +343,7 @@ class RMVPE:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
             CUDA_VISIBLE_DEVICES = os.getenv('CUDA_VISIBLE_DEVICES', '0')
-            torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
+            # torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
         self.device = device
         self.mel_extractor = MelSpectrogram(
             is_half, 128, 16000, 1024, 160, None, 30, 8000

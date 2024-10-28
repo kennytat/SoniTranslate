@@ -8,7 +8,7 @@ app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vg
 if torch.cuda.is_available():
     device = "cuda"
     CUDA_VISIBLE_DEVICES = os.getenv('CUDA_VISIBLE_DEVICES', '0')
-    torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
+    # torch.cuda.set_device(int(CUDA_VISIBLE_DEVICES.split(',')[0]))
 else:
     device = "cpu"
 base_converter_dir = os.path.join(os.getcwd(),"model","openvoice", "converter")
