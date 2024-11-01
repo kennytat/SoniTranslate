@@ -59,8 +59,9 @@ total_input = []
 total_output = []
 upsampler = None
 gradio_temp_dir = os.getenv("GRADIO_TEMP_DIR", os.path.join(tempfile.gettempdir(), "gradio-vgm"))
-os.system(f'rm -rf {gradio_temp_dir}/*')
+Path(gradio_temp_dir).mkdir(parents=True, exist_ok=True)
 gradio_temp_processing_dir = os.path.join(gradio_temp_dir, "processing_dir")
+Path(gradio_temp_processing_dir).mkdir(parents=True, exist_ok=True)
 app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 os.system(f'rm -rf {app_temp_dir}/*')
 Path(os.path.join(app_temp_dir, "audio")).mkdir(parents=True, exist_ok=True)
@@ -664,7 +665,7 @@ class Main():
         target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
         speaker_info_path = os.path.join(temp_dir, f'speaker_info.json')
         audio_wav = f"{source_media_output_basename}.wav"
-        audio_webm = f"{source_media_output_basename}.webm"
+        # audio_webm = f"{source_media_output_basename}.webm"
         translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.wav")
         max_word_length = 375 if self.t2t_method == "LLM" else 500
         
@@ -837,10 +838,6 @@ class Main():
         # torch.cuda.empty_cache()  # noqa
     ## =================================================================
 
-        if result['segments'] == []:
-            print('No active speech found in audio')
-            return
-
         # 3. Assign speaker labels
         print("Start Diarizing::")
         progress(0.50, desc="Diarizing...")
@@ -962,53 +959,55 @@ class Main():
         audio_files = []
         speakers_list = []
 
-
-        
-        N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-        N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
-        print("Start TTS:: concurrency =", N_JOBS)
-        
-        if self.tts_client.tts_client == None:
-          self.tts_client.init_tts_client(self.t2s_method)
-        print("Initializing TTS Client::", self.t2s_method)
-        with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
-          tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result_diarize['segments'], key=lambda x: x['speaker'])))
-        self.tts_client.tts_client = None
-        
-        if os.getenv('UPSAMPLING_ENABLE', '') == "true":
-          progress(0.75, desc="Upsampling...")
-          print("Start Upsampling::")
-          with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=1):
-            tts_results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in tts_results)
-          global upsampler
-          upsampler = None; gc.collect(); torch.cuda.empty_cache()
-        # tts_results = []
-        # for segment in tqdm(result_diarize['segments']):
-        #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, match_length)
-        #   tts_results.append(tts_result)
-          
-        audio_files = [result[0] for result in tts_results]
-        speakers_list = [result[1] for result in tts_results]
-        print("audio_files:",len(audio_files))
-        print("speakers_list:",len(speakers_list))
-        
-        # 6. Convert to target voices
-        if self.vc_method == 'SVC':
-            progress(0.80, desc="Applying SVC customized voices...")
-            print("start SVC::")
-            svc_voices(speakers_list, audio_files, speaker_to_vc)
+        if result['segments'] and len(result['segments']) > 0: 
+            N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
+            N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
+            print("Start TTS:: concurrency =", N_JOBS)
             
-        if self.vc_method == 'RVC':
-            progress(0.80, desc="Applying RVC customized voices...")
-            print("start RVC::")
-            rvc_voices(speakers_list, audio_files, speaker_to_vc)
+            if self.tts_client.tts_client == None:
+              self.tts_client.init_tts_client(self.t2s_method)
+            print("Initializing TTS Client::", self.t2s_method)
+            with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
+              tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result_diarize['segments'], key=lambda x: x['speaker'])))
+            self.tts_client.tts_client = None
+            
+            if os.getenv('UPSAMPLING_ENABLE', '') == "true":
+              progress(0.75, desc="Upsampling...")
+              print("Start Upsampling::")
+              with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=1):
+                tts_results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in tts_results)
+              global upsampler
+              upsampler = None; gc.collect(); torch.cuda.empty_cache()
+            # tts_results = []
+            # for segment in tqdm(result_diarize['segments']):
+            #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, match_length)
+            #   tts_results.append(tts_result)
+              
+            audio_files = [result[0] for result in tts_results]
+            speakers_list = [result[1] for result in tts_results]
+            print("audio_files:",len(audio_files))
+            print("speakers_list:",len(speakers_list))
+            
+            # 6. Convert to target voices
+            if self.vc_method == 'SVC':
+                progress(0.80, desc="Applying SVC customized voices...")
+                print("start SVC::")
+                svc_voices(speakers_list, audio_files, speaker_to_vc)
+                
+            if self.vc_method == 'RVC':
+                progress(0.80, desc="Applying RVC customized voices...")
+                print("start RVC::")
+                rvc_voices(speakers_list, audio_files, speaker_to_vc)
 
-        if self.vc_method == 'OpenVoice':
-            progress(0.80, desc="Applying OVC customized voices...")
-            print("start OVC::")
-            ov = OpenVoice()
-            ov.batch_convert(tts_results, speaker_to_voice, speaker_to_vc)
-            del ov
+            if self.vc_method == 'OpenVoice':
+                progress(0.80, desc="Applying OVC customized voices...")
+                print("start OVC::")
+                ov = OpenVoice()
+                ov.batch_convert(tts_results, speaker_to_voice, speaker_to_vc)
+                del ov
+        else:
+            print('---------- Empty TTS segment length ----------')
+            pass
             
         # replace files with the accelerates
         os.system(f"mv -f {os.path.join(app_temp_dir, 'audio2', 'audio')}/*.wav {os.path.join(app_temp_dir, 'audio')}/")
