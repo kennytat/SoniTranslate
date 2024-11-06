@@ -1,4 +1,3 @@
-pip==24.0
 ## Google translate
 deep_translator
 ## T5 transformer translate
@@ -13,7 +12,9 @@ deep_translator
 # scipy
 ## VB translate
 langdetect
--e git+https://github.com/pytorch/fairseq.git@v0.12.3#egg=fairseq
+# fairseq==0.12.2
+omegaconf==2.0.6
+-e git+https://github.com/pytorch/fairseq.git@v0.12.2#egg=fairseq
 ## LLM translate
 openai
 langchain

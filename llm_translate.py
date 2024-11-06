@@ -9,14 +9,14 @@ from joblib import Parallel, delayed
 import requests
 from langdetect import detect
 # from vietTTS.utils import concise_srt
-from utils.utils import srt_to_segments, segments_to_srt
+# from utils.utils import srt_to_segments, segments_to_srt
 from utils.language_configuration import LANGUAGES
 
 load_dotenv()
 from langchain_openai import ChatOpenAI
 
-from langchain import ConversationChain, LLMChain, PromptTemplate
-from langchain.memory import ConversationBufferWindowMemory
+# from langchain import ConversationChain, LLMChain, PromptTemplate
+# from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
@@ -103,12 +103,16 @@ class LLM():
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]
       return segments  
-
+    
+  def predict(self, text, source_lang="en", target_lang="vi"):
+      print("start llm_translate::")
+      result = self.process(text, source_lang, target_lang)
+      return result  
+    
 # if __name__ == '__main__':
   
-#   systemPrompt="""This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text.
-# """
-# #   llm = LLM(systemPrompt=systemPrompt)
+#   systemPrompt="""Sửa lỗi chính tả từ bản gốc sang bảng mới"""
+#   llm = LLM(systemPrompt=systemPrompt)
 # #   llm.initLLM(
 # #     endpoints="https://openrouter.ai/api/v1", ## http://172.27.188.32:8081/v1
 # #     model="openai/gpt-4o", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
@@ -118,33 +122,36 @@ class LLM():
 # #   )
 
 
-#   llm = LLM()
+#   # llm = LLM()
 #   llm.initLLM(
-#     endpoints="http://172.27.188.31:8081/v1", ## http://172.27.188.31:8081/v1
-#     model="trast-ai/trust-translator-llama3-5b4e", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+#     endpoints="http://localhost:1234/v1", ## http://172.27.188.31:8081/v1
+#     model="merged-fix-version-11050", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
 #     api_key="EMPTY",
 #     temp=0.3,
 #     k=10
 #   )
+#   text = "Từ lúc đó, Đức Chúa Jêsus khởi giảng dạy rằng: Các ngươi hãy ăn năn, vì nước thiên đàng đã đến gần"
+#   result = llm.predict(text, "vi", "vi")
+#   print(result)
     
-#   ## Translate segments
-#   input_file = '/home/vgm/Desktop/en.srt'
-#   segments = srt_to_segments(input_file)
-#   # segments = concise_srt(segments)
-#   # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
-#   print(segments, len(segments))
-#   segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
-#   print("results::",  segments, len(segments))
-#   segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
+  # ## Translate segments
+  # input_file = '/home/vgm/Desktop/en.srt'
+  # segments = srt_to_segments(input_file)
+  # # segments = concise_srt(segments)
+  # # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
+  # print(segments, len(segments))
+  # segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
+  # print("results::",  segments, len(segments))
+  # segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
 
 
-# #   ## Translate texts
-# #   # input_texts = [
-# #   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
-# #   # ]
-# #   # for text in input_texts:
-# #   #   result = llm.process(text)
-# #   #   print("result::", result)
+#   ## Translate texts
+#   # input_texts = [
+#   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+#   # ]
+#   # for text in input_texts:
+#   #   result = llm.process(text)
+#   #   print("result::", result)
     
   
 

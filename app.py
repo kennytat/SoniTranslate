@@ -13,7 +13,6 @@ from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN
 from IPython.utils import capture
 import torch
 import torch.multiprocessing as mp
-from gtts import gTTS
 import librosa
 import math
 import gc
@@ -30,7 +29,6 @@ import tempfile
 from vietTTS.utils import concise_srt
 import sys
 # from vietTTS.upsample import Predictor
-import soundfile as sf
 from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES
 from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_media_files, find_most_matching_prefix, youtube_download, get_llm_models
 # from utils.logging_setup import logger
@@ -75,6 +73,7 @@ Path(sample_voice_dir).mkdir(parents=True, exist_ok=True)
 
 def clear_cache():
   os.system(f'rm -rf {gradio_temp_dir}/*')
+  Path(sample_voice_dir).mkdir(parents=True, exist_ok=True)
   os.system(f'cp -r sample_audio/* {sample_voice_dir}/')
   os.system(f'rm -rf {os.path.join(app_temp_dir, "audio2")}/SPEAKER_*')
   os.system(f'rm -rf {os.path.join(app_temp_dir, "audio2", "audio")}/*')

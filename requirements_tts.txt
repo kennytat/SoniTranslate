@@ -1,5 +1,5 @@
 # TTS
-gradio==4.29.0
+gradio==4.44.1
 yt_dlp
 rarfile
 ffmpeg-python

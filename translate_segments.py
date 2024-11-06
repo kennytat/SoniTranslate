@@ -5,6 +5,7 @@ from translate_text_processor import titlecase_with_dash
 from vb_translate import vb_translate
 from langdetect import detect
 from llm_translate import LLM
+from llama_translate import LLM as Llama
 from deep_translator import GoogleTranslator
 import torch
 
@@ -55,4 +56,16 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
           segments[line]['text'] = post_process_text(translated_line)
       except Exception as e:
         pass
+    ## Implement grama correction for vietnamese
+    if TRANSLATE_AUDIO_TO == "vi":
+      systemPrompt = "Sửa lỗi chính tả từ bản gốc sang bảng mới"
+      llm = Llama(systemPrompt=systemPrompt)
+      llm_status = llm.initLLM(temp=llm_temp, k=llm_k)
+      if llm_status:
+        segments = llm.translate(segments=segments)
+        for index, segment in enumerate(segments):
+          segments[index]['text'] = post_process_text(segments[index]['text'])
+        del llm
+      else:
+        pass   
     return segments
