@@ -56,6 +56,10 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
           segments[line]['text'] = post_process_text(translated_line)
       except Exception as e:
         pass
+
+    return segments
+
+def grama_correction(segments, TRANSLATE_AUDIO_TO="", llm_temp=0.5, llm_k=30):
     ## Implement grama correction for vietnamese
     if TRANSLATE_AUDIO_TO == "vi":
       systemPrompt = "Sửa lỗi chính tả từ bản gốc sang bảng mới"
@@ -67,5 +71,5 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
           segments[index]['text'] = post_process_text(segments[index]['text'])
         del llm
       else:
-        pass   
+        pass
     return segments

@@ -21,7 +21,7 @@ from tqdm import tqdm
 import os
 from audio_segments import create_translated_audio
 from text_to_speech import TTSClient, voice_conversion
-from translate_segments import translate_text
+from translate_segments import translate_text, grama_correction
 import time
 import shutil
 import logging
@@ -837,25 +837,6 @@ class Main():
         # torch.cuda.empty_cache()  # noqa
     ## =================================================================
 
-        # 3. Assign speaker labels
-        print("Start Diarizing::")
-        progress(0.50, desc="Diarizing...")
-        if self.max_speakers > 1:
-          with capture.capture_output() as cap:
-            diarize_model = "pyannote/speaker-diarization-3.1" ## "pyannote/speaker-diarization-3.1" "pyannote/speaker-diarization@2.1"
-            diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
-            del cap
-          diarize_segments = diarize_model(
-              audio_wav,
-              min_speakers=self.min_speakers,
-              max_speakers=self.max_speakers)
-          result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
-          result_diarize['segments'] = self.speaker_order_correction(result_diarize['segments'])
-          gc.collect(); torch.cuda.empty_cache(); del diarize_model
-        else:
-          result_diarize = result
-          result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
-
         # Mapping speakers to voice variables
         speaker_to_voice = {
             'SPEAKER_00': self.tts_voice00,
@@ -896,117 +877,137 @@ class Main():
         }
         with open(f'{speaker_info_path}', 'w', encoding='utf-8') as srtFile:
           srtFile.write(json.dumps(speaker_info, indent=4))
-        
-        ##
-        result_diarize['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if 'speaker' in item else "", 'speed': speaker_to_speed[item['speaker']] if 'speaker' in item else 1} for item in result_diarize['segments']]
-        print("Diarize complete::", result_diarize['segments'][0])
 
+        # 3. Assign speaker labels
+        if result['segments'] and len(result["segments"]) > 0:
+          print("Start Diarizing::")
+          progress(0.50, desc="Diarizing...")
+          if self.max_speakers > 1:
+            with capture.capture_output() as cap:
+              diarize_model = "pyannote/speaker-diarization-3.1" ## "pyannote/speaker-diarization-3.1" "pyannote/speaker-diarization@2.1"
+              diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
+              del cap
+            diarize_segments = diarize_model(
+                audio_wav,
+                min_speakers=self.min_speakers,
+                max_speakers=self.max_speakers)
+            result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
+            result_diarize['segments'] = self.speaker_order_correction(result_diarize['segments'])
+            gc.collect(); torch.cuda.empty_cache(); del diarize_model
+          else:
+            result_diarize = result
+            result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
+          ## remap voices and speed
+          result['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if 'speaker' in item else "", 'speed': speaker_to_speed[item['speaker']] if 'speaker' in item else 1} for item in result_diarize['segments']]
+          print("Diarize complete::", result['segments'][0])
 
-        # 4. Spell checking
-        if SOURCE_LANGUAGE == "en":
-          print("Start spell checking::")
-          progress(0.55, desc="Spell checking...")
-          try:
-            checker = SpellCheck()
-            for line in tqdm(range(len(result_diarize['segments']))):
-              try:
-                text = result_diarize['segments'][line]['text']
-                result_diarize['segments'][line]['text'] = checker.correct(text)
-              except Exception as e:
-                pass 
-            del checker
-          except Exception as e:
-            print('Error initialize spell check::', e)
-        
-        # 4. Translate to target language
-        print("Start translating::")
-        progress(0.6, desc="Translating...")
-        if TRANSLATE_AUDIO_TO == "zh":
-            TRANSLATE_AUDIO_TO = "zh-CN"
-        if TRANSLATE_AUDIO_TO == "he":
-            TRANSLATE_AUDIO_TO = "iw"
-        # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
-        ## Write source segment and srt,txt to file
+          # 4. Spell checking
+          if SOURCE_LANGUAGE == "en":
+            print("Start spell checking::")
+            progress(0.55, desc="Spell checking...")
+            try:
+              checker = SpellCheck()
+              for line in tqdm(range(len(result['segments']))):
+                try:
+                  text = result['segments'][line]['text']
+                  result['segments'][line]['text'] = checker.correct(text)
+                except Exception as e:
+                  pass 
+              del checker
+            except Exception as e:
+              print('Error initialize spell check::', e)
+          
+          # 4. Translate to target language
+          print("Start translating::")
+          progress(0.6, desc="Translating...")
+          if TRANSLATE_AUDIO_TO == "zh":
+              TRANSLATE_AUDIO_TO = "zh-CN"
+          if TRANSLATE_AUDIO_TO == "he":
+              TRANSLATE_AUDIO_TO = "iw"
+          # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
+          ## Write source segment and srt,txt to file
 
-        with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
-          srtFile.write(json.dumps(result_diarize['segments']))
-        segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}-origin.srt')
-        result_diarize['segments'] = concise_srt(result_diarize['segments'], max_word_length)
-        segments_to_txt(result_diarize['segments'], f'{source_media_output_basename}.txt')
-        segments_to_srt(result_diarize['segments'], f'{source_media_output_basename}.srt')
-        target_srt_inputpath = os.path.join(srt_temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
-        if os.path.exists(target_srt_inputpath):
-          # Start convert from srt if srt found
-          print("srt file exist::", target_srt_inputpath)
-          result_diarize['segments'] = srt_to_segments(target_srt_inputpath)
-          result_diarize['segments'] = concise_srt(result_diarize['segments'], max_word_length)
-        else:
-          # Start translate if srt not found
-          result_diarize['segments'] = translate_text(result_diarize['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
-          print("translated segments::", result_diarize['segments'])
-        ## Write target segment and srt to file
-        segments_to_srt(result_diarize['segments'], f'{target_media_output_basename}.srt')
-        segments_to_txt(result_diarize['segments'], f'{target_media_output_basename}.txt')
-        with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
-          srtFile.write(json.dumps(result_diarize['segments']))
-        # ## Sort segments by speaker
-        # result_diarize['segments'] = sorted(result_diarize['segments'], key=lambda x: x['speaker'])
-        print("Translation complete")
+          with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
+            srtFile.write(json.dumps(result['segments']))
+          segments_to_srt(result['segments'], f'{source_media_output_basename}-origin.srt')
+          result['segments'] = concise_srt(result['segments'], max_word_length)
+          segments_to_txt(result['segments'], f'{source_media_output_basename}.txt')
+          segments_to_srt(result['segments'], f'{source_media_output_basename}.srt')
+          target_srt_inputpath = os.path.join(srt_temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
+          if os.path.exists(target_srt_inputpath):
+            # Start convert from srt if srt found
+            print("srt file exist::", target_srt_inputpath)
+            result['segments'] = srt_to_segments(target_srt_inputpath)
+            result['segments'] = concise_srt(result['segments'], max_word_length)
+          else:
+            # Start translate if srt not found
+            result['segments'] = translate_text(result['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
+            progress(0.65, desc="Grama correction...")
+            result['segments'] = grama_correction(result['segments'], TRANSLATE_AUDIO_TO, self.llm_temp, self.llm_k)
+            print("translated segments::", result['segments'])
+          ## Write target segment and srt to file
+          segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
+          segments_to_txt(result['segments'], f'{target_media_output_basename}.txt')
+          with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
+            srtFile.write(json.dumps(result['segments']))
+          # ## Sort segments by speaker
+          # result['segments'] = sorted(result['segments'], key=lambda x: x['speaker'])
+          print("Translation complete")
 
-        # 5. TTS target language
-        progress(0.7, desc="Text_to_speech...")
-        audio_files = []
-        speakers_list = []
+          # 5. TTS target language
+          progress(0.7, desc="Text_to_speech...")
+          audio_files = []
+          speakers_list = []
 
-        if result['segments'] and len(result['segments']) > 0: 
-            N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-            N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
-            print("Start TTS:: concurrency =", N_JOBS)
-            
-            if self.tts_client.tts_client == None:
-              self.tts_client.init_tts_client(self.t2s_method)
-            print("Initializing TTS Client::", self.t2s_method)
-            with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
-              tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result_diarize['segments'], key=lambda x: x['speaker'])))
-            self.tts_client.tts_client = None
-            
-            if os.getenv('UPSAMPLING_ENABLE', '') == "true":
-              progress(0.75, desc="Upsampling...")
-              print("Start Upsampling::")
-              with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=1):
-                tts_results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in tts_results)
-              global upsampler
-              upsampler = None; gc.collect(); torch.cuda.empty_cache()
-            # tts_results = []
-            # for segment in tqdm(result_diarize['segments']):
-            #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, match_length)
-            #   tts_results.append(tts_result)
+          if result['segments'] and len(result['segments']) > 0: 
+              N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
+              N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
+              print("Start TTS:: concurrency =", N_JOBS)
               
-            audio_files = [result[0] for result in tts_results]
-            speakers_list = [result[1] for result in tts_results]
-            print("audio_files:",len(audio_files))
-            print("speakers_list:",len(speakers_list))
-            
-            # 6. Convert to target voices
-            if self.vc_method == 'SVC':
-                progress(0.80, desc="Applying SVC customized voices...")
-                print("start SVC::")
-                svc_voices(speakers_list, audio_files, speaker_to_vc)
+              if self.tts_client.tts_client == None:
+                self.tts_client.init_tts_client(self.t2s_method)
+              print("Initializing TTS Client::", self.t2s_method)
+              with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
+                tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result['segments'], key=lambda x: x['speaker'])))
+              self.tts_client.tts_client = None
+              
+              if os.getenv('UPSAMPLING_ENABLE', '') == "true":
+                progress(0.75, desc="Upsampling...")
+                print("Start Upsampling::")
+                with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=1):
+                  tts_results = Parallel(verbose=100)(delayed(self.upsampling)(file) for (file) in tts_results)
+                global upsampler
+                upsampler = None; gc.collect(); torch.cuda.empty_cache()
+              # tts_results = []
+              # for segment in tqdm(result['segments']):
+              #   tts_result = tts(segment, speaker_to_voice, TRANSLATE_AUDIO_TO, t2s_method, match_length)
+              #   tts_results.append(tts_result)
                 
-            if self.vc_method == 'RVC':
-                progress(0.80, desc="Applying RVC customized voices...")
-                print("start RVC::")
-                rvc_voices(speakers_list, audio_files, speaker_to_vc)
+              audio_files = [result[0] for result in tts_results]
+              speakers_list = [result[1] for result in tts_results]
+              print("audio_files:",len(audio_files))
+              print("speakers_list:",len(speakers_list))
+              
+              # 6. Convert to target voices
+              if self.vc_method == 'SVC':
+                  progress(0.80, desc="Applying SVC customized voices...")
+                  print("start SVC::")
+                  svc_voices(speakers_list, audio_files, speaker_to_vc)
+                  
+              if self.vc_method == 'RVC':
+                  progress(0.80, desc="Applying RVC customized voices...")
+                  print("start RVC::")
+                  rvc_voices(speakers_list, audio_files, speaker_to_vc)
 
-            if self.vc_method == 'OpenVoice':
-                progress(0.80, desc="Applying OVC customized voices...")
-                print("start OVC::")
-                ov = OpenVoice()
-                ov.batch_convert(tts_results, speaker_to_voice, speaker_to_vc)
-                del ov
-        else:
-            print('---------- Empty TTS segment length ----------')
-            pass
+              if self.vc_method == 'OpenVoice':
+                  progress(0.80, desc="Applying OVC customized voices...")
+                  print("start OVC::")
+                  ov = OpenVoice()
+                  ov.batch_convert(tts_results, speaker_to_voice, speaker_to_vc)
+                  del ov
+          else:
+              print('---------- Empty TTS segment length ----------')
+              pass
             
         # replace files with the accelerates
         os.system(f"mv -f {os.path.join(app_temp_dir, 'audio2', 'audio')}/*.wav {os.path.join(app_temp_dir, 'audio')}/")
@@ -1015,7 +1016,7 @@ class Main():
         
         # 7. Join target language audio files
         progress(0.85, desc="Creating final translated media...")
-        create_translated_audio(result_diarize, translated_output_file, self.match_start)
+        create_translated_audio(result, translated_output_file, self.match_start)
 
         # # 8. Transribe target language for smaller chunk
         # print("Start transcribing target language::")
@@ -1040,21 +1041,25 @@ class Main():
         progress(0.95, desc="Mixing final video...")
         os.system(f"rm -rf {mix_audio}")  
         # TYPE MIX AUDIO
-        if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
-            # volume mix
-            os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
-        else:
-            try:
-                # background mix
-                os.system(f'ffmpeg -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
-            except:
-                # volume mix except
-                os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+        if result['segments'] and len(result['segments']) > 0:
+          if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
+              # volume mix
+              os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+          else:
+              try:
+                  # background mix
+                  os.system(f'ffmpeg -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
+              except:
+                  # volume mix except
+                  os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
 
         print("Mixing target audio and video::")
         os.system(f"rm -rf {media_output_path}")
         if is_video:
-          os.system(f"ffmpeg -i '{OutputFile}' -i '{mix_audio}' -c:v copy -c:a aac -map 0:v -map 1:a -shortest '{media_output_path}'")
+          if result['segments'] and len(result['segments']) > 0:
+            os.system(f"ffmpeg -i '{OutputFile}' -i '{mix_audio}' -c:v copy -c:a aac -map 0:v -map 1:a -shortest '{media_output_path}'")
+          else:
+            os.system(f"cp '{OutputFile}' '{media_output_path}'")
         os.remove(OutputFile)
         if media_input.startswith('/tmp') and os.path.isfile(media_input):
           os.remove(media_input)
