@@ -54,9 +54,7 @@ python -m spacy download en_core_web_sm
 conda install -y nvidia/label/cuda-12.2.2::libcusparse
 conda install -y nvidia/label/cuda-12.2.2::cuda-toolkit
 
-
-
-
+export LD_LIBRARY_PATH=/home/vgm/miniconda3/envs/soni/lib/python3.10/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}
 
 rm -rf $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/data/checkpoints
 ln -s model/neuspell $HOME/miniconda3/envs/soni/lib/python3.10/site-packages/data/checkpoints

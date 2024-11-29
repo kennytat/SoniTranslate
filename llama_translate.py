@@ -7,6 +7,12 @@ import joblib
 from joblib import Parallel, delayed
 from utils.utils import srt_to_segments, segments_to_srt
 
+fault_words = [
+  "im_start",
+  "im_end",
+  "ngươi"
+  ]
+
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self.llama_chain = []
@@ -52,7 +58,7 @@ class LLM():
               ],
         )
         print("result::", result["choices"][0]["message"]["content"].strip())
-        if result["choices"][0]["message"]["content"] and "im_start" not in result["choices"][0]["message"]["content"].strip() and "im_end" not in result["choices"][0]["message"]["content"].strip():
+        if result["choices"][0]["message"]["content"] and not any(word in result["choices"][0]["message"]["content"].strip().lower() for word in fault_words):
             return result["choices"][0]["message"]["content"].strip()
       except Exception as e:
         print("error::", e)

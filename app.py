@@ -179,7 +179,7 @@ function() {
     t2t_method || "LLM",
     t2s_method || "VietTTS",
     vc_method || "None",
-    llm_url || "http://infer-2.vgm.chat,http://infer-3.vgm.chat",
+    llm_url || "http://localhost:8081/v1",
     llm_model,
     llm_temp || 0.3,
     llm_k || 3000,

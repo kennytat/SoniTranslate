@@ -11,10 +11,7 @@ from langdetect import detect
 # from vietTTS.utils import concise_srt
 # from utils.utils import srt_to_segments, segments_to_srt
 from utils.language_configuration import LANGUAGES
-
-load_dotenv()
 from langchain_openai import ChatOpenAI
-
 # from langchain import ConversationChain, LLMChain, PromptTemplate
 # from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import (
@@ -23,6 +20,14 @@ from langchain.prompts import (
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
+
+load_dotenv()
+
+fault_words = [
+  "im_start",
+  "im_end"
+  ]
+
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self.llm_chain = []
@@ -61,7 +66,7 @@ class LLM():
                 #   "frequency_penalty": 1.1
                 # },
                 top_p= 0.95,
-                frequency_penalty=1.1,
+                frequency_penalty=1.3,
                 stop=["<|im_end|>"],
                 
             )
@@ -85,7 +90,7 @@ class LLM():
                   "source_language": source_language,
                   "target_language": target_language,
               })
-        if result.content and "im_start" not in result.content and "im_end" not in result.content and target_lang in detect(result.content):
+        if result.content and not any(word in result.content.strip().lower() for word in fault_words) and target_lang in detect(result.content):
             return result.content
       except Exception as e:
         print("error::", e)
@@ -111,28 +116,28 @@ class LLM():
     
 # if __name__ == '__main__':
   
-#   systemPrompt="""Sửa lỗi chính tả từ bản gốc sang bảng mới"""
-#   llm = LLM(systemPrompt=systemPrompt)
-# #   llm.initLLM(
-# #     endpoints="https://openrouter.ai/api/v1", ## http://172.27.188.32:8081/v1
-# #     model="openai/gpt-4o", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
-# #     api_key="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",
-# #     temp=0.3,
-# #     k=10
-# #   )
-
-
-#   # llm = LLM()
+  # systemPrompt="""Sửa lỗi chính tả từ bản gốc sang bảng mới"""
+  # llm = LLM(systemPrompt=systemPrompt)
 #   llm.initLLM(
-#     endpoints="http://localhost:1234/v1", ## http://172.27.188.31:8081/v1
-#     model="merged-fix-version-11050", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
-#     api_key="EMPTY",
+#     endpoints="https://openrouter.ai/api/v1", ## http://172.27.188.32:8081/v1
+#     model="openai/gpt-4o", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+#     api_key="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",
 #     temp=0.3,
 #     k=10
 #   )
-#   text = "Từ lúc đó, Đức Chúa Jêsus khởi giảng dạy rằng: Các ngươi hãy ăn năn, vì nước thiên đàng đã đến gần"
-#   result = llm.predict(text, "vi", "vi")
-#   print(result)
+
+
+  # llm = LLM()
+  # llm.initLLM(
+  #   endpoints="http://172.27.188.41:8081/v1", ## http://172.27.188.31:8081/v1
+  #   model="trust-translator", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+  #   api_key="EMPTY",
+  #   temp=0.3,
+  #   k=10
+  # )
+  # text = "English is a West Germanic language in the Indo-European language family, whose speakers, called Anglophones, originated in early medieval England on the island"
+  # result = llm.predict(text, "vi", "vi")
+  # print(result)
     
   # ## Translate segments
   # input_file = '/home/vgm/Desktop/en.srt'
@@ -145,14 +150,13 @@ class LLM():
   # segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
 
 
-#   ## Translate texts
-#   # input_texts = [
-#   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
-#   # ]
-#   # for text in input_texts:
-#   #   result = llm.process(text)
-#   #   print("result::", result)
+  ## Translate texts
+  # input_texts = [
+  # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+  # ]
+  # for text in input_texts:
+  #   result = llm.process(text)
+  #   print("result::", result)
     
   
-
 
