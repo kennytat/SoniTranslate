@@ -373,8 +373,11 @@ def combine_wav_segment(wav_list, output_file):
         audio = AudioSegment.from_file(wav_list[0].wav_path, format="wav")
         # Concatenate the remaining audio files
         for file in wav_list[1:]:
-            wav = AudioSegment.from_file(file.wav_path, format="wav")
-            audio += wav
+            try:
+              wav = AudioSegment.from_file(file.wav_path, format="wav")
+              audio += wav
+            except Exception as e:
+              print('Error joining audio::', e)
         # create the output file
         audio.export(output_file, format="wav")
         return (output_file, None)

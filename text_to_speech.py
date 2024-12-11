@@ -5,7 +5,6 @@ import edge_tts
 import asyncio
 # import nest_asyncio
 from vietTTS.vietTTS import normalize, VietTTS
-from utils.tts_utils import piper_tts
 from utils.xtts import XTTS
 from utils.utils import split_and_join_by_comma, num_to_str
 from pydub import AudioSegment
@@ -15,6 +14,7 @@ import gc
 from ovc_voice_main import OpenVoice
 from pathlib import Path
 from pydub import AudioSegment
+from tasks import vtts, xtts, ptts
 
 class TTSClient():
   def __init__(self):
@@ -66,19 +66,20 @@ class TTSClient():
           asyncio.run(edge_tts.Communicate(tts_text, "-".join(tts_voice.split('-')[:-1])).save(filename))
           return
         if t2s_method == "PiperTTS" and self.tts_client and self.tts_client == t2s_method:
-          piper_tts(tts_text, tts_voice, tts_speed, filename)
-          return
+          task = ptts.delay(tts_text, tts_voice, tts_speed, filename)
+          return task.get(timeout=None)
         if t2s_method == "VietTTS" and language == "vi" and self.tts_client and self.tts_client.name == t2s_method:
           print("vietTTS::")
-          self.tts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed if tts_speed else 1)
-          return
+          task = vtts.delay(tts_text, filename, tts_voice, tts_speed if tts_speed else 1)
+          return task.get(timeout=None)
         if t2s_method == "XTTS" and self.tts_client and self.tts_client.name == t2s_method:
           print("xTTS::")
           if len(tts_text) > 250 and "," in tts_text:
             self.split_long_speech(tts_text, tts_voice, tts_speed, filename, language, t2s_method, 200)
+            return
           else:
-            self.tts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
-          return   
+            task = xtts.delay(tts_text, filename, tts_voice, tts_speed, language)
+            return task.get(timeout=None)
       except Exception as error:
         print("tts error:", error, tts_text)
       return

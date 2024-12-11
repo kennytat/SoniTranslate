@@ -8,8 +8,7 @@ import joblib
 from joblib import Parallel, delayed
 from natsort import natsorted
 import gradio as gr
-from tasks import stt
-import whisperx
+from tasks import stt, diarize
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
 from IPython.utils import capture
 import torch
@@ -755,7 +754,7 @@ class Main():
         # 1. Transcribe with original whisper (batched)
         print("Start transcribing source language::")
         result = stt.delay(audio_wav, SOURCE_LANGUAGE, self.batch_size, self.chunk_size)
-        result = result.get()
+        result = result.get(timeout=None)
         print("Transcript complete::", len(result["segments"]))
 
         ## =================================================================
@@ -875,17 +874,9 @@ class Main():
           print("Start Diarizing::")
           progress(0.50, desc="Diarizing...")
           if self.max_speakers > 1:
-            with capture.capture_output() as cap:
-              diarize_model = "pyannote/speaker-diarization-3.1" ## "pyannote/speaker-diarization-3.1" "pyannote/speaker-diarization@2.1"
-              diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
-              del cap
-            diarize_segments = diarize_model(
-                audio_wav,
-                min_speakers=self.min_speakers,
-                max_speakers=self.max_speakers)
-            result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
+            result_diarize = diarize.delay(audio_wav, result, self.min_speakers, self.max_speakers)
+            result_diarize = result_diarize.get(timeout=None)
             result_diarize['segments'] = self.speaker_order_correction(result_diarize['segments'])
-            gc.collect(); torch.cuda.empty_cache(); del diarize_model
           else:
             result_diarize = result
             result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
