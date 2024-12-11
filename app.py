@@ -8,6 +8,7 @@ import joblib
 from joblib import Parallel, delayed
 from natsort import natsorted
 import gradio as gr
+from tasks import stt
 import whisperx
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
 from IPython.utils import capture
@@ -753,17 +754,8 @@ class Main():
 
         # 1. Transcribe with original whisper (batched)
         print("Start transcribing source language::")
-        with capture.capture_output() as cap:
-          model = whisperx.load_model(
-              self.WHISPER_MODEL_SIZE,
-              device,
-              compute_type=self.compute_type,
-              language=SOURCE_LANGUAGE,
-              )
-          del cap
-        audio = whisperx.load_audio(audio_wav)
-        result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
-        gc.collect(); torch.cuda.empty_cache(); del model
+        result = stt.delay(audio_wav, SOURCE_LANGUAGE, self.batch_size, self.chunk_size)
+        result = result.get()
         print("Transcript complete::", len(result["segments"]))
 
         ## =================================================================

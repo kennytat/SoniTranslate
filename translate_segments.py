@@ -27,7 +27,8 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
       llm_model = llm_model if TRANSLATE_AUDIO_TO == "vi" else ""
       api_key = "EMPTY" if TRANSLATE_AUDIO_TO == "vi" else ""
       llm = LLM(systemPrompt=systemPrompt)
-      llm_status = llm.initLLM(llm_endpoint, llm_model, api_key, llm_temp, llm_k)
+      llm_status = llm.initLLM(endpoints=llm_endpoint, model=llm_model, api_key=api_key, temp=llm_temp, k=llm_k)
+      print("llm_status::", llm_status)
       if llm_status:
         segments = llm.translate(segments=segments, source_lang=SOURCE_LANGUAGE, target_lang=TRANSLATE_AUDIO_TO)
         for index, segment in enumerate(segments):
