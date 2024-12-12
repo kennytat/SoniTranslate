@@ -291,9 +291,12 @@ def get_llm_models(endpoints):
   endpoints = endpoints.split(',')
   models = []
   for endpoint in endpoints:
-    response = requests.get(f"{endpoint}/models")
-    if response.status_code == 200 and "data" in response.json():
-      models.extend([item['id'] for item in response.json()["data"]])
+    try:
+      response = requests.get(f"{endpoint}/models", timeout=2)
+      if response.status_code == 200 and "data" in response.json():
+        models.extend([item['id'] for item in response.json()["data"]])
+    except Exception as e:
+      print(f'Endpoint not available: {e}')
   return models
 
 VIDEO_EXTENSIONS = [

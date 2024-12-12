@@ -102,7 +102,7 @@ class LLM():
               
               for future in concurrent.futures.as_completed(future_to_endpoint):
                   result = future.result()
-                  print("Available llm endpoints::\n", result)
+                  print("Available llm endpoints::\n", list(self.available_endpoints))
           time.sleep(self.interval)
                 
   def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=30):
