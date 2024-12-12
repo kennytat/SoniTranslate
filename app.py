@@ -944,13 +944,12 @@ class Main():
 
           if result['segments'] and len(result['segments']) > 0: 
               N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-              N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
               print("Start TTS:: concurrency =", N_JOBS)
               
               if self.tts_client.tts_client == None:
                 self.tts_client.init_tts_client(self.t2s_method)
               print("Initializing TTS Client::", self.t2s_method)
-              with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
+              with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
                 tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result['segments'], key=lambda x: x['speaker'])))
               self.tts_client.tts_client = None
               

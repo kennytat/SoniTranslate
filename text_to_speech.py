@@ -21,13 +21,7 @@ class TTSClient():
     self.tts_client = None
 
   def init_tts_client(self, client):
-    match client:
-      case "VietTTS":
-        self.tts_client = VietTTS()
-      case "XTTS":
-        self.tts_client = XTTS()
-      case _:
-        self.tts_client = client
+    self.tts_client = client
     return self.tts_client
         
   def split_long_speech(self, tts_text, tts_voice, tts_speed, filename, language, t2s_method, max_length=200):
@@ -68,11 +62,11 @@ class TTSClient():
         if t2s_method == "PiperTTS" and self.tts_client and self.tts_client == t2s_method:
           task = ptts.delay(tts_text, tts_voice, tts_speed, filename)
           return task.get(timeout=None)
-        if t2s_method == "VietTTS" and language == "vi" and self.tts_client and self.tts_client.name == t2s_method:
+        if t2s_method == "VietTTS" and language == "vi" and self.tts_client and self.tts_client == t2s_method:
           print("vietTTS::")
           task = vtts.delay(tts_text, filename, tts_voice, tts_speed if tts_speed else 1)
           return task.get(timeout=None)
-        if t2s_method == "XTTS" and self.tts_client and self.tts_client.name == t2s_method:
+        if t2s_method == "XTTS" and self.tts_client and self.tts_client == t2s_method:
           print("xTTS::")
           if len(tts_text) > 250 and "," in tts_text:
             self.split_long_speech(tts_text, tts_voice, tts_speed, filename, language, t2s_method, 200)
