@@ -9,17 +9,6 @@ app = Celery('routed_tasks',
              broker='redis://localhost:6379/0',
              backend='redis://localhost:6379/1')
 
-app.conf.update(
-    task_concurrency=1,
-    worker_prefetch_multiplier=1,
-    worker_heartbeat=60,
-    task_serializer='json',
-    accept_content=['json'],
-    result_serializer='json',
-    timezone='UTC',
-    enable_utc=True,
-)
-
 # Define queue configuration
 app.conf.task_queues = {
     'queue_stt': {

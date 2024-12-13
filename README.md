@@ -64,6 +64,14 @@ mount smb:
 sudo mount -t cifs //192.168.1.12/vgm-translate/ai1 /home/vgm/mount/output -o username=Administrator,password=,uid=1000,gid=1000,forceuid,forcegid,_netdev,auto,x-systemd.automount,x-systemd.mount-timeout=30
 ```
 
+### Celery
+
+```
+@reboot /bin/bash -ic 'source /home/vgm/.bashrc && conda activate vllm && CUDA_VISIBLE_DEVICES=1 python -m vllm.entrypoints.openai.api_server --model trast-ai/trust-translator-llama3-5b4e --port 8081 --tensor-parallel-size 1 --chat-template /home/vgm/chatml.jinja --max-model-len 20000'
+@reboot /bin/bash -ic 'source /home/vgm/.bashrc && conda activate soni && cd /home/vgm/Projects/sonitranslate && ./celery.sh 0'
+@reboot /bin/bash -ic 'source /home/vgm/.bashrc && conda activate soni && cd /home/vgm/Projects/sonitranslate && ./celery.sh 1'
+```
+
 ## Example:
 
 ### Original audio
