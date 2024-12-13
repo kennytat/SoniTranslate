@@ -4,7 +4,9 @@ from speech_to_text import STTClient
 from vietTTS.vietTTS import VietTTS
 from utils.tts_utils import piper_tts
 from utils.xtts import XTTS
-    
+import gc
+import torch
+
 app = Celery('routed_tasks',
              broker='redis://localhost:6379/0',
              backend='redis://localhost:6379/1')
@@ -42,49 +44,68 @@ app.conf.task_routes = {
     'tasks.ptts': {'queue': 'queue_ptts'}
 }
 
+class Celery():
+  def __init__(self):
+    self.name = ""
+    self.client = None
 
-stt_client = None
-vtts_client = None
-xtts_client = None
+celery_task = Celery()
 
 # Tasks
 @app.task(name='tasks.stt', max_retries=10, autoretry_for=(Exception,), default_retry_delay=5)
 def stt(audio_wav, language, batch_size, chunk_size):
-    global stt_client
-    if stt_client is None:
-        stt_client = STTClient(language)
-    stt_client.init_model(language)
+    global celery_task
+    if celery_task.name != "stt" or celery_task.client is None:
+      celery_task.client = None
+      gc.collect(); torch.cuda.empty_cache()
+      celery_task.name = "stt"
+      celery_task.client = STTClient(language)
+    celery_task.client.init_model(language)
     print("audio_wav::", audio_wav)
-    result = stt_client.transcribe(audio_wav, batch_size, chunk_size)
- # noqa
+    result = celery_task.client.transcribe(audio_wav, batch_size, chunk_size)
     return result
 
 # Tasks
 @app.task(name='tasks.diarization', max_retries=10, autoretry_for=(Exception,), default_retry_delay=5)
 def diarize(audio_wav, transcript, min_speakers, max_speakers):
-    global stt_client
-    if stt_client is None:
-        stt_client = STTClient()
-    result = stt_client.diarize(audio_wav, transcript, min_speakers, max_speakers)
+    global celery_task
+    if celery_task.name != "stt" or celery_task.client is None:
+      celery_task.client = None
+      gc.collect(); torch.cuda.empty_cache()
+      celery_task.name = "stt"
+      celery_task.client = STTClient()
+    result = celery_task.client.diarize(audio_wav, transcript, min_speakers, max_speakers)
     return result
 
 @app.task(name='tasks.ptts', max_retries=10, autoretry_for=(Exception,), default_retry_delay=5)
 def ptts(tts_text, tts_voice, tts_speed, filename):
+    global celery_task
+    if celery_task.name != "ptts":
+      celery_task.client = None
+      gc.collect(); torch.cuda.empty_cache()
+      celery_task.name = "ptts"
+      celery_task.client = None
     result = piper_tts(tts_text, tts_voice, tts_speed, filename)
     return result
   
 @app.task(name='tasks.vtts', max_retries=10, autoretry_for=(Exception,), default_retry_delay=5)
 def vtts(tts_text, filename, tts_voice, tts_speed):
-    global vtts_client
-    if vtts_client is None:
-        vtts_client = VietTTS()
-    result = vtts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed)
+    global celery_task
+    if celery_task.name != "vtts" or celery_task.client is None:
+      celery_task.client = None
+      gc.collect(); torch.cuda.empty_cache()
+      celery_task.name = "vtts"
+      celery_task.client = VietTTS()
+    result = celery_task.client.text_to_speech(tts_text, filename, tts_voice, tts_speed)
     return result
   
 @app.task(name='tasks.xtts', max_retries=10, autoretry_for=(Exception,), default_retry_delay=5)
 def xtts(tts_text, filename, tts_voice, tts_speed, language):
-    global xtts_client
-    if xtts_client is None:
-        xtts_client = XTTS()
-    result = xtts_client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
+    global celery_task
+    if celery_task.name != "xtts" or celery_task.client is None:
+      celery_task.client = None
+      gc.collect(); torch.cuda.empty_cache()
+      celery_task.name = "xtts"
+      celery_task.client = XTTS()
+    result = celery_task.client.text_to_speech(tts_text, filename, tts_voice, tts_speed, language)
     return result
