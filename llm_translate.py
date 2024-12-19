@@ -117,6 +117,7 @@ class LLM():
     self.api_key = api_key if api_key != "" else "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"
     for endpoint in default_endpoints:
       self.check_endpoint(endpoint)
+    time.sleep(self.interval)
     self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
     self._monitor_thread.start()
     return True
@@ -149,9 +150,10 @@ class LLM():
 
   def translate(self, segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
-      # N_JOBS = os.cpu_count()
-      # print("Start LLM Translate:: concurrency =", N_JOBS)
-      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(20)):
+      print("start llm_translate::")
+      N_JOBS = len(self.available_endpoints) * 7 if len(self.available_endpoints) else 20
+      print("Start LLM Translate:: concurrency =", N_JOBS)
+      with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text'], source_lang, target_lang) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
         segments[index]['text'] = t2t_results[index]
