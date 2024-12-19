@@ -41,7 +41,7 @@ sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/
 sudo apt-get update
 sudo apt-get install libcudnn8
 sudo apt-get install libcudnn8-dev
-sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux
+sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux nvidia-cuda-toolkit
 
 conda create -n soni python=3.10.12
 conda activate soni
