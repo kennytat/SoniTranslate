@@ -1,0 +1,33 @@
+version: "3.8"
+services:
+  stts:
+    # env_file:
+    #   - .env
+    build:
+      context: .
+      dockerfile: Dockerfile.stts
+      cache_from:
+        - type=bind,source=${HOME}/.cache/pip,target=/root/.cache/pip
+    image: ghcr.io/mdds-labs/stts:server
+    container_name: stts
+    # command: ["executable", "arg"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    shm_size: 1024m
+    ports:
+      - 8008:8000
+    environment:
+      MAX_NUM_SENTENCES: "16"
+      PORT: "8000"
+      # WHISPER_MODEL: "medium.en"
+      # COMPUTE_TYPE: "float16"
+      # TTS_MODEL: "csukuangfj/vits-coqui-en-vctk|109 speakers"
+      # APP_TEMP_DIR: ""
+    restart: unless-stopped
+    volumes:
+      - /mnt/backup/AI/sonitranslate/cache:/root/.cache

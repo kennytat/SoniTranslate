@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import requests
 import time
+import os
 # import shutil
 # import json
 import random
@@ -109,13 +110,13 @@ class LLM():
     print("Initializing LLM::")
     # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
     endpoints = endpoints.split(',')
-    self.endpoints = list(set(self.endpoints + endpoints))
+    self.endpoints = list(set(default_endpoints + endpoints))
     self.endpoints = self.endpoints if len(self.endpoints)>0 else ["https://openrouter.ai/api/v1"]
     self.temp = temp
     self.k = k
     self.model = model if model != "" else "openai/gpt-4o"
-    self.api_key = api_key if api_key != "" else "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"
-    for endpoint in default_endpoints:
+    self.api_key = api_key if api_key != "" else os.getenv("OR_API_KEY", "")
+    for endpoint in self.endpoints:
       self.check_endpoint(endpoint)
     time.sleep(self.interval)
     self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
@@ -171,7 +172,7 @@ class LLM():
 #   # llm.initLLM(
 #   #   endpoints="https://openrouter.ai/api/v1", ## http://172.27.188.32:8081/v1
 #   #   model="openai/gpt-4o", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
-#   #   api_key="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",
+#   #   api_key=os.getenv("OR_API_KEY", ""),
 #   #   temp=0.3,
 #   #   k=10
 #   # )

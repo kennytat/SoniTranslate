@@ -45,7 +45,7 @@ def translate_from_video(
         os.makedirs('audio2/audio')
 
     # Check GPU
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     compute_type = "float32" if device == "cpu" else compute_type
 
     OutputFile = 'Video.mp4'

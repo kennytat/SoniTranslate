@@ -1,5 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cu121 torch==2.4.1+cu121 torchaudio==2.4.1+cu121
-whisperx @ git+https://github.com/m-bain/whisperx.git #git+https://github.com/R3gm/whisperX.git@cuda_11_8 #git+https://github.com/kennytat/whisperx.git@large-v3
+whisperx==3.1.6
+numpy==1.26.4
 gradio==4.44.1
 yt-dlp
 python-dotenv
@@ -16,3 +17,4 @@ passlib
 uvicorn
 itsdangerous
 aiosqlite
+natsort

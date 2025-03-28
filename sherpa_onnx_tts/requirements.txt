@@ -1,0 +1,16 @@
+python-dotenv
+numpy==1.26.4
+pydub
+lameenc
+fastapi
+uvicorn
+huggingface_hub
+python-multipart
+whisperx @ git+https://github.com/m-bain/whisperx.git
+# Platform-specific ONNX Runtime installations
+-f https://k2-fsa.github.io/sherpa/onnx/cuda.html
+sherpa-onnx==1.10.36+cuda; sys_platform == 'linux'
+sherpa-onnx==1.10.36; sys_platform != 'linux'
+onnxruntime-coreml; sys_platform == 'darwin'  # For macOS
+onnxruntime-gpu; sys_platform == 'linux'      # For Linux with CUDA support
+onnxruntime; sys_platform == 'win32'

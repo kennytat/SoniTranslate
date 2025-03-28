@@ -5,10 +5,7 @@ from openvoice.api import ToneColorConverter
 import shutil
 import tempfile
 app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
-if torch.cuda.is_available():
-    device = "cuda"
-else:
-    device = "cpu"
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 base_converter_dir = os.path.join(os.getcwd(),"model","openvoice", "converter")
 source_voice_dir = os.path.join(os.getcwd(),"model","openvoice", "source_voice")
 target_voice_dir = os.path.join(os.getcwd(),"model","openvoice", "target_voice")

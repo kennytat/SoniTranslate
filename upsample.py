@@ -19,18 +19,7 @@ total_input = []
 total_output = []
 upsampler = None
 # Check GPU
-if torch.cuda.is_available():
-    device = "cuda"
-    list_compute_type = ['float16', 'float32']
-    compute_type_default = 'float16'
-    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-    whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
-else:
-    device = "cpu"
-    list_compute_type = ['float32']
-    compute_type_default = 'float32'
-    whisper_model_default = 'medium'
-
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
   
 class ExitHooks(object):
     def __init__(self):

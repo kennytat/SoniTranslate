@@ -44,10 +44,7 @@ emoji_rocket = emoji.emojize(":rocket:")
 
 temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm_voice_chat"))
 Path(temp_dir).mkdir(parents=True, exist_ok=True)
-if torch.cuda.is_available():
-  device = "cuda"
-else:
-  device = "cpu"
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 compute_type = "float32" if device == "cpu" else "float16"
 pygame.mixer.init()
 

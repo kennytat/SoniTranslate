@@ -32,24 +32,19 @@ SonyTranslate is a powerful and user-friendly web application that allows you to
 ## Installation
 
 ```
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
+dpkg -i cuda-keyring_1.0-1_all.deb
 sudo apt-get update -y && apt-get upgrade -y
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
-sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
-export last_public_key=3bf863cc
-sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/${last_public_key}.pub
-sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
-sudo apt-get update
-sudo apt-get install libcudnn8
-sudo apt-get install libcudnn8-dev
+sudo apt-get install -y libcudnn8 libcudnn8-dev
 sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux
 
-conda create -n soni python=3.10.12
+conda create -n soni python=3.10.12 -y
 conda activate soni
 git submodule update --init --recursive
-pip install -r requirements_stt.txt
-pip install -r requirements_ttt.txt
-pip install -r requirements_tts.txt
-pip install -r requirements_extra.txt
+pip install -r requirements_ttt.txt --no-cache-dir
+pip install -r requirements_tts.txt --no-cache-dir
+pip install -r requirements_extra.txt --no-cache-dir
+pip install -r requirements_stt.txt --no-cache-dir
 python -m spacy download en_core_web_sm
 conda install -y nvidia/label/cuda-12.2.2::libcusparse
 conda install -y nvidia/label/cuda-12.2.2::cuda-toolkit

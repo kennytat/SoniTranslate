@@ -1,0 +1,21 @@
+FROM python:3.10.12
+
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb 
+RUN dpkg -i cuda-keyring_1.0-1_all.deb 
+RUN apt-get update -y && apt-get install -y ffmpeg cron libcudnn8 libcudnn8-dev
+
+WORKDIR /app
+COPY sherpa_onnx_tts sherpa_onnx_tts
+COPY stt_server.py stt_server.py
+
+ENV LD_LIBRARY_PATH=/usr/lib:/usr/lib64:/usr/local/lib:/usr/local/lib64/:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+ARG CACHE_DIR=/root/.cache/pip
+RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} -r sherpa_onnx_tts/requirements.txt
+RUN rm -rf /var/cache/apt/*
+
+RUN echo "0 * * * * find /tmp/stt_server/output -type f -mmin +60 -exec rm -f {} \;" > /etc/cron.d/cleanup-cron
+RUN chmod 0644 /etc/cron.d/cleanup-cron
+
+EXPOSE 8000
+
+CMD service cron start && python stt_server.py
