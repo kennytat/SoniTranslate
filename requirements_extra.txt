@@ -1,7 +1,0 @@
-natsort
-omegaconf==2.1.0
-charset_normalizer==3.3.2
-pygame
-emoji
-botocore
-termcolor

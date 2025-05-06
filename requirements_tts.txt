@@ -46,10 +46,9 @@ gdown
 antlr4-python3-runtime==4.8
 ## === Open voice ===
 librosa==0.10.0
-faster-whisper==1.0.0
 pydub
 wavmark
-numpy
+numpy==1.26.4
 eng_to_ipa
 inflect
 unidecode
@@ -64,7 +63,7 @@ huggingface-hub
 # audiosr
 # cog
 ## === FastAPI ===
-fastapi
+fastapi==0.111.1
 starlette
 asyncio
 passlib

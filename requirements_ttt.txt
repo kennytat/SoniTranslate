@@ -13,8 +13,8 @@ deep_translator
 ## VB translate
 langdetect
 # fairseq==0.12.2
-omegaconf==2.0.6
--e git+https://github.com/pytorch/fairseq.git@v0.12.2#egg=fairseq
+# omegaconf
+# -e git+https://github.com/pytorch/fairseq.git@v0.12.2#egg=fairseq
 ## LLM translate
 openai
 langchain

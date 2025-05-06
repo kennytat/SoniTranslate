@@ -500,7 +500,7 @@ class TTS():
                         language = language if language else user_settings['t2s_lang']
                         print("tts method changed::", method)
                         user_settings['t2s_lang'] = language
-                        save_settings(user_settings)
+                        save_settings(settings=user_settings)
                         self.list_tts = get_tts_list(method, language)
                         print("update_t2s_list called::", method, language, self.list_tts)
                         return gr.update(choices=self.list_tts)

@@ -15,7 +15,7 @@ import soundfile as sf
 from gtts import gTTS
 import edge_tts
 import asyncio
-import nest_asyncio
+# import nest_asyncio
 import tempfile
 app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vgm-translate"))
 

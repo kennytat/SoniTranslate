@@ -9,7 +9,7 @@ else
 	# Prompt the user for their password (input will be hidden)
 	read -sp "Enter your password: " password
 	if [ ! -z "${shareid}" ] && [ ! -z "${password}" ]; then
-		curl -o model.zip -u "${shareid}:${password}" -H "X-Requested-With: XMLHttpRequest" "https://vgm.cloud/public.php/webdav/"
+		curl -o model.zip --retry-all-errors -u "${shareid}:${password}" -H "X-Requested-With: XMLHttpRequest" "https://vgm.cloud/public.php/webdav/"
 		unzip model.zip -d "$(pwd)"
 		rm model.zip
 	else

@@ -35,19 +35,16 @@ SonyTranslate is a powerful and user-friendly web application that allows you to
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
 dpkg -i cuda-keyring_1.0-1_all.deb
 sudo apt-get update -y && apt-get upgrade -y
-sudo apt-get install -y libcudnn8 libcudnn8-dev
-sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux
+sudo apt-get -y install cudnn9-cuda-12
+sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux nvidia-cuda-toolkit
 
 conda create -n soni python=3.10.12 -y
 conda activate soni
 git submodule update --init --recursive
-pip install -r requirements_ttt.txt --no-cache-dir
-pip install -r requirements_tts.txt --no-cache-dir
-pip install -r requirements_extra.txt --no-cache-dir
 pip install -r requirements_stt.txt --no-cache-dir
+pip install -r requirements_tts.txt --no-cache-dir
+pip install -r requirements_ttt.txt --no-cache-dir
 python -m spacy download en_core_web_sm
-conda install -y nvidia/label/cuda-12.2.2::libcusparse
-conda install -y nvidia/label/cuda-12.2.2::cuda-toolkit
 
 export LD_LIBRARY_PATH=/home/vgm/miniconda3/envs/soni/lib/python3.10/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}
 

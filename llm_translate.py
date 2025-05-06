@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import requests
 import time
 import os
+import re
 # import shutil
 # import json
 import random
@@ -34,11 +35,19 @@ fault_words = [
   ]
 
 default_endpoints = [
+  "http://172.27.188.32:8082/v1"
     # "http://192.168.2.12:8081/v1",
     # "http://192.168.2.13:8081/v1",
     # "http://192.168.2.14:8081/v1",
     # "http://192.168.2.14:8082/v1",
 ]
+
+def cleanup_text(text):
+    text = re.sub(r'<skip_think>', '', text, flags=re.DOTALL)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    return text
+  
+  
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self.llm_chain = {}
@@ -141,7 +150,7 @@ class LLM():
                   "target_language": target_language,
               })
         if result.content and not any(word in result.content.strip().lower() for word in fault_words) and target_lang in detect(result.content):
-            return result.content
+            return cleanup_text(result.content)
       except Exception as e:
         print("error::", e)
         result = {"content": ""}
@@ -150,7 +159,6 @@ class LLM():
     return text
 
   def translate(self, segments, source_lang="en", target_lang="vi"):
-      print("start llm_translate::")
       print("start llm_translate::")
       N_JOBS = len(self.available_endpoints) * 7 if len(self.available_endpoints) else 20
       print("Start LLM Translate:: concurrency =", N_JOBS)
@@ -176,31 +184,34 @@ class LLM():
 #   #   temp=0.3,
 #   #   k=10
 #   # )
-
+  
+#   # systemPrompt="""Think and translate English accurately into clear, natural, appropriate Vietnamese."""
+#   # llm = LLM(systemPrompt=systemPrompt)
 #   llm = LLM()
 #   llm.initLLM(
-#     endpoints="http://172.27.188.31:8081/v1", ## http://172.27.188.31:8081/v1
-#     model="trast-ai/trust-translator-llama3-5b4e", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+#     endpoints="http://172.27.188.32:8082/v1", ## http://172.27.188.31:8081/v1
+#     model="trast-ai/trust-translator-0525", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
 #     api_key="EMPTY",
-#     temp=0.3,
+#     temp=0.6,
 #     k=10
 #   )
-#   # text = "English is a West Germanic language in the Indo-European language family, whose speakers, called Anglophones, originated in early medieval England on the island"
-#   # result = llm.predict(text, "vi", "vi")
-#   # print(result)
+#   text = "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+#   result = llm.predict(text, "en", "vi")
+#   print("before::", result)
+#   print("after::", cleanup_text(result))
     
-#   ## Translate segments
-#   input_file = '/home/vgm/Desktop/en.srt'
-#   segments = srt_to_segments(input_file)
-#   # segments = concise_srt(segments)
-#   # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
-#   # print(segments, len(segments))
-#   segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
-#   # print("results::",  segments, len(segments))
-#   segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
+  # ## Translate segments
+  # input_file = '/home/vgm/Desktop/en.srt'
+  # segments = srt_to_segments(input_file)
+  # # segments = concise_srt(segments)
+  # # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
+  # # print(segments, len(segments))
+  # segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
+  # # print("results::",  segments, len(segments))
+  # segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
 
 
-  # # Translate texts
+  # Translate texts
   # input_texts = [
   # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
   # ]

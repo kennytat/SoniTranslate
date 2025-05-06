@@ -291,15 +291,15 @@ list_ptts = piper_tts_voices_list()
 list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 list_svc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
-list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
+# list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
 list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # models, index_paths = upload_model_list()
 
 f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
 
-from rvc_voice_main import RVCClassVoices
-rvc_voices = RVCClassVoices()
+# from rvc_voice_main import RVCClassVoices
+# rvc_voices = RVCClassVoices()
 
 from svc_voice_main import SVCClassVoices
 svc_voices = SVCClassVoices()
@@ -339,8 +339,8 @@ def get_vc_list(method):
   match method:
     case 'SVC':
       list_vc = list_svc
-    case 'RVC':
-      list_vc = list_rvc
+    # case 'RVC':
+    #   list_vc = list_rvc
     case 'OpenVoice':
       list_vc = list_ovc
     case _:
@@ -942,8 +942,9 @@ class Main():
           else:
             # Start translate if srt not found
             translated_segments = translate_text(result['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
-            progress(0.65, desc="Grama correction...")
-            result['segments'] = grama_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_temp, self.llm_k)
+            # progress(0.65, desc="Grama correction...")
+            # result['segments'] = grama_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_temp, self.llm_k)
+            result['segments'] = translated_segments
             print("translated segments::", result['segments'])
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
@@ -994,10 +995,10 @@ class Main():
                   print("start SVC::")
                   svc_voices(speakers_list, audio_files, speaker_to_vc)
                   
-              if self.vc_method == 'RVC':
-                  progress(0.80, desc="Applying RVC customized voices...")
-                  print("start RVC::")
-                  rvc_voices(speakers_list, audio_files, speaker_to_vc)
+              # if self.vc_method == 'RVC':
+              #     progress(0.80, desc="Applying RVC customized voices...")
+              #     print("start RVC::")
+              #     rvc_voices(speakers_list, audio_files, speaker_to_vc)
 
               if self.vc_method == 'OpenVoice':
                   progress(0.80, desc="Applying OVC customized voices...")
@@ -1322,9 +1323,9 @@ class Main():
                   with gr.Accordion("S2T - T2T - T2S", open=False):
                     with gr.Row():
                       s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['s2t'], visible=True, elem_id="s2t_method", interactive=True)
-                      t2t_method = gr.Dropdown(["Google", "VB", "T5", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method",interactive=True)
-                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS","XTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
-                      vc_method = gr.Dropdown(["None", "SVC", "RVC", "OpenVoice"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc_method",interactive=True)
+                      t2t_method = gr.Dropdown(["Google", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method",interactive=True)
+                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS", "VietTTS", "XTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
+                      vc_method = gr.Dropdown(["None", "SVC", "OpenVoice"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc_method",interactive=True)
                       s2t_method.change(None, s2t_method, None, js="(v) => setStorage('s2t_method',v)")
                       t2t_method.change(None, t2t_method, None, js="(v) => setStorage('t2t_method',v)")
                       t2s_method.change(None, t2s_method, None, js="(v) => setStorage('t2s_method',v)")
@@ -1360,7 +1361,7 @@ class Main():
                     with gr.Row():
                       llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url", scale=5)
                       llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model",scale=5)        
-                      llm_temp = gr.Slider(0.1, 1, value=0.3, step=0.1, label="Temparature",scale=5, interactive=True)
+                      llm_temp = gr.Slider(0.1, 1, value=0.6, step=0.1, label="Temparature",scale=5, interactive=True)
                       llm_k = gr.Slider(10, 3000, value=3000, step=10, label="K",scale=5, interactive=True)
                       llm_refresh = gr.Button("Refresh", scale=2)
                       ## Config LLM Settings

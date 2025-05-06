@@ -1,8 +1,8 @@
-import re
+# import re
 import os
 from tqdm import tqdm
 from translate_text_processor import titlecase_with_dash
-from vb_translate import vb_translate
+# from vb_translate import vb_translate
 from langdetect import detect
 from llm_translate import LLM
 # from llama_translate import LLM as Llama
@@ -20,10 +20,10 @@ def post_process_text(text):
   return text
 
 ## Translate text using Google Translator
-def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.5, llm_k=30):
+def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=30):
     print("start translate_text::", segments)
     if t2t_method == "LLM":
-      systemPrompt = "Bạn là AI có khả năng dịch thuật nội dung từ tiếng Anh một cách chính xác và rất dễ hiểu cho người Việt Nam. Hãy cẩn thận dịch và chọn từ ngữ cho phù hợp." if TRANSLATE_AUDIO_TO == "vi" else ""
+      systemPrompt = "Think and translate English accurately into clear, natural, appropriate Vietnamese." if TRANSLATE_AUDIO_TO == "vi" else ""
       llm_endpoint = llm_endpoint if TRANSLATE_AUDIO_TO == "vi" else ""
       llm_model = llm_model if TRANSLATE_AUDIO_TO == "vi" else ""
       api_key = "EMPTY" if TRANSLATE_AUDIO_TO == "vi" else ""
@@ -34,16 +34,6 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
         for index, segment in enumerate(segments):
           segments[index]['text'] = post_process_text(segments[index]['text'])
         del llm
-      else:
-        t2t_method = "VB" if TRANSLATE_AUDIO_TO == "vi" else "LLM"
-      
-    if t2t_method == "VB" and TRANSLATE_AUDIO_TO == "vi":
-      print("vb_translator::", len(segments), "segments")
-      source_text = "\n".join([ segment['text'] for segment in segments])
-      translated_text = vb_translate(source_text.strip())
-      print("vb_translator translated_text::", len(translated_text), "segments")
-      for index, segment in enumerate(segments):
-        segments[index]['text'] = post_process_text(translated_text[index])
     
     ## Last option to check if any non-translated sentences left then using Google translator
     google_translator = GoogleTranslator(source='auto', target=TRANSLATE_AUDIO_TO)
