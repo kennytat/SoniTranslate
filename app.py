@@ -21,7 +21,7 @@ from tqdm import tqdm
 import os
 from audio_segments import create_translated_audio
 from text_to_speech import TTSClient, voice_conversion
-from translate_segments import translate_text, grama_correction
+from translate_segments import translate_text, grammar_correction
 import time
 import shutil
 import logging
@@ -942,8 +942,8 @@ class Main():
           else:
             # Start translate if srt not found
             translated_segments = translate_text(result['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
-            progress(0.65, desc="Grama correction...")
-            result['segments'] = grama_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
+            progress(0.65, desc="Grammar correction...")
+            result['segments'] = grammar_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
             print("translated segments::", result['segments'])
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')

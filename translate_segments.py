@@ -50,8 +50,8 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
 
     return segments
 
-def grama_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=200):
-    ## Implement grama correction for vietnamese using llm
+def grammar_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=200):
+    ## Implement grammar correction for vietnamese using llm
     if TRANSLATE_AUDIO_TO == "vi":
       systemPrompt="Review the English–Vietnamese translation pair, fix any errors, and produce a clear, natural Vietnamese version."
       llm_endpoint = llm_endpoint if TRANSLATE_AUDIO_TO == "vi" else ""
@@ -73,7 +73,7 @@ def grama_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANS
       else:
         pass
     
-    # ## Implement grama correction for vietnamese using Llamacpp
+    # ## Implement grammar correction for vietnamese using Llamacpp
     # if TRANSLATE_AUDIO_TO == "vi":
     #   systemPrompt = "Sửa lỗi chính tả từ bản gốc sang bảng mới"
     #   llm = Llama(systemPrompt=systemPrompt)

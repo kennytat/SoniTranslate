@@ -18,7 +18,7 @@ class LLM():
     self.llama_chain = []
     self.systemPrompt = systemPrompt if systemPrompt != "" else "This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text."
     
-  def initLLM(self, model="./model/grama_correction/grama_correction_llama3_5b4e_f16.gguf", temp=0.3, k=30):
+  def initLLM(self, model="./model/grammar_correction/grammar_correction_llama3_5b4e_f16.gguf", temp=0.3, k=30):
     # LOAD THE MODEL
     try:
       if os.path.isfile(model):        
@@ -81,7 +81,7 @@ if __name__ == '__main__':
   systemPrompt="""Sửa lỗi chính tả từ bản gốc sang bảng mới"""
   llm = LLM(systemPrompt=systemPrompt)
   llm.initLLM(
-    model="./model/grama_correction/grama_correction_llama3_5b4e_f16.gguf",
+    model="./model/grammar_correction/grammar_correction_llama3_5b4e_f16.gguf",
     temp=0.3,
     k=10
   )
