@@ -166,9 +166,9 @@ class LLM():
       print("Start LLM Translate:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(source_segments[line]['text'], target_segments[line]['text'], source_lang, target_lang) for (line) in tqdm(range(len(target_segments))))
-      for index in tqdm(range(len(segments))):
-        segments[index]['text'] = t2t_results[index]
-      return segments
+      for index in tqdm(range(len(target_segments))):
+        target_segments[index]['text'] = t2t_results[index]
+      return target_segments
     
   def predict(self, source_text, target_text, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
