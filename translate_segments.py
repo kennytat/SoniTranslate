@@ -50,26 +50,18 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
 
     return segments
 
-def grama_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", llm_temp=0.3, llm_k=200):
+def grama_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=200):
     ## Implement grama correction for vietnamese using llm
     if TRANSLATE_AUDIO_TO == "vi":
-      glossary_table="""God: Thiên Chúa
-      Jehovah God, God Jehovah, Jehovah, LORD God: Thiên Chúa Hằng Hữu
-      Christ: Đấng Cứu Thế, Chúa Cứu Thế
-      Jesus: Chúa Giê-xu
-      Jesus Christ: Chúa Cứu Thế Giê-xu
-      Holy Spirit: Đức Thánh Linh, Chúa Thánh Linh, Thánh Linh
-      Do not use any "Ki-tô" word in the corrected version but use "Cơ Đốc" instead."""  
-      systemPrompt="""
-      Given a source paragraph in English and its Vietnamese translation, please correct any errors in the translation to ensure it is accurate, faithful to the original meaning, clear, and natural-sounding for Vietnamese readers.
-      Only revise parts that are unnatural or difficult to understand. Prioritize accuracy and fidelity to the English text while making the translation easy to comprehend.
-      Use the glossary table to choose the most appropriate and consistent terms.""" + "\n\nGLOSSARY / DICTIONARY GUIDANCE:\n" + glossary_table
-      
+      systemPrompt="Review the English–Vietnamese translation pair, fix any errors, and produce a clear, natural Vietnamese version."
+      llm_endpoint = llm_endpoint if TRANSLATE_AUDIO_TO == "vi" else ""
+      llm_model = llm_model if TRANSLATE_AUDIO_TO == "vi" else ""
+      api_key = "EMPTY" if TRANSLATE_AUDIO_TO == "vi" else ""
       llm = LLMCorrect(systemPrompt=systemPrompt)
       llm_status = llm.initLLM(
-        endpoints="https://web.chattrust.ai/api", ## https://web.chattrust.ai/api
-        model="deepseek-r1:70b", ## "deepseek-r1:70b"
-        api_key=os.getenv("OW_API_KEY", ""), 
+        endpoints=llm_endpoint, ## https://web.chattrust.ai/api
+        model=llm_model, ## "deepseek-r1:70b"
+        api_key=api_key, 
         temp=llm_temp,
         k=llm_k
       )

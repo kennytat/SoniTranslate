@@ -943,8 +943,7 @@ class Main():
             # Start translate if srt not found
             translated_segments = translate_text(result['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
             # progress(0.65, desc="Grama correction...")
-            # result['segments'] = grama_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_temp, self.llm_k)
-            result['segments'] = translated_segments
+            result['segments'] = grama_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
             print("translated segments::", result['segments'])
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')

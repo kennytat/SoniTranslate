@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, Request, Header, UploadFile, HTTPException, Response
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
@@ -12,8 +12,19 @@ from typing import Optional
 import whisperx
 from sherpa_onnx_tts.stts import STTS
 import numpy as np
+import soundfile as sf
+import re
+from num2words import num2words
+from speechbrain.inference.text import GraphemeToPhoneme
 from lameenc import Encoder
 from dotenv import load_dotenv
+import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "stt_server"))
@@ -22,11 +33,13 @@ whisper_model_default = os.getenv("WHISPER_MODEL",  "medium.en")
 compute_type_default = os.getenv("COMPUTE_TYPE",  "float16")
 tts_model = os.getenv("TTS_MODEL",  "csukuangfj/vits-coqui-en-vctk|109 speakers")
 device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
-    
+  
 class Whisper:
     def __init__(self, whisper_model="", device="", compute_type=compute_type_default, language='en'):
         self.current_model = whisper_model
         self.current_language = language
+        self.device = device
+        self.g2p = GraphemeToPhoneme.from_hparams("speechbrain/soundchoice-g2p", run_opts={"device":"cuda"})
         self.model = whisperx.load_model(
             whisper_arch=whisper_model,
             device=device,
@@ -34,13 +47,28 @@ class Whisper:
             language=None if language == 'Automatic detection' else language,
             )
 
-    def stt(self, file_path="", batch_size=16, chunk_size=5):
+    def stt(self, file_path="", align=False, batch_size=16, chunk_size=5):
         try:
           audio_bytes = whisperx.load_audio(file_path)
+          # audio_bytes = np.frombuffer(audio_bytes, np.int16).flatten().astype(np.float32) / 32768.0
           result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)
+          if align:
+            for segment in result['segments']:
+              segment['text'] = convert_numbers_in_text(segment['text'])
+            model_a, metadata = whisperx.load_align_model( language_code=result["language"], device=self.device, model_name=None)
+            result = whisperx.align(
+                result["segments"],
+                model_a,
+                metadata,
+                audio_bytes,
+                self.device,
+                return_char_alignments=True,
+                print_progress=False,
+            )
+            del model_a
           return result
         except Exception as e:
-          print('Error stt::', e)
+          logger.info('Error stt::', e)
           return ""
       
 app = FastAPI(title="Audio Processing API")
@@ -55,59 +83,153 @@ app.add_middleware(
 stt_client = Whisper(whisper_model=whisper_model_default, device=device)
 tts_client = STTS()
 
-async def save_upload_file(upload_file: UploadFile) -> Path:
-    """Save uploaded file to disk and return the file path."""
-    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}{Path(upload_file.filename).suffix}")
-    print("file::", upload_file, temp_file)
+
+
+PHONEME_TO_VISEME = {
+    # Viseme 0: Silence (not explicitly mapped)
+
+    # Viseme 1: AE, AX, AH
+    "AE": 1, "AH": 1, "AX": 1,
     
-    try:
-        with Path(temp_file).open("wb") as buffer:
-            shutil.copyfileobj(upload_file.file, buffer)
-    finally:
-        upload_file.file.close()
+    # Viseme 2: AA
+    "AA": 2,
+    
+    # Viseme 3: AO
+    "AO": 3,
+    
+    # Viseme 4: EH, EY, UH
+    "EH": 4, "EY": 4, "UH": 4,
+    
+    # Viseme 5: ER
+    "ER": 5,
+    
+    # Viseme 6: IH, IY
+    "IH": 6, "IY": 6,
+    
+    # Viseme 7: W, UW
+    "W": 7, "UW": 7,
+    
+    # Viseme 8: OW
+    "OW": 8,
+    
+    # Viseme 9: AW
+    "AW": 9,
+    
+    # Viseme 10: AY
+    "AY": 10,
+    
+    # Viseme 11: B, P, M
+    "B": 11, "P": 11, "M": 11,
+    
+    # Viseme 12: CH, SH, JH, ZH
+    "CH": 12, "SH": 12, "JH": 12, "ZH": 12,
+    
+    # Viseme 13: S, Z
+    "S": 13, "Z": 13,
+    
+    # Viseme 14: TH, DH
+    "TH": 14, "DH": 14,
+    
+    # Viseme 15: F, V
+    "F": 15, "V": 15,
+    
+    # Viseme 16: D, T, N, L
+    "D": 16, "T": 16, "N": 16, "L": 16,
+    
+    # Viseme 17: G, K, NG
+    "G": 17, "K": 17, "NG": 17,
+    
+    # Viseme 18: R
+    "R": 18,
+    
+    # Viseme 19: Y
+    "Y": 19,
+    
+    # Viseme 20: HH
+    "HH": 20
+}
+
+def convert_numbers_in_text(text):
+    # Function to convert a number match to words
+    def replace_num(match):
+        number = match.group(0)
+        try:
+            # Convert to float first to handle both integers and decimals
+            return num2words(float(number))
+        except ValueError:
+            # If conversion fails, return the original text
+            return number
+    
+    # Use regex to find numbers in the text
+    # This pattern matches integers and decimal numbers
+    pattern = r'\b\d+(\.\d+)?\b'
+    
+    # Replace all numbers with their word equivalents
+    result = re.sub(pattern, replace_num, text)
+    return result
+  
+async def save_upload_file(audio_buffer, filename: str):
+    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}{Path(filename).suffix}.raw")
+    with open(temp_file, 'wb') as file:
+        file.write(audio_buffer)
     return temp_file
 
+
+
+# --------------- Route start here ---------------
 @app.post("/stt")
-async def stt(file: UploadFile) -> JSONResponse:
+async def stt(request: Request, x_audio_metadata: Optional[str] = Header(None)) -> JSONResponse:
     """
-    Process an uploaded audio file and return the results.
+    Endpoint to receive audio buffer data with metadata header.
     
     Args:
-        file: The uploaded audio file
-    
+        request: Request object containing the raw audio buffer
+        x_audio_metadata: Header containing metadata about the audio
+        
     Returns:
-        JSONResponse containing the processing results or error message
-    
-    Raises:
-        HTTPException: If the file is invalid or processing fails
+        JSON response with acknowledgment and metadata info
     """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file uploaded")
-    
-    try:
-        # Save the uploaded file
-        temp_file = await save_upload_file(file)
+    # Parse the metadata header if present
+    metadata = {}
+    if x_audio_metadata:
         try:
-            # Process the audio file
-            stt_result = stt_client.stt(file_path=temp_file, batch_size=24, chunk_size=24)
-            result = "".join([segment["text"] for segment in  stt_result["segments"]])           
+            metadata = json.loads(x_audio_metadata)
+            logger.info(f"Received audio metadata: {metadata}")
+        except json.JSONDecodeError:
+            logger.error("Failed to parse X-Audio-Metadata header as JSON")
             return JSONResponse(
-                content={"message": "Success", "result": result},
-                status_code=200
+                status_code=400,
+                content={"error": "Invalid metadata format. Expected JSON."}
             )
+    try:
+        # Get the raw audio buffer data
+        audio_bytes = await request.body()
+        # Save the uploaded file
+        temp_file = await save_upload_file(audio_buffer=audio_bytes, filename=metadata["filename"])
+        try:
+          # Process the audio file
+          stt_result = stt_client.stt(file_path=temp_file, align=False, batch_size=24, chunk_size=24)
+          result = "".join([segment["text"] for segment in  stt_result["segments"]])           
+          return JSONResponse(
+              content={"message": "Success", "result": result},
+              status_code=200
+          )
         finally:
             # Clean up: remove the temporary file
             Path(temp_file).unlink(missing_ok=True)
-            
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
 
 class TTSRequest(BaseModel):
     text: str
     filename: str
-    
+
+class TTSResponseMeta(BaseModel):
+    name: str
+    visemes: list
+        
 @app.post("/tts")
-async def tts(request: TTSRequest) -> FileResponse:
+async def tts(request: TTSRequest) -> Response:
     """
     Process text and return tts results.
     
@@ -127,10 +249,10 @@ async def tts(request: TTSRequest) -> FileResponse:
             # Process the audio file
             result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="94", speed=1.0)
             # Normalize and scale if samples are float
+            
             if isinstance(result.samples, list) or samples.dtype == np.float32:
                 samples = np.array(result.samples, dtype=np.float32)
                 samples = (samples * 32767).astype(np.int16)
-
             # Initialize MP3 encoder
             encoder = Encoder()
             encoder.set_bit_rate(128)  # Set desired bit rate (e.g., 192 kbps)
@@ -141,20 +263,38 @@ async def tts(request: TTSRequest) -> FileResponse:
             mp3_data = encoder.encode(samples.tobytes())
             mp3_data += encoder.flush()
             filename = f"{request.filename}.mp3"
-            tmp_file = os.path.join(temp_dir, "output", filename)
-            with open(tmp_file, "wb") as mp3_file:
+            temp_file = os.path.join(TMP_FILE_DIRECTORY, filename)
+            with open(temp_file, "wb") as mp3_file:
               mp3_file.write(mp3_data)
+            
+            ## Extract visemes
+            stt_result = stt_client.stt(file_path=temp_file, align=True, batch_size=24, chunk_size=24)
+            stt_result['segments'] = [{'text': segment['text'], 'start': segment['start'], 'end': segment['end'], 'words': [{ 'word': word['word'], 'phonemes': stt_client.g2p(word['word']), 'start': word['start'], 'end': segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end'], 'duration': (segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end']) - word['start']} for (wordIndex, word) in enumerate(segment['words'])] } for segment in stt_result['segments']]
+            logger.info("\nsegment::\n", stt_result['segments'])
+            visemes = [
+                {'shape': phoneme, 'duration': round(word['duration']/len(word['phonemes']), 4)}
+                for segment in stt_result['segments']
+                for word in segment['words'] 
+                for phoneme in word['phonemes']
+            ]
+            logger.info("\nvisemes::\n", visemes)
+            metadata = TTSResponseMeta(
+                name=filename,
+                visemes=visemes
+            )
+            headers = {"X-Audio-Metadata": metadata.model_dump_json()}
             return FileResponse(
-                path=tmp_file,
+                path=temp_file,
                 filename=filename,
-                media_type=None  # Let FastAPI guess the content type
+                media_type=None,  # Let FastAPI guess the content type
+                headers=headers
             )
         except Exception as error:
-            print("error tts::", error)
+            logger.info("error tts::", error)
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
-
+      
 @app.get("/file")
 async def serve_file(name: Optional[str] = None):
     """

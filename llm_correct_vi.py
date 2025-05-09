@@ -1,20 +1,32 @@
 from dotenv import load_dotenv
 import requests
 import time
+import os
+import re
+# import shutil
+# import json
 import random
 from tqdm import tqdm
 import joblib
 from joblib import Parallel, delayed
 from langdetect import detect
+# from vietTTS.utils import concise_srt
+# from utils.utils import srt_to_segments, segments_to_srt
 from utils.language_configuration import LANGUAGES
+from langchain_openai import ChatOpenAI
+from typing import List
 import concurrent.futures
 from requests.exceptions import RequestException
 import threading
-import json
-import re
-import os
-# from vietTTS.utils import concise_srt
-# from utils.utils import srt_to_segments, segments_to_srt
+# from langchain import ConversationChain, LLMChain, PromptTemplate
+# from langchain.memory import ConversationBufferWindowMemory
+from langchain.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
+    SystemMessagePromptTemplate,
+)
+
 load_dotenv()
 
 fault_words = [
@@ -23,11 +35,19 @@ fault_words = [
   ]
 
 default_endpoints = [
+  "http://172.27.188.32:8082/v1"
     # "http://192.168.2.12:8081/v1",
     # "http://192.168.2.13:8081/v1",
     # "http://192.168.2.14:8081/v1",
     # "http://192.168.2.14:8082/v1",
 ]
+
+def cleanup_text(text):
+    text = re.sub(r'<skip_think>', '', text, flags=re.DOTALL)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    return text
+  
+  
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self.llm_chain = {}
@@ -40,22 +60,45 @@ class LLM():
     self.k = 60
     self.available_endpoints = set(default_endpoints) 
     self.systemPrompt = systemPrompt if systemPrompt != "" else "This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text."
+    self.prompt = ChatPromptTemplate(
+          messages=[
+              SystemMessagePromptTemplate.from_template(self.systemPrompt),
+              # The `variable_name` here is what must align with memory
+              # MessagesPlaceholder(variable_name="history"),
+              HumanMessagePromptTemplate.from_template("""Enlish:\n```{source_text}```Vietnamese:\n```{target_text}```"""),
+          ]
+      )
 
   def check_endpoint(self, endpoint: str):
       url = f"{endpoint}/models"
       try:
-          headers = {
-              "Authorization": f"Bearer {self.api_key}",
-          } if "web.chattrust.ai" in endpoint else {}
-          response = requests.get(url, headers=headers, timeout=self.timeout)
-          print(f"check_endpoint -- {endpoint} -- status::", response.status_code)
+          response = requests.get(url, timeout=self.timeout)
           
           if response.status_code == 200:
               self.available_endpoints.add(endpoint)  # Add to available endpoints
+              self.llm_chain[endpoint] = ChatOpenAI(
+                          model=self.model,
+                          openai_api_key=self.api_key,
+                          openai_api_base=endpoint,
+                          max_tokens=4096,
+                          temperature=self.temp,
+                          # max_retries=2,
+                          # model_kwargs={
+                          #   "stop":["<|im_end|>"],
+                          #   "frequency_penalty": 1.1
+                          # },
+                          top_p= 0.95,
+                          frequency_penalty=1.3,
+                          stop=["<|im_end|>"],
+                      )
           else:
               self.available_endpoints.discard(endpoint)  # Remove from available endpoints
+              if endpoint in self.llm_chain:
+                del self.llm_chain[endpoint]
       except RequestException as e:
           self.available_endpoints.discard(endpoint)  # Remove from available endpoints
+          if endpoint in self.llm_chain:
+            del self.llm_chain[endpoint]
       return url
       
   def monitor(self):
@@ -69,100 +112,63 @@ class LLM():
               
               for future in concurrent.futures.as_completed(future_to_endpoint):
                   result = future.result()
-                  print("Available llm correct endpoints::\n", result)
+                  print("Available llm endpoints::\n", result)
           time.sleep(self.interval)
                 
   def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=30):
     print("Initializing LLM::")
+    # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
     endpoints = endpoints.split(',')
     self.endpoints = list(set(default_endpoints + endpoints))
     self.endpoints = self.endpoints if len(self.endpoints)>0 else ["https://openrouter.ai/api/v1"]
     self.temp = temp
     self.k = k
-    self.model = model if model != "" else "deepseek/deepseek-chat-v3-0324"
+    self.model = model if model != "" else "openai/gpt-4o"
     self.api_key = api_key if api_key != "" else os.getenv("OR_API_KEY", "")
     for endpoint in self.endpoints:
       self.check_endpoint(endpoint)
+    time.sleep(self.interval)
     self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
     self._monitor_thread.start()
     return True
-              
+
+        
   def process(self, source_text, target_text, source_lang="en", target_lang="vn"):
-    max_attempts = 10
+    max_attempts = 3
     attempts = 0
     source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
     target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
-    user_prompt = f"""
-SOURCE PARAGRAPH:
-```
-{source_text}
-```
-CURRENT TRANSLATED PARAGRAPH (to be corrected):
-```
-{target_text}
-```
-Please respond with the corrected Vietnamese translation in plain text, without extra explanation.
-"""
-    headers = {
-        "Authorization": f"Bearer {self.api_key}",
-        "Content-Type": "application/json; charset=utf-8"
-    }
-    data = {
-        "model": self.model,
-        "messages": [
-            {"role": "system", "content": self.systemPrompt},
-            {"role": "user", "content": user_prompt}
-        ]
-    }
+    llms = [v for k, v in self.llm_chain.items()]
 
     while attempts < max_attempts:
       try:
-        endpoint = random.choice(list(self.available_endpoints))
-        print(f"\n--- selected endpoint:: {endpoint} ---")
-        print("\n--- chat_with_model REQUEST ---")
-        print(json.dumps(data, ensure_ascii=False))
-        print("------------------------------")
-        
-        # Add a timeout to avoid hanging forever
-        response = requests.post(
-            url=f"{endpoint}/chat/completions",
-            headers=headers,
-            data=json.dumps(data),
-            timeout=3600
-        )
-
-        # In case of non-200 status, it might raise or we can do extra checks
-        response.raise_for_status()
-
-        # Attempt to parse JSON
-        res = response.json()
-        print("\n--- chat_with_model RESPONSE ---")
-        print(json.dumps(res, ensure_ascii=False))
-        print("--------------------------------")
-        result = res['choices'][0]["message"]["content"]
-        result = re.sub(r"[\`]+", " ", result)
-        if "</think>" in result:
-            result = result.split("</think>")[-1].strip()
-        if result and not any(word in result.strip().lower() for word in fault_words) and target_lang in detect(result):
-            return result.strip()
-          
+        llm = random.choice(llms)
+        print('inferencing::', source_language, target_language)
+        llm_chain = self.prompt | llm
+        result = llm_chain.invoke({
+                  "source_text": source_text,
+                  "target_text": target_text,
+                  "source_language": source_language,
+                  "target_language": target_language,
+              })
+        if result.content and not any(word in result.content.strip().lower() for word in fault_words) and target_lang in detect(result.content):
+            return cleanup_text(result.content)
       except Exception as e:
         print("error::", e)
         result = {"content": ""}
-        
       print(f"re-run {attempts}:")
       attempts += 1
-    return target_text
+    return text
 
   def translate(self, source_segments, target_segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
-      N_JOBS = len(self.available_endpoints) * 5 if len(self.available_endpoints) else 5
+      N_JOBS = len(self.available_endpoints) * 7 if len(self.available_endpoints) else 20
       print("Start LLM Translate:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(source_segments[line]['text'], target_segments[line]['text'], source_lang, target_lang) for (line) in tqdm(range(len(target_segments))))
-      for index in tqdm(range(len(target_segments))):
-        target_segments[index]['text'] = t2t_results[index]
-      return target_segments
+      for index in tqdm(range(len(segments))):
+        segments[index]['text'] = t2t_results[index]
+      return segments
     
   def predict(self, source_text, target_text, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
@@ -170,31 +176,50 @@ Please respond with the corrected Vietnamese translation in plain text, without 
       return result  
     
 # if __name__ == '__main__':
-#   glossary_table="""God: Thiên Chúa
-#   Jehovah God, God Jehovah, Jehovah, LORD God: Thiên Chúa Hằng Hữu
-#   Christ: Đấng Cứu Thế, Chúa Cứu Thế
-#   Jesus: Chúa Giê-xu
-#   Jesus Christ: Chúa Cứu Thế Giê-xu
-#   Holy Spirit: Đức Thánh Linh, Chúa Thánh Linh, Thánh Linh
-#   Do not use any "Ki-tô" word in the corrected version but use "Cơ Đốc" instead."""  
-#   systemPrompt="""
-#   Given a source paragraph in English and its Vietnamese translation, please correct any errors in the translation to ensure it is accurate, faithful to the original meaning, clear, and natural-sounding for Vietnamese readers.
-#   Only revise parts that are unnatural or difficult to understand. Prioritize accuracy and fidelity to the English text while making the translation easy to comprehend.
-#   Use the glossary table to choose the most appropriate and consistent terms.""" + "\n\nGLOSSARY / DICTIONARY GUIDANCE:\n" + glossary_table
   
-#   llm = LLM(systemPrompt=systemPrompt)
+#   # systemPrompt="""Sửa lỗi chính tả từ bản gốc sang bảng mới"""
+#   # llm = LLM(systemPrompt=systemPrompt)
+#   # llm.initLLM(
+#   #   endpoints="https://openrouter.ai/api/v1", ## http://172.27.188.32:8081/v1
+#   #   model="openai/gpt-4o", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+#   #   api_key=os.getenv("OR_API_KEY", ""),
+#   #   temp=0.3,
+#   #   k=10
+#   # )
+  
+#   # systemPrompt="""Think and translate English accurately into clear, natural, appropriate Vietnamese."""
+#   # llm = LLM(systemPrompt=systemPrompt)
+#   llm = LLM()
 #   llm.initLLM(
-#     endpoints="https://web.chattrust.ai/api", ## https://openrouter.ai/api/v1
-#     model="deepseek-r1:70b", ## deepseek/deepseek-chat-v3-0324
-#     api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNjOGM4NzdkLWJkNWMtNGE5MS05Y2EyLTUzNjkwNjE3M2VmYiJ9.feqjSWieK7eKtdl0Qkw77BO8HswLHeXwA5l3xK8aw-M",
-#     temp=0.3,
-#     k=200
+#     endpoints="http://172.27.188.32:8082/v1", ## http://172.27.188.31:8081/v1
+#     model="trast-ai/trust-translator-0525", ## "trast-ai/trust-translator-llama3-5b4e" "nampdn-ai/vietmistral-bible-translation"
+#     api_key="EMPTY",
+#     temp=0.6,
+#     k=10
 #   )
+#   text = "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+#   result = llm.predict(text, "en", "vi")
+#   print("before::", result)
+#   print("after::", cleanup_text(result))
+    
+  # ## Translate segments
+  # input_file = '/home/vgm/Desktop/en.srt'
+  # segments = srt_to_segments(input_file)
+  # # segments = concise_srt(segments)
+  # # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
+  # # print(segments, len(segments))
+  # segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
+  # # print("results::",  segments, len(segments))
+  # segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
 
-#   ## Translate segments
-#   source_file = '/home/vgm/Downloads/logos-vi/logos-en.srt'
-#   target_file = '/home/vgm/Downloads/logos-vi/logos-vi.srt'
-#   source_segments = srt_to_segments(source_file)
-#   target_segments = srt_to_segments(target_file)
-#   segments = llm.translate(source_segments, target_segments, source_lang="en", target_lang="vi")
-#   print("results::",  segments, len(segments))
+
+  # Translate texts
+  # input_texts = [
+  # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+  # ]
+  # for text in input_texts:
+  #   result = llm.process(text)
+  #   print("result::", result)
+    
+  
+
