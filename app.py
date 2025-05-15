@@ -1366,9 +1366,10 @@ class Main():
                       ## Config LLM Settings
                       def update_llm_model(llm_url):
                         models = get_llm_models(llm_url)
-                        user_settings['llm_url'] = llm_url
-                        user_settings['llm_models'] = models
-                        user_settings['llm_model'] = models[0]
+                        if models and len(models) > 0:
+                          user_settings['llm_url'] = llm_url
+                          user_settings['llm_models'] = models
+                          user_settings['llm_model'] = models[0]
                         if 't2s' in user_settings:
                           save_settings(settings=user_settings)
                         return gr.update(choices=models)

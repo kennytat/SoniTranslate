@@ -7,14 +7,20 @@ import soundfile as sf
 class STTS():
   def __init__(self):
     self.name = "STTS"
+    self.repo_id = ""
+    self.speed = 1.0
+    self.tts = None
  
   def predict(self, text: str = "", outpath: str = "", repo_id: str = "",  sid: str = "", speed: float = 1.0):
       print(f"Input text: {text}. repo_id: {repo_id}. sid: {sid}, speed: {speed}")
-      sid = int(sid)
-      tts = get_pretrained_model(repo_id, speed)
+      if self.repo_id != repo_id or self.speed != speed:
+        self.repo_id = repo_id
+        self.speed = speed
+        self.tts = get_pretrained_model(repo_id, speed)
 
+      sid = int(sid)
       start = time.time()
-      audio = tts.generate(text, sid=sid)
+      audio = self.tts.generate(text, sid=sid)
       end = time.time()
 
       if len(audio.samples) == 0:

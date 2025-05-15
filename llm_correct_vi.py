@@ -80,7 +80,7 @@ class LLM():
                           model=self.model,
                           openai_api_key=self.api_key,
                           openai_api_base=endpoint,
-                          max_tokens=4096,
+                          # max_tokens=4096,
                           temperature=self.temp,
                           # max_retries=2,
                           # model_kwargs={
@@ -143,7 +143,7 @@ class LLM():
     while attempts < max_attempts:
       try:
         llm = random.choice(llms)
-        print('inferencing::', source_language, target_language)
+        print('correction inferencing::', source_language, target_language)
         llm_chain = self.prompt | llm
         result = llm_chain.invoke({
                   "source_text": source_text,
@@ -158,12 +158,12 @@ class LLM():
         result = {"content": ""}
       print(f"re-run {attempts}:")
       attempts += 1
-    return text
+    return source_text
 
   def translate(self, source_segments, target_segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
       N_JOBS = len(self.available_endpoints) * 7 if len(self.available_endpoints) else 20
-      print("Start LLM Translate:: concurrency =", N_JOBS)
+      print("Start LLM Correct:: concurrency =", N_JOBS)
       with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(source_segments[line]['text'], target_segments[line]['text'], source_lang, target_lang) for (line) in tqdm(range(len(target_segments))))
       for index in tqdm(range(len(target_segments))):

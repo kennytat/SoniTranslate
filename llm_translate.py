@@ -80,7 +80,7 @@ class LLM():
                           model=self.model,
                           openai_api_key=self.api_key,
                           openai_api_base=endpoint,
-                          max_tokens=4096,
+                          # max_tokens=4096,
                           temperature=self.temp,
                           # max_retries=2,
                           # model_kwargs={
@@ -142,7 +142,7 @@ class LLM():
     while attempts < max_attempts:
       try:
         llm = random.choice(llms)
-        print('inferencing::', source_language, target_language)
+        print('translate inferencing::', source_language, target_language)
         llm_chain = self.prompt | llm
         result = llm_chain.invoke({
                   "input": text,

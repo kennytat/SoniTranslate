@@ -44,7 +44,7 @@ import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
 from text_to_speech import TTSClient, voice_conversion
-from utils.tts_utils import edge_tts_voices_list, piper_tts_voices_list
+from utils.tts_utils import piper_tts_voices_list
 from utils.language_configuration import LANGUAGES
 from ovc_voice_main import OpenVoice
 import nltk
@@ -86,7 +86,7 @@ class CONFIG():
     # salt = Path(os.path.join(os.getcwd(), "model","tts", "salt.salt"))
     # key = "^VGMAI*607#"
 
-list_etts = edge_tts_voices_list()
+# list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
@@ -116,8 +116,8 @@ def get_tts_list(method, language):
   match method:
     case 'VietTTS':
       list_tts = list_vtts
-    case 'EdgeTTS':
-      list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
+    # case 'EdgeTTS':
+    #   list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
     case 'PiperTTS':
       list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
     case 'XTTS':

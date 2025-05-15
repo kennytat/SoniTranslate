@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Request, Header, UploadFile, HTTPException, Response
+from fastapi import FastAPI, Request, Header, UploadFile, HTTPException, Response, status
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
+from fastapi.exceptions import RequestValidationError
 import os
 from pathlib import Path
 import uuid
@@ -20,7 +20,6 @@ from lameenc import Encoder
 from dotenv import load_dotenv
 import json
 import logging
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -80,6 +79,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add exception handler for validation errors
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Log the full error details
+    error_detail = exc.errors()
+    logger.error(f"Validation error: {error_detail}")
+    
+    # Return detailed error response
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": error_detail},
+    )
+    
 stt_client = Whisper(whisper_model=whisper_model_default, device=device)
 tts_client = STTS()
 
@@ -169,12 +181,13 @@ def convert_numbers_in_text(text):
     return result
   
 async def save_upload_file(audio_buffer, filename: str):
-    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}{Path(filename).suffix}.raw")
-    with open(temp_file, 'wb') as file:
+    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}{Path(filename).suffix}.ogg")
+    with open(f"{temp_file}.raw", 'wb') as file:
         file.write(audio_buffer)
+    cmd = f"ffmpeg -f s16le -ac 1 -acodec pcm_s16le -ar 16000 -i {temp_file}.raw {temp_file}"
+    os.system(cmd)
+    Path(f"{temp_file}.raw").unlink(missing_ok=True)
     return temp_file
-
-
 
 # --------------- Route start here ---------------
 @app.post("/stt")
@@ -204,30 +217,31 @@ async def stt(request: Request, x_audio_metadata: Optional[str] = Header(None)) 
     try:
         # Get the raw audio buffer data
         audio_bytes = await request.body()
-        # Save the uploaded file
         temp_file = await save_upload_file(audio_buffer=audio_bytes, filename=metadata["filename"])
         try:
-          # Process the audio file
           stt_result = stt_client.stt(file_path=temp_file, align=False, batch_size=24, chunk_size=24)
-          result = "".join([segment["text"] for segment in  stt_result["segments"]])           
+          # Process the audio file
+          result = "".join([segment["text"] for segment in  stt_result["segments"]])
           return JSONResponse(
-              content={"message": "Success", "result": result},
+              content={"message": "Success", "text": result},
               status_code=200
           )
         finally:
-            # Clean up: remove the temporary file
             Path(temp_file).unlink(missing_ok=True)
     except Exception as e:
+        print("error::", e)
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
 
 class TTSRequest(BaseModel):
     text: str
-    filename: str
-
-class TTSResponseMeta(BaseModel):
+    class Config:
+        extra='allow'
+            
+class TTSResponseMeta(TTSRequest):
     name: str
+    sample_rate: int
     visemes: list
-        
+                
 @app.post("/tts")
 async def tts(request: TTSRequest) -> Response:
     """
@@ -242,8 +256,10 @@ async def tts(request: TTSRequest) -> Response:
     Raises:
         HTTPException: If any processing fails
     """
-    if not request.text or not request.filename:
-        raise HTTPException(status_code=400, detail="No text received") 
+    print("TTS request::", request)
+    if not request.text:
+        raise HTTPException(status_code=400, detail="No text received")
+    filename = request.filename if 'filename' in request else uuid.uuid4()
     try:
         try:
             # Process the audio file
@@ -262,8 +278,7 @@ async def tts(request: TTSRequest) -> Response:
             # Encode samples to MP3
             mp3_data = encoder.encode(samples.tobytes())
             mp3_data += encoder.flush()
-            filename = f"{request.filename}.mp3"
-            temp_file = os.path.join(TMP_FILE_DIRECTORY, filename)
+            temp_file = os.path.join(TMP_FILE_DIRECTORY, f"{filename}.mp3")
             with open(temp_file, "wb") as mp3_file:
               mp3_file.write(mp3_data)
             
@@ -279,13 +294,15 @@ async def tts(request: TTSRequest) -> Response:
             ]
             logger.info("\nvisemes::\n", visemes)
             metadata = TTSResponseMeta(
-                name=filename,
-                visemes=visemes
+                name=f"{filename}.mp3",
+                sample_rate=result.sample_rate,
+                visemes=visemes,
+                **request.model_dump()
             )
             headers = {"X-Audio-Metadata": metadata.model_dump_json()}
             return FileResponse(
                 path=temp_file,
-                filename=filename,
+                filename=f"{filename}.mp3",
                 media_type=None,  # Let FastAPI guess the content type
                 headers=headers
             )
