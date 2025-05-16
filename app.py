@@ -1361,7 +1361,7 @@ class Main():
                       llm_url = gr.Textbox(label="LLM Endpoint", placeholder="LLM Endpoint goes here...", value=user_settings['llm_url'], elem_id="llm_url", scale=5)
                       llm_model = gr.Dropdown(label="LLM Model", choices=user_settings['llm_models'], value=user_settings['llm_model'], elem_id="llm_model",scale=5)        
                       llm_temp = gr.Slider(0.1, 1, value=0.6, step=0.1, label="Temparature",scale=5, interactive=True)
-                      llm_k = gr.Slider(10, 3000, value=3000, step=10, label="K",scale=5, interactive=True)
+                      llm_k = gr.Slider(1, 100, value=5, step=1, label="K", scale=5, interactive=True)
                       llm_refresh = gr.Button("Refresh", scale=2)
                       ## Config LLM Settings
                       def update_llm_model(llm_url):
