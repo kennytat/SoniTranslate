@@ -12,11 +12,9 @@ deep_translator
 # scipy
 ## VB translate
 langdetect
-# fairseq==0.12.2
-# omegaconf
-# -e git+https://github.com/pytorch/fairseq.git@v0.12.2#egg=fairseq
 ## LLM translate
 openai
+pyarrow
 langchain
 langchain_community
 langchain-openai
