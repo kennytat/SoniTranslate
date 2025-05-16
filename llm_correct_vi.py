@@ -26,6 +26,8 @@ from langchain.prompts import (
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 
 load_dotenv()
 
@@ -35,7 +37,7 @@ fault_words = [
   ]
 
 default_endpoints = [
-  "http://172.27.188.32:8082/v1"
+    #"http://172.27.188.32:8082/v1",
     # "http://192.168.2.12:8081/v1",
     # "http://192.168.2.13:8081/v1",
     # "http://192.168.2.14:8081/v1",
@@ -43,28 +45,49 @@ default_endpoints = [
 ]
 
 def cleanup_text(text):
-    text = re.sub(r'<skip_think>', '', text, flags=re.DOTALL)
-    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    if '</think>' in text:
+      text = text.split('</think>')[1]
+    if '<skip_think>' in text:
+      text = text.split('<skip_think>')[1]
     return text
   
-  
+def is_valid_response(source_text, target_text):
+    source_text = str(source_text).replace("-", " ").strip()
+    target_text = str(target_text).replace("-", " ").strip()
+    source_len = len(source_text)
+    target_len = len(target_text)
+
+    print(f"----- length count ----- source: {source_len} - target {target_len} | {target_len/source_len}")
+
+    if target_text == '':
+        print("-----invalid response ---- : empty target_text")
+        return False
+    elif any(word in target_text.lower() for word in fault_words):
+        print("-----invalid response ---- : fault_words")
+        return False
+    elif target_len/source_len > 2 or source_len/target_len > 2:
+        print("-----invalid response ---- : length not match::" ,source_len, target_len)
+        return False
+
+    return True
+   
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self.llm_chain = {}
     self.endpoints = default_endpoints
-    self.interval = 60
+    self.interval = 5
     self.timeout = 2
     self.model = ""
     self.api_key = ""
     self.temp = 0.3
-    self.k = 60
+    self.k = 10
     self.available_endpoints = set(default_endpoints) 
     self.systemPrompt = systemPrompt if systemPrompt != "" else "This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text."
     self.prompt = ChatPromptTemplate(
           messages=[
               SystemMessagePromptTemplate.from_template(self.systemPrompt),
               # The `variable_name` here is what must align with memory
-              # MessagesPlaceholder(variable_name="history"),
+              MessagesPlaceholder(variable_name="history"),
               HumanMessagePromptTemplate.from_template("""Enlish:\n```{source_text}```Vietnamese:\n```{target_text}```"""),
           ]
       )
@@ -80,13 +103,8 @@ class LLM():
                           model=self.model,
                           openai_api_key=self.api_key,
                           openai_api_base=endpoint,
-                          # max_tokens=4096,
+                          max_tokens=2048,
                           temperature=self.temp,
-                          # max_retries=2,
-                          # model_kwargs={
-                          #   "stop":["<|im_end|>"],
-                          #   "frequency_penalty": 1.1
-                          # },
                           top_p= 0.95,
                           frequency_penalty=1.3,
                           stop=["<|im_end|>"],
@@ -113,6 +131,7 @@ class LLM():
               for future in concurrent.futures.as_completed(future_to_endpoint):
                   result = future.result()
                   print("Available llm endpoints::\n", result)
+          self.interval = 60
           time.sleep(self.interval)
                 
   def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=30):
@@ -134,7 +153,7 @@ class LLM():
 
         
   def process(self, source_text, target_text, source_lang="en", target_lang="vn"):
-    max_attempts = 3
+    max_attempts = 5
     attempts = 0
     source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
     target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
@@ -144,21 +163,29 @@ class LLM():
       try:
         llm = random.choice(llms)
         print('correction inferencing::', source_language, target_language)
-        llm_chain = self.prompt | llm
+        chain = self.prompt | llm
+        llm_chain = RunnableWithMessageHistory(
+            chain,
+            lambda session_id: ChatMessageHistory(),  # Factory for creating history storage
+            input_messages_key="target_text",               # Key for input messages
+            history_messages_key="history",      # Key for history in the chain
+            window_size=self.k                            # This is equivalent to the 'k' parameter - keep last 2 exchanges
+        )
         result = llm_chain.invoke({
                   "source_text": source_text,
                   "target_text": target_text,
                   "source_language": source_language,
                   "target_language": target_language,
-              })
-        if result.content and not any(word in result.content.strip().lower() for word in fault_words) and target_lang in detect(result.content):
+				}, config={"configurable": {"session_id": "default_session"}})
+        print("before clean::\n", result.content)
+        if result.content and is_valid_response(target_text, cleanup_text(result.content)) and target_lang in detect(result.content):
             return cleanup_text(result.content)
       except Exception as e:
         print("error::", e)
         result = {"content": ""}
       print(f"re-run {attempts}:")
       attempts += 1
-    return source_text
+    return target_text
 
   def translate(self, source_segments, target_segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
@@ -197,29 +224,11 @@ class LLM():
 #     temp=0.6,
 #     k=10
 #   )
-#   text = "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
-#   result = llm.predict(text, "en", "vi")
-#   print("before::", result)
-#   print("after::", cleanup_text(result))
+#   source_text = "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
+#   target_text = "Trí tuệ và khoa học là những món quà từ Thiên Chúa Hằng Hữu giúp chúng ta nhận biết những khuôn mẫu này, và vì thế mà các nhà thần học Tin Lành viết về, coi trọng việc nghiên cứu lý trí và khoa học đối với Ngũ Kinh."
+#   result = llm.predict(source_text, target_text, "en", "vi")
+#   print("source::", target_text)
+#   print("target::", result)
     
-  # ## Translate segments
-  # input_file = '/home/vgm/Desktop/en.srt'
-  # segments = srt_to_segments(input_file)
-  # # segments = concise_srt(segments)
-  # # segments_to_srt(segments, '/home/vgm/Desktop/en.srt')
-  # # print(segments, len(segments))
-  # segments = llm.translate(segments=segments, source_lang="en", target_lang="vi")
-  # # print("results::",  segments, len(segments))
-  # segments_to_srt(segments, '/home/vgm/Desktop/vi.srt')
-
-
-  # Translate texts
-  # input_texts = [
-  # "Reason and science are gifts from god that help us discern these patterns, and for this reason evangelicals write, value rational and scientific research into the pentateuch"
-  # ]
-  # for text in input_texts:
-  #   result = llm.process(text)
-  #   print("result::", result)
-    
-  
+#   # ## Translate segmentst
 
