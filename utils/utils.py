@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 from IPython.utils import capture
 from vietnam_number import n2w
 from natsort import natsorted
+import pandas as pd
 
 def encode_filename(filename):
     print("Encoding filename:", filename)
@@ -825,3 +826,14 @@ def split_and_join_by_comma(long_string, max_length=200, min_length=50):
       return list(filter(lambda item: item, result))
     else:
       return [long_string]
+    
+def segments_to_parquet(segments, output_path):
+  segments = [{
+    'systemPrompt': segment['systemPrompt'],
+    'source': segment['source'],
+    'think': segment['think'],
+    'target': segment['text']
+    } for segment in segments]
+  # Convert JSON to pandas DataFrame
+  df = pd.DataFrame(segments)
+  df.to_parquet(output_path, engine='pyarrow')

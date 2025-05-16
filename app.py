@@ -30,7 +30,7 @@ from vietTTS.utils import concise_srt
 import sys
 # from vietTTS.upsample import Predictor
 from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES
-from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_media_files, find_most_matching_prefix, youtube_download, get_llm_models
+from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_media_files, find_most_matching_prefix, youtube_download, get_llm_models, segments_to_parquet
 # from utils.logging_setup import logger
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -48,7 +48,7 @@ import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
 from spell_check import SpellCheck
-from utils.tts_utils import edge_tts_voices_list, piper_tts_voices_list
+from utils.tts_utils import piper_tts_voices_list
 from ovc_voice_main import OpenVoice
 from pydub import AudioSegment
 load_dotenv()
@@ -285,7 +285,7 @@ else:
     compute_type_default = 'float32'
     whisper_model_default = 'medium'
 
-list_etts = edge_tts_voices_list()
+# list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
@@ -325,8 +325,8 @@ def get_tts_list(method, language):
   match method:
     case 'VietTTS':
       list_tts = list_vtts
-    case 'EdgeTTS':
-      list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
+    # case 'EdgeTTS':
+    #   list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
     case 'PiperTTS':
       list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
     case 'XTTS':
@@ -704,7 +704,7 @@ class Main():
                 print('process media...')
                 if os.path.exists(OutputFile):
                     time.sleep(1)
-                    os.system(f"ffmpeg -y -i '{OutputFile}' -vn -acodec pcm_s16le -ar 44100 -ac 2 -c:a libmp3lame '{audio_mp3}'")
+                    os.system(f"ffmpeg -y -i '{OutputFile}' -vn -ar 44100 -ac 2 -c:a libmp3lame '{audio_mp3}'")
                     time.sleep(1)
                     break
                 if i == 119:
@@ -942,8 +942,10 @@ class Main():
           else:
             # Start translate if srt not found
             translated_segments = translate_text(result['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
+            segments_to_parquet(translated_segments, f'{source_media_output_basename}.parquet')
             progress(0.65, desc="Grammar correction...")
             result['segments'] = grammar_correction(result['segments'], translated_segments, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
+            segments_to_parquet(result['segments'], f'{source_media_output_basename}-correct.parquet')
             print("translated segments::", result['segments'])
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')

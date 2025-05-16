@@ -177,13 +177,13 @@ class LLM():
               }, config={"configurable": {"session_id": "default_session"}
         })
         if result.content and is_valid_response(text, cleanup_text(result.content)) and target_lang in detect(result.content):
-            return cleanup_text(result.content)
+            return result.content, cleanup_text(result.content)
       except Exception as e:
         print("error::", e)
         result = {"content": ""}
       print(f"re-run {attempts}:")
       attempts += 1
-    return text
+    return text, text
 
   def translate(self, segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
@@ -192,7 +192,10 @@ class LLM():
       with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS)):
         t2t_results = Parallel(verbose=100)(delayed(self.process)(segments[line]['text'], source_lang, target_lang) for (line) in tqdm(range(len(segments))))
       for index in tqdm(range(len(segments))):
-        segments[index]['text'] = t2t_results[index]
+        segments[index]['source'] = segments[index]['text']
+        segments[index]['think'] = t2t_results[index][0]
+        segments[index]['text'] = t2t_results[index][1]
+        segments[index]['systemPrompt'] = self.systemPrompt
       return segments
     
   def predict(self, text, source_lang="en", target_lang="vi"):
