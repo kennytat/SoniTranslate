@@ -137,7 +137,7 @@ class LLM():
           self.interval = 60
           time.sleep(self.interval)
                 
-  def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=30):
+  def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=5):
     print("Initializing LLM::")
     # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
     endpoints = endpoints.split(',')

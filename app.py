@@ -182,7 +182,7 @@ function() {
     llm_url || "http://localhost:8081/v1",
     llm_model,
     llm_temp || 0.3,
-    llm_k || 3000,
+    llm_k || 5,
     max_speakers || 1,
     tts_voice00,
     tts_speed00 || 1,

@@ -20,7 +20,7 @@ def post_process_text(text):
   return text
 
 ## Translate text using Google Translator
-def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=30):
+def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_method="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=5):
     print("start translate_text::", segments)
     if t2t_method == "LLM":
       systemPrompt = "Think and translate English accurately into clear, natural, appropriate Vietnamese." if TRANSLATE_AUDIO_TO == "vi" else ""
@@ -50,7 +50,7 @@ def translate_text(segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", t2t_meth
 
     return segments
 
-def grammar_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=200):
+def grammar_correction(source_segments, target_segments, SOURCE_LANGUAGE="", TRANSLATE_AUDIO_TO="", llm_endpoint="", llm_model="", llm_temp=0.6, llm_k=5):
     ## Implement grammar correction for vietnamese using llm
     if TRANSLATE_AUDIO_TO == "vi":
       systemPrompt="Review the English–Vietnamese translation pair, fix any errors, and produce a clear, natural Vietnamese version."
