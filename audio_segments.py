@@ -62,12 +62,13 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
     combined_audio.export(Output_name_file, format="wav", bitrate="192k")
   else:
     if match_start:
-      # Split even, odd audio files path and time segments
+      # Split by speaker
       split_speaker_array = split_by_speaker(result_diarize['segments'])
-      if len(split_speaker_array.keys()) == 1:
-        even_segments, odd_segments = split_by_odd_even(result_diarize['segments'])
-        split_speaker_array['even'] = even_segments
-        split_speaker_array['odd'] = odd_segments
+      # # Split even, odd audio files path and time segments
+      # if len(split_speaker_array.keys()) == 1:
+      #   even_segments, odd_segments = split_by_odd_even(result_diarize['segments'])
+      #   split_speaker_array['even'] = even_segments
+      #   split_speaker_array['odd'] = odd_segments
       
       total_duration = result_diarize['segments'][-1]['end'] # in seconds
       print(round((total_duration / 60),2), 'minutes of video')
@@ -94,12 +95,12 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
               print(f'ERROR AUDIO FILE {audio_file}')
         # combined audio as a file
         segment_combined_audio = normalise_volume(audio=segment_combined_audio, target_dBFS=-16, target_max_dBFS=-4.0)
-        segment_combined_audio.export(output_path, format="wav", bitrate="192k")
+        segment_combined_audio.export(output_path, format="mp3", bitrate="192k")
         combined_audio = combined_audio.overlay(segment_combined_audio, position=0)
         ## Export segment audio
       ## Export final audio
       combined_audio = normalise_volume(audio=combined_audio, target_dBFS=-12, target_max_dBFS=0.0)
-      combined_audio.export(Output_name_file, format="wav", bitrate="192k")
+      combined_audio.export(Output_name_file, format="mp3", bitrate="192k")
     else:
       concatenated_audio = AudioSegment.empty()
       for line in result_diarize['segments']:
@@ -108,7 +109,7 @@ def create_translated_audio(result_diarize, Output_name_file, match_start):
           audio = AudioSegment.from_file(audio_file)
           concatenated_audio += audio
       # Export the concatenated audio to a file
-      concatenated_audio.export(Output_name_file, format="wav")
+      concatenated_audio.export(Output_name_file, format="mp3")
   ## Normalise audio volume
   # name, ext = os.path.splitext(Output_name_file)
   # Output_name_tempfile=f"{name}_temp{ext}"

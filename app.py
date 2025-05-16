@@ -663,9 +663,9 @@ class Main():
         source_media_output_basename = os.path.join(temp_dir, f'{file_name}-{SOURCE_LANGUAGE}')
         target_media_output_basename = os.path.join(temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}') 
         speaker_info_path = os.path.join(temp_dir, f'speaker_info.json')
-        audio_wav = f"{source_media_output_basename}.wav"
+        audio_mp3 = f"{source_media_output_basename}.mp3"
         # audio_webm = f"{source_media_output_basename}.webm"
-        translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.wav")
+        translated_output_file = os.path.join(temp_dir, f"{target_media_output_basename}.mp3")
         max_word_length = 375 if self.t2t_method == "LLM" else 500
         
         # os.system("rm -rf Video.mp4")
@@ -704,7 +704,7 @@ class Main():
                 print('process media...')
                 if os.path.exists(OutputFile):
                     time.sleep(1)
-                    os.system(f"ffmpeg -y -i '{OutputFile}' -vn -acodec pcm_s16le -ar 44100 -ac 2 '{audio_wav}'")
+                    os.system(f"ffmpeg -y -i '{OutputFile}' -vn -acodec pcm_s16le -ar 44100 -ac 2 -c:a libmp3lame '{audio_mp3}'")
                     time.sleep(1)
                     break
                 if i == 119:
@@ -714,7 +714,7 @@ class Main():
             for i in range (120):
                 time.sleep(1)
                 print('process audio...')
-                if os.path.exists(audio_wav):
+                if os.path.exists(audio_mp3):
                     break
                 if i == 119:
                   print("Error can't create the audio")
@@ -726,19 +726,19 @@ class Main():
         #         print('Creating a preview from the link, 10 seconds to disable this option, go to advanced settings and turn off preview.')
         #         #https://github.com/yt-dlp/yt-dlp/issues/2220
         #         mp4_ = f'yt-dlp -f "mp4" --downloader ffmpeg --downloader-args "ffmpeg_i: -ss 00:00:20 -t 00:00:10" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
-        #         wav_ = "ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_wav}"
+        #         wav_ = "ffmpeg -y -i {OutputFile} -vn -acodec pcm_s16le -ar 44100 -ac 2 {audio_mp3}"
         #         os.system(mp4_)
         #         os.system(wav_)
         #     else:
         #         mp4_ = f'yt-dlp -f "mp4" --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --restrict-filenames -o {OutputFile} {media_input}'
-        #         wav_ = f'python -m yt_dlp --output {audio_wav} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {media_input}'
+        #         wav_ = f'python -m yt_dlp --output {audio_mp3} --force-overwrites --max-downloads 1 --no-warnings --no-abort-on-error --ignore-no-formats-error --extract-audio --audio-format wav {media_input}'
 
         #         os.system(wav_)
 
         #         for i in range (120):
         #             time.sleep(1)
         #             print('process audio...')
-        #             if os.path.exists(audio_wav) and not os.path.exists(audio_webm):
+        #             if os.path.exists(audio_mp3) and not os.path.exists(audio_webm):
         #                 time.sleep(1)
         #                 os.system(mp4_)
         #                 break
@@ -761,7 +761,7 @@ class Main():
               language=SOURCE_LANGUAGE,
               )
           del cap
-        audio = whisperx.load_audio(audio_wav)
+        audio = whisperx.load_audio(audio_mp3)
         result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
         gc.collect(); torch.cuda.empty_cache(); del model
         print("Transcript complete::", len(result["segments"]))
@@ -888,7 +888,7 @@ class Main():
               diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
               del cap
             diarize_segments = diarize_model(
-                audio_wav,
+                audio_mp3,
                 min_speakers=self.min_speakers,
                 max_speakers=self.max_speakers)
             result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
@@ -1044,20 +1044,21 @@ class Main():
         if result['segments'] and len(result['segments']) > 0:
           if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
               # volume mix
-              os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+              os.system(f'ffmpeg -y -i "{audio_mp3}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
           else:
               try:
                   # background mix
-                  os.system(f'ffmpeg -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
+                  os.system(f'ffmpeg -i "{audio_mp3}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
               except:
                   # volume mix except
-                  os.system(f'ffmpeg -y -i "{audio_wav}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
+                  os.system(f'ffmpeg -y -i "{audio_mp3}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
 
         print("Mixing target audio and video::")
         os.system(f"rm -rf {media_output_path}")
         if is_video:
           if result['segments'] and len(result['segments']) > 0:
             os.system(f"ffmpeg -i '{OutputFile}' -i '{mix_audio}' -c:v copy -c:a aac -map 0:v -map 1:a -shortest '{media_output_path}'")
+            os.system(f"rm -rf {translated_output_file} {mix_audio}")
           else:
             os.system(f"cp '{OutputFile}' '{media_output_path}'")
         os.remove(OutputFile)
