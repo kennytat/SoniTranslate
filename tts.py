@@ -291,8 +291,8 @@ class TTS():
           name = f"{self.tts_voice.split('.')[0]}_{pad_zero(no, 5)}.wav"
           # print("Prepare normalized text: ", para.text)
           temp_output = os.path.join(tmp_dirname, name)
-          print("paragraph::", para.text.strip(), temp_output, para.total_duration, para.start_time)
-          queue_list.put((para.text.strip(), temp_output, para.total_duration, para.start_time))
+          print("paragraph::", para.text.strip(), temp_output, para.total_duration, para.start)
+          queue_list.put((para.text.strip(), temp_output, para.total_duration, para.start))
           
       # print("Parallel processing {} tasks".format(len(process_list)))
       print("Queue list:: ", queue_list.qsize())

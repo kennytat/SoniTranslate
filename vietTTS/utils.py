@@ -19,10 +19,11 @@ from nltk.tokenize import sent_tokenize
 nltk.data.path.append("model/nltk")
 
 class ParaStruct():
-    def __init__(self, text, total_duration, start_time):
+    def __init__(self, text, total_duration, start_time = -1, end_time = -1):
         self.text = text
         self.total_duration = total_duration
-        self.start_time = start_time
+        self.start = start_time
+        self.end = end_time
         
 def new_dir_now():
     now = datetime.now() # current date and time
@@ -272,8 +273,7 @@ def txt_to_paragraph(txt_input):
     for i, para in enumerate(subs):
       subs[i]["duration"] = para["end"] - para["start"]
       # subs[i].start_silence = para.start.total_seconds() if i <= 0 else (para.start - subs[i - 1].end).total_seconds()
-      subs[i]["start_time"] = para["start"]
-    return [ParaStruct(para["text"], para["duration"], para["start_time"]) for para in subs]
+    return [ParaStruct(para["text"], para["duration"], para["start"], para["end"]) for para in subs]
   except Exception as e:
     print("Input txt is not SRT - parse normally:::::", e)
     paras = txt_input.lower()
@@ -290,7 +290,7 @@ def txt_to_paragraph(txt_input):
           else:
               p_list.append(1)
       else:
-          p_list.append(ParaStruct(p, -1, -1))
+          p_list.append(ParaStruct(p, -1, -1, -1))
 
     # paras = [x for x in paras if x]
     print("Total paras: {}".format(len(p_list)))
@@ -298,13 +298,13 @@ def txt_to_paragraph(txt_input):
     return p_list
   
 def combine_wav_segment(wav_list, output_file):
-    print("synthesization done, start concatenating:: ", wav_list[0].start_time)
-    if len(wav_list) == 1 and wav_list[0].start_time == 0:
+    print("synthesization done, start concatenating:: ", wav_list[0].start)
+    if len(wav_list) == 1 and wav_list[0].start == 0:
       # move wav_list[0] to output_file
       shutil.move(wav_list[0].wav_path, output_file)
       return (output_file, None)
     else:
-      if wav_list[0].start_time >= 0:
+      if wav_list[0].start >= 0:
         print("Enable timeline::::")
       ## If wav_list contain time code, concatenate by time code
         # Calculate the total duration of the combined audio tracks
@@ -313,7 +313,7 @@ def combine_wav_segment(wav_list, output_file):
         last_audio_duration = librosa.get_duration(path=wav_list[len(wav_list) - 1].wav_path)
         print("last_audio_duration:: ", last_audio_duration)
         start_time = 0
-        end_time = wav_list[len(wav_list) - 1].start_time + last_audio_duration
+        end_time = wav_list[len(wav_list) - 1].start + last_audio_duration
         total_duration = math.ceil(end_time - start_time)
         print("total_duration:: ", total_duration)
         # Calculate the total number of samples needed for the combined audio file
@@ -326,9 +326,9 @@ def combine_wav_segment(wav_list, output_file):
         wav_overlap = []
         for i in range(len(wav_list)):
           if os.path.isfile(wav_list[i].wav_path):
-            print("Combining wav:: ", i, wav_list[i].start_time)
+            print("Combining wav:: ", i, wav_list[i].start)
             # Calculate the start and end sample indices for the current audio track
-            start_sample = int((wav_list[i].start_time - start_time) * sample_rate)
+            start_sample = int((wav_list[i].start - start_time) * sample_rate)
             print("start_sample:: ", start_sample)
             end_sample = start_sample + len(librosa.load(wav_list[i].wav_path)[0])
             print("end_sample:: ", end_sample)
@@ -336,9 +336,9 @@ def combine_wav_segment(wav_list, output_file):
             audio, sample_rate = librosa.load(wav_list[i].wav_path)
             print("Current wav:: ", audio)
             combined_wav[start_sample:end_sample] = audio
-            track_end_time = wav_list[i].start_time + librosa.get_duration(y=audio, sr=sample_rate)
+            track_end_time = wav_list[i].start + librosa.get_duration(y=audio, sr=sample_rate)
             # desired_end_time = wav_list[i].start_time + wav_list[i].total_duration
-            if i != len(wav_list) - 1 and track_end_time > wav_list[i+1].start_time:
+            if i != len(wav_list) - 1 and track_end_time > wav_list[i+1].start:
               wav_list[i].track_end_time = track_end_time
               wav_list[i].line = i + 1
               wav_overlap.append(wav_list[i])
@@ -353,7 +353,7 @@ def combine_wav_segment(wav_list, output_file):
           print("writing error to logs::")
           log_file = os.path.splitext(output_file)[0] + '.log'
           with open(log_file,'w') as errFile:
-            errFile.write("These paras got overlap::\n" + "\n".join("Para:: {} | Start_at:: {} | End_at:: {}".format(str(item.line), str(timedelta(seconds=item.start_time)), str(timedelta(seconds=item.track_end_time))) for item in wav_overlap))
+            errFile.write("These paras got overlap::\n" + "\n".join("Para:: {} | Start_at:: {} | End_at:: {}".format(str(item.line), str(timedelta(seconds=item.start)), str(timedelta(seconds=item.track_end_time))) for item in wav_overlap))
           print("Combined wav:: ", combined_wav)
         return (output_file, log_file)
       else:

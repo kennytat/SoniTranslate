@@ -17,6 +17,8 @@ from IPython.utils import capture
 from vietnam_number import n2w
 from natsort import natsorted
 import pandas as pd
+from docx import Document
+from docx.shared import Pt
 
 def encode_filename(filename):
     print("Encoding filename:", filename)
@@ -246,7 +248,39 @@ def segments_to_txt(segments, output_path):
           txtFile.write(segment)
     except Exception as error:
       print('segments_to_txt error:', error)
-                   
+
+def segments_to_docx(segments, output_path):
+  # Create a new Document
+  doc = Document()
+  # # Add a heading
+  # doc.add_heading('Text Collection', 0)
+  # Add each text as a paragraph
+  for segment in segments:
+      paragraph = doc.add_paragraph(segment['text'])
+      # Optional: Format the paragraph text
+      run = paragraph.runs[0]
+      run.font.size = Pt(12)
+      # Add a line break between texts
+      doc.add_paragraph()
+  # Save the document
+  doc.save(output_path)
+
+def save_texts_to_file(segments, output_path):
+    """
+    Save a list of texts to a DOCX file.
+    
+    Args:
+        text_list (list): List of strings to save in the document
+        output_filename (str): Filename to save the document (should end with .docx)
+    """
+    basename, ext = os.path.splitext(output_path)
+    if ext in ['.txt']:
+      segments_to_txt(segments, output_path)
+    if ext in ['.srt']:
+      segments_to_srt(segments, output_path)
+    if ext in ['.doc', '.docx']:
+      segments_to_docx(segments, output_path)
+                           
 def is_video_or_audio(file_path):
     try:
         info = ffmpeg.probe(file_path, select_streams='v:0', show_entries='stream=codec_type')
@@ -837,3 +871,33 @@ def segments_to_parquet(segments, output_path):
   # Convert JSON to pandas DataFrame
   df = pd.DataFrame(segments)
   df.to_parquet(output_path, engine='pyarrow')
+  
+def is_path(string):
+    """
+    Determines if a string is likely a file path or plain text.
+    
+    Args:
+        string (str): The string to check
+        
+    Returns:
+        str: 'path' if string appears to be a file path, 'text' otherwise
+    """
+    # Path indicators
+    path_indicators = [
+        os.path.sep in string,                 # Contains path separator (/ or \)
+        re.search(r'^[a-zA-Z]:\\', string),    # Windows drive letter pattern
+        string.startswith('/'),                # Unix absolute path
+        string.startswith('./') or string.startswith('../'),  # Relative paths
+        re.search(r'\.[a-zA-Z0-9]{1,4}$', string)  # Has file extension
+    ]
+    
+    # If any path indicators are true, likely a path
+    if any(path_indicators):
+        # Further check if path actually exists
+        if os.path.exists(string):
+            return True
+        else:
+            return False
+    
+    return False
+  

@@ -76,6 +76,8 @@ def is_valid_response(source_text, target_text):
    
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
+    self._monitor_thread = None
+    self.running = False
     self.llm_chain = {}
     self.endpoints = default_endpoints
     self.interval = 5
@@ -83,7 +85,7 @@ class LLM():
     self.model = ""
     self.api_key = ""
     self.temp = 0.3
-    self.k = 10
+    self.k = 5
     self.available_endpoints = set(default_endpoints) 
     self.systemPrompt = systemPrompt if systemPrompt != "" else "This GPT functions as a translation tool that processes text from {source_language}, translating it into {target_language}. The output is a plain text content with a full translation in {target_language}. It accepts input in the form of {source_language} text, ensuring the texts are accurately digitized and represent the original manuscripts. The translation engine interprets and translates words into modern {target_language}, incorporating linguistic analysis to handle idiomatic expressions and cultural nuances. Response only translated text."
     self.prompt = ChatPromptTemplate(
@@ -137,6 +139,26 @@ class LLM():
           self.interval = 60
           time.sleep(self.interval)
                 
+  def start(self):
+      """Start the monitoring in a separate thread"""
+      if not self.running:
+          self.running = True
+          self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
+          self._monitor_thread.start()
+          print("Endpoint monitoring started in background thread")
+      else:
+          print("Monitoring is already running")
+                
+  def stop(self):
+      """Stop the monitoring thread"""
+      if self.running:
+          self.running = False
+          if self._monitor_thread:
+              self._monitor_thread.join(timeout=1)
+          print("Endpoint monitoring stopped")
+      else:
+          print("Monitoring is not running")
+          
   def initLLM(self, endpoints="", model="", api_key="", temp=0.3, k=5):
     print("Initializing LLM::")
     # self.memory = ConversationBufferWindowMemory(memory_key="history", return_messages=True, k=k)
@@ -147,11 +169,7 @@ class LLM():
     self.k = k
     self.model = model if model != "" else "openai/gpt-4o"
     self.api_key = api_key if api_key != "" else os.getenv("OR_API_KEY", "")
-    for endpoint in self.endpoints:
-      self.check_endpoint(endpoint)
-    time.sleep(self.interval)
-    self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
-    self._monitor_thread.start()
+    self.start()
     return True
 
         
@@ -160,7 +178,7 @@ class LLM():
     attempts = 0
     source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
     target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
-    llms = [v for k, v in self.llm_chain.items()]
+    llms = self.llm_chain.values()
 
     while attempts < max_attempts:
       try:

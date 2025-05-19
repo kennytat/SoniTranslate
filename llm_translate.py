@@ -38,7 +38,7 @@ fault_words = [
 ]
 
 default_endpoints = [
-    #"http://172.27.188.32:8082/v1",
+    "http://172.27.188.32:8082/v1"
     # "http://192.168.2.12:8081/v1",
     # "http://192.168.2.13:8081/v1",
     # "http://192.168.2.14:8081/v1",
@@ -74,6 +74,8 @@ def is_valid_response(source_text, target_text):
     
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
+    self._monitor_thread = None
+    self.running = False
     self.llm_chain = {}
     self.endpoints = default_endpoints
     self.interval = 5
@@ -121,7 +123,7 @@ class LLM():
       return url
       
   def monitor(self):
-      while True:
+      while self.running:
           with concurrent.futures.ThreadPoolExecutor() as executor:
               # Check all endpoints concurrently
               future_to_endpoint = {
@@ -134,7 +136,27 @@ class LLM():
                   print("Available llm endpoints::\n", result)
           self.interval = 60
           time.sleep(self.interval)
+          
+  def start(self):
+      """Start the monitoring in a separate thread"""
+      if not self.running:
+          self.running = True
+          self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
+          self._monitor_thread.start()
+          print("Endpoint monitoring started in background thread")
+      else:
+          print("Monitoring is already running")
                 
+  def stop(self):
+      """Stop the monitoring thread"""
+      if self.running:
+          self.running = False
+          if self._monitor_thread:
+              self._monitor_thread.join(timeout=1)
+          print("Endpoint monitoring stopped")
+      else:
+          print("Monitoring is not running")
+                          
   def initLLM(self, endpoints="", model="", api_key="", temp=0.5, k=5):
     print("Initializing LLM::")
     endpoints = endpoints.split(',')
@@ -144,11 +166,7 @@ class LLM():
     self.k = k
     self.model = model if model != "" else "openai/gpt-4o"
     self.api_key = api_key if api_key != "" else os.getenv("OR_API_KEY", "")
-    for endpoint in self.endpoints:
-      self.check_endpoint(endpoint)
-    time.sleep(self.interval)
-    self._monitor_thread = threading.Thread(target=self.monitor, daemon=True)
-    self._monitor_thread.start()
+    self.start()
     return True
         
   def process(self, text, source_lang="en", target_lang="vn"):
@@ -156,7 +174,7 @@ class LLM():
     attempts = 0
     source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
     target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
-    llms = [v for k, v in self.llm_chain.items()]
+    llms = self.llm_chain.values()
 
     while attempts < max_attempts:
       try:
@@ -181,7 +199,8 @@ class LLM():
       except Exception as e:
         print("error::", e)
         result = {"content": ""}
-      print(f"re-run {attempts}:")
+      print(f"re-run {attempts}:\n")
+      time.sleep(2)
       attempts += 1
     return text, text
 

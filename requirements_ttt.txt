@@ -1,5 +1,6 @@
 ## Google translate
 deep_translator
+python-docx
 ## T5 transformer translate
 # pytesseract
 # transformers
