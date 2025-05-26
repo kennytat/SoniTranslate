@@ -75,7 +75,7 @@ hooks.hook()
 class WavStruct():
     def __init__(self, wav_path, start_time):
         self.wav_path = wav_path
-        self.start_time = start_time
+        self.start = start_time
         
 class CONFIG():
     """Configurations"""

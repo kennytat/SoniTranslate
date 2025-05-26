@@ -64,8 +64,10 @@ app_temp_dir = os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "vg
 os.system(f'rm -rf {app_temp_dir}/*')
 Path(os.path.join(app_temp_dir, "audio")).mkdir(parents=True, exist_ok=True)
 Path(os.path.join(app_temp_dir, "audio2", "audio")).mkdir(parents=True, exist_ok=True)
-srt_temp_dir = os.path.join(app_temp_dir, 'srt')
-Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
+source_srt_temp_dir = os.path.join(app_temp_dir, 'source_srt')
+Path(source_srt_temp_dir).mkdir(parents=True, exist_ok=True)
+target_srt_temp_dir = os.path.join(app_temp_dir, 'target_srt')
+Path(target_srt_temp_dir).mkdir(parents=True, exist_ok=True)
 youtube_temp_dir = os.path.join(app_temp_dir, 'youtube')
 Path(youtube_temp_dir).mkdir(parents=True, exist_ok=True) 
 sample_voice_dir = os.path.join(gradio_temp_dir, 'voices')
@@ -78,7 +80,7 @@ def clear_cache():
   os.system(f'rm -rf {os.path.join(app_temp_dir, "audio2")}/SPEAKER_*')
   os.system(f'rm -rf {os.path.join(app_temp_dir, "audio2", "audio")}/*')
   os.system(f'rm -rf {os.path.join(app_temp_dir, "audio")}/*')
-  os.system(f'rm -rf {srt_temp_dir}/*')
+  os.system(f'rm -rf {source_srt_temp_dir}/* {target_srt_temp_dir}/*')
   os.system(f'rm -rf {youtube_temp_dir}/*')
    
 class Logger:
@@ -404,7 +406,8 @@ class Main():
 
     def batch_preprocess(self,
       media_inputs,
-      srt_inputs,
+      source_srt_inputs,
+      target_srt_inputs,
       s2t_method,
       t2t_method,
       t2s_method,
@@ -492,7 +495,7 @@ class Main():
       media_inputs = media_inputs if isinstance(media_inputs, list) else [media_inputs]
       output = []
 
-      os.system(f"rm -rf {srt_temp_dir}/*")
+      os.system(f"rm -rf {source_srt_temp_dir}/* {target_srt_temp_dir}/*")
       os.system(f"rm -rf {youtube_temp_dir}/*")
       
       # path_inputs = [item.strip() for item in path_inputs.split(',')]
@@ -517,12 +520,15 @@ class Main():
       #       else:
       #         raise Exception(f"Path not exist:: {media_path}")
               
-
+      if source_srt_inputs is not None and len(source_srt_inputs)> 0:
+        Path(source_srt_temp_dir).mkdir(parents=True, exist_ok=True)
+        for srt in source_srt_inputs:
+          os.system(f"mv {srt.name} {source_srt_temp_dir}/")
                 
-      if srt_inputs is not None and len(srt_inputs)> 0:
-        Path(srt_temp_dir).mkdir(parents=True, exist_ok=True)
-        for srt in srt_inputs:
-          os.system(f"mv {srt.name} {srt_temp_dir}/")
+      if target_srt_inputs is not None and len(target_srt_inputs)> 0:
+        Path(target_srt_temp_dir).mkdir(parents=True, exist_ok=True)
+        for srt in target_srt_inputs:
+          os.system(f"mv {srt.name} {target_srt_temp_dir}/")
       global total_input
       global total_output
       print("process total files::", len(media_inputs))
@@ -530,7 +536,7 @@ class Main():
       if media_inputs is not None and len(media_inputs)> 0:
         total_input = media_inputs
         for media in media_inputs:
-          result = self.translate_from_media(media, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
+          result = self.translate_from_media(media, source_srt_inputs, target_srt_inputs, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, progress)
           total_output.append(result)
           output.append(result)
       return output
@@ -613,6 +619,8 @@ class Main():
       
     def translate_from_media(self,
         media_input,
+        source_srt_inputs, 
+        target_srt_inputs,
         SOURCE_LANGUAGE= "Automatic detection",
         TRANSLATE_AUDIO_TO="Vietnamese (vi)",
         progress=gr.Progress(),
@@ -747,95 +755,12 @@ class Main():
         #               return
 
         print("Set file complete.")
-        progress(0.30, desc="Speech to Text...")
 
         SOURCE_LANGUAGE = None if SOURCE_LANGUAGE == 'Automatic detection' else SOURCE_LANGUAGE
-
-        # 1. Transcribe with original whisper (batched)
-        print("Start transcribing source language::")
-        with capture.capture_output() as cap:
-          model = whisperx.load_model(
-              self.WHISPER_MODEL_SIZE,
-              device,
-              compute_type=self.compute_type,
-              language=SOURCE_LANGUAGE,
-              )
-          del cap
-        audio = whisperx.load_audio(audio_mp3)
-        result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
-        gc.collect(); torch.cuda.empty_cache(); del model
-        print("Transcript complete::", len(result["segments"]))
-
-        ## =================================================================
-        # # 2. Align whisper output for source language
-        # print("Start aligning source language::")
-        # progress(0.45, desc="Aligning source language...")
-        # """
-        # Aligns speech segments based on the provided audio and result metadata.
-
-        # Parameters:
-        # - audio (array): The audio data in a suitable format for alignment.
-        # - result (dict): Metadata containing information about the segments
-        #     and language.
-
-        # Returns:
-        # - result (dict): Updated metadata after aligning the segments with
-        #     the audio. This includes character-level alignments if
-        #     'return_char_alignments' is set to True.
-
-        # Notes:
-        # - This function uses language-specific models to align speech segments.
-        # - It performs language compatibility checks and selects the
-        #     appropriate alignment model.
-        # - Cleans up memory by releasing resources after alignment.
-        # """
-        # DAMHF.update(DAMT)  # lang align
-        # if (
-        #     not result["language"] in DAMHF.keys()
-        #     and not result["language"] in EXTRA_ALIGN.keys()
-        # ):
-        #     logger.warning(
-        #         "Automatic detection: Source language not compatible with align"
-        #     )
-        #     raise ValueError(
-        #         f"Detected language {result['language']}  incompatible, "
-        #         "you can select the source language to avoid this error."
-        #     )
-        # if (
-        #     result["language"] in EXTRA_ALIGN.keys()
-        #     and EXTRA_ALIGN[result["language"]] == ""
-        # ):
-        #     lang_name = (
-        #         INVERTED_LANGUAGES[result["language"]]
-        #         if result["language"] in INVERTED_LANGUAGES.keys()
-        #         else result["language"]
-        #     )
-        #     logger.warning(
-        #         "No compatible wav2vec2 model found "
-        #         f"for the language '{lang_name}', skipping alignment."
-        #     )
-        #     return result
-
-        # model_a, metadata = whisperx.load_align_model(
-        #     language_code=result["language"],
-        #     device=os.environ.get("SONITR_DEVICE"),
-        #     model_name=None
-        #     if result["language"] in DAMHF.keys()
-        #     else EXTRA_ALIGN[result["language"]],
-        # )
-        # result = whisperx.align(
-        #     result["segments"],
-        #     model_a,
-        #     metadata,
-        #     audio,
-        #     os.environ.get("SONITR_DEVICE"),
-        #     return_char_alignments=True,
-        #     print_progress=False,
-        # )
-        # del model_a
-        # gc.collect()
-        # torch.cuda.empty_cache()  # noqa
-    ## =================================================================
+        if TRANSLATE_AUDIO_TO == "zh":
+            TRANSLATE_AUDIO_TO = "zh-CN"
+        if TRANSLATE_AUDIO_TO == "he":
+            TRANSLATE_AUDIO_TO = "iw"
 
         # Mapping speakers to voice variables
         speaker_to_voice = {
@@ -866,79 +791,179 @@ class Main():
         ## Export speaker info
         speaker_info = {
           'text_to_speech': {
-             'method': self.t2s_method,
+            'method': self.t2s_method,
             'voice' : speaker_to_voice,
             'speed' : speaker_to_speed
           },
           'voice_conversion': {
-             'method': self.vc_method,
+            'method': self.vc_method,
             'voice' : speaker_to_vc 
           },
         }
-        with open(f'{speaker_info_path}', 'w', encoding='utf-8') as srtFile:
-          srtFile.write(json.dumps(speaker_info, indent=4))
-
-        # 3. Assign speaker labels
-        if result['segments'] and len(result["segments"]) > 0:
-          print("Start Diarizing::")
-          progress(0.50, desc="Diarizing...")
-          if self.max_speakers > 1:
-            with capture.capture_output() as cap:
-              diarize_model = "pyannote/speaker-diarization-3.1" ## "pyannote/speaker-diarization-3.1" "pyannote/speaker-diarization@2.1"
-              diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
-              del cap
-            diarize_segments = diarize_model(
-                audio_mp3,
-                min_speakers=self.min_speakers,
-                max_speakers=self.max_speakers)
-            result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
-            result_diarize['segments'] = self.speaker_order_correction(result_diarize['segments'])
-            gc.collect(); torch.cuda.empty_cache(); del diarize_model
-          else:
-            result_diarize = result
-            result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
-          ## remap voices and speed
-          result['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if 'speaker' in item else "", 'speed': speaker_to_speed[item['speaker']] if 'speaker' in item else 1} for item in result_diarize['segments']]
-          print("Diarize complete::", result['segments'][0])
-
-          # 4. Spell checking
-          if SOURCE_LANGUAGE == "en":
-            print("Start spell checking::")
-            progress(0.55, desc="Spell checking...")
-            try:
-              checker = SpellCheck()
-              for line in tqdm(range(len(result['segments']))):
-                try:
-                  text = result['segments'][line]['text']
-                  result['segments'][line]['text'] = checker.correct(text)
-                except Exception as e:
-                  pass 
-              del checker
-            except Exception as e:
-              print('Error initialize spell check::', e)
+        
+        result = {}
+        # 1. Transcribe with original whisper (batched)
+        print("Start transcribing source language::")
+        ### Got from srt if any found
+        source_srt_inputs = [srt_input.name for srt_input in source_srt_inputs if file_name in srt_input] if source_srt_inputs else []
+        source_srt_inputpath = os.path.join(source_srt_temp_dir, os.path.basename(source_srt_inputs[0])) if len(source_srt_inputs) > 0 else None
+        if source_srt_inputpath and os.path.exists(source_srt_inputpath):
+          progress(0.30, desc="SRT to Text...")
+          # Start convert from srt if srt found
+          print("srt file exist::", source_srt_inputpath)
+          result['segments'] = srt_to_segments(source_srt_inputpath)
+          result['segments'] = concise_srt(result['segments'], max_word_length)
+          os.system(f'mv {source_srt_inputpath} {source_media_output_basename}.srt')
+        else:
+          progress(0.30, desc="Speech to Text...")
           
-          # 4. Translate to target language
-          print("Start translating::")
-          progress(0.6, desc="Translating...")
-          if TRANSLATE_AUDIO_TO == "zh":
-              TRANSLATE_AUDIO_TO = "zh-CN"
-          if TRANSLATE_AUDIO_TO == "he":
-              TRANSLATE_AUDIO_TO = "iw"
+          ### Speech to text if no srt provided
+          with capture.capture_output() as cap:
+            model = whisperx.load_model(
+                self.WHISPER_MODEL_SIZE,
+                device,
+                compute_type=self.compute_type,
+                language=SOURCE_LANGUAGE,
+                )
+            del cap
+          audio = whisperx.load_audio(audio_mp3)
+          result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
+          gc.collect(); torch.cuda.empty_cache(); del model
+          print("Transcript complete::", len(result["segments"]))
+
+          ## =================================================================
+          # # 2. Align whisper output for source language
+          # print("Start aligning source language::")
+          # progress(0.45, desc="Aligning source language...")
+          # """
+          # Aligns speech segments based on the provided audio and result metadata.
+
+          # Parameters:
+          # - audio (array): The audio data in a suitable format for alignment.
+          # - result (dict): Metadata containing information about the segments
+          #     and language.
+
+          # Returns:
+          # - result (dict): Updated metadata after aligning the segments with
+          #     the audio. This includes character-level alignments if
+          #     'return_char_alignments' is set to True.
+
+          # Notes:
+          # - This function uses language-specific models to align speech segments.
+          # - It performs language compatibility checks and selects the
+          #     appropriate alignment model.
+          # - Cleans up memory by releasing resources after alignment.
+          # """
+          # DAMHF.update(DAMT)  # lang align
+          # if (
+          #     not result["language"] in DAMHF.keys()
+          #     and not result["language"] in EXTRA_ALIGN.keys()
+          # ):
+          #     logger.warning(
+          #         "Automatic detection: Source language not compatible with align"
+          #     )
+          #     raise ValueError(
+          #         f"Detected language {result['language']}  incompatible, "
+          #         "you can select the source language to avoid this error."
+          #     )
+          # if (
+          #     result["language"] in EXTRA_ALIGN.keys()
+          #     and EXTRA_ALIGN[result["language"]] == ""
+          # ):
+          #     lang_name = (
+          #         INVERTED_LANGUAGES[result["language"]]
+          #         if result["language"] in INVERTED_LANGUAGES.keys()
+          #         else result["language"]
+          #     )
+          #     logger.warning(
+          #         "No compatible wav2vec2 model found "
+          #         f"for the language '{lang_name}', skipping alignment."
+          #     )
+          #     return result
+
+          # model_a, metadata = whisperx.load_align_model(
+          #     language_code=result["language"],
+          #     device=os.environ.get("SONITR_DEVICE"),
+          #     model_name=None
+          #     if result["language"] in DAMHF.keys()
+          #     else EXTRA_ALIGN[result["language"]],
+          # )
+          # result = whisperx.align(
+          #     result["segments"],
+          #     model_a,
+          #     metadata,
+          #     audio,
+          #     os.environ.get("SONITR_DEVICE"),
+          #     return_char_alignments=True,
+          #     print_progress=False,
+          # )
+          # del model_a
+          # gc.collect()
+          # torch.cuda.empty_cache()  # noqa
+      ## =================================================================
+
+          with open(f'{speaker_info_path}', 'w', encoding='utf-8') as srtFile:
+            srtFile.write(json.dumps(speaker_info, indent=4))
+
+          # 3. Assign speaker labels
+          if result['segments'] and len(result["segments"]) > 0:
+            print("Start Diarizing::")
+            progress(0.50, desc="Diarizing...")
+            if self.max_speakers > 1:
+              with capture.capture_output() as cap:
+                diarize_model = "pyannote/speaker-diarization-3.1" ## "pyannote/speaker-diarization-3.1" "pyannote/speaker-diarization@2.1"
+                diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
+                del cap
+              diarize_segments = diarize_model(
+                  audio_mp3,
+                  min_speakers=self.min_speakers,
+                  max_speakers=self.max_speakers)
+              result_diarize = whisperx.assign_word_speakers(diarize_segments, result)
+              result_diarize['segments'] = self.speaker_order_correction(result_diarize['segments'])
+              gc.collect(); torch.cuda.empty_cache(); del diarize_model
+            else:
+              result_diarize = result
+              result_diarize['segments'] = [{**item, 'speaker': "SPEAKER_00"} for item in result_diarize['segments']]
+            ## remap voices and speed
+            result['segments'] = [{**item, 'voice': speaker_to_voice[item['speaker']] if 'speaker' in item else "", 'speed': speaker_to_speed[item['speaker']] if 'speaker' in item else 1} for item in result_diarize['segments']]
+            print("Diarize complete::", result['segments'][0])
+
+            # 4. Spell checking
+            if SOURCE_LANGUAGE == "en":
+              print("Start spell checking::")
+              progress(0.55, desc="Spell checking...")
+              try:
+                checker = SpellCheck()
+                for line in tqdm(range(len(result['segments']))):
+                  try:
+                    text = result['segments'][line]['text']
+                    result['segments'][line]['text'] = checker.correct(text)
+                  except Exception as e:
+                    pass 
+                del checker
+              except Exception as e:
+                print('Error initialize spell check::', e)        
+            with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
+              srtFile.write(json.dumps(result['segments']))
+            segments_to_srt(result['segments'], f'{source_media_output_basename}-origin.srt')
+            result['segments'] = concise_srt(result['segments'], max_word_length)
+            segments_to_txt(result['segments'], f'{source_media_output_basename}.txt')
+            segments_to_srt(result['segments'], f'{source_media_output_basename}.srt')
+              
+        # 4. Translate to target language
+        print("Start translating::")
+        progress(0.6, desc="Translating...")
           # print("os.path.splitext(media_input)[0]::", os.path.splitext(media_input)[0])
           ## Write source segment and srt,txt to file
-
-          with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
-            srtFile.write(json.dumps(result['segments']))
-          segments_to_srt(result['segments'], f'{source_media_output_basename}-origin.srt')
-          result['segments'] = concise_srt(result['segments'], max_word_length)
-          segments_to_txt(result['segments'], f'{source_media_output_basename}.txt')
-          segments_to_srt(result['segments'], f'{source_media_output_basename}.srt')
-          target_srt_inputpath = os.path.join(srt_temp_dir, f'{file_name}-{TRANSLATE_AUDIO_TO}-SPEAKER.srt')
-          if os.path.exists(target_srt_inputpath):
-            # Start convert from srt if srt found
-            print("srt file exist::", target_srt_inputpath)
-            result['segments'] = srt_to_segments(target_srt_inputpath)
-            result['segments'] = concise_srt(result['segments'], max_word_length)
+        if result['segments'] and len(result["segments"]) > 0:
+          target_srt_inputs = [srt_input.name for srt_input in target_srt_inputs if file_name in srt_input] if target_srt_inputs else []
+          target_srt_inputpath = os.path.join(target_srt_temp_dir, os.path.basename(target_srt_inputs[0])) if len(target_srt_inputs) > 0 else None
+          if target_srt_inputpath and os.path.exists(target_srt_inputpath):
+            if os.path.exists(target_srt_inputpath):
+              # Start convert from srt if srt found
+              print("srt file exist::", target_srt_inputpath)
+              result['segments'] = srt_to_segments(target_srt_inputpath)
+              result['segments'] = concise_srt(result['segments'], max_word_length)
           else:
             # Start translate if srt not found
             translated_segments = translate_text(result['segments'], SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO, self.t2t_method, self.llm_url, self.llm_model, self.llm_temp, self.llm_k)
@@ -1134,7 +1159,8 @@ class Main():
                         with gr.Row():
                           link_input = gr.Textbox(label="YT Link or OS Path",info="Example: M:\\warehouse\\video.mp4,https://www.youtube.com/watch?v=DrG2c1vxGwU", placeholder="URL goes here, seperate by comma...", scale=5)        
                           link_btn = gr.Button("Submit", size="sm", scale=1)
-                        srt_input = gr.Files(label="SRT(Optional)", file_types=['.srt'])
+                        source_srt_input = gr.Files(label="Source SRT(Optional)", file_types=['.srt'])
+                        target_srt_input = gr.Files(label="Target SRT(Optional)", file_types=['.srt'])
                         # gr.ClearButton(components=[media_input,link_input,srt_input], size='sm')
                         with gr.Row():
                           match_length = gr.Checkbox(label="Enable",container=False, value=False, info='Match speech length of original language?', interactive=True)
@@ -1264,7 +1290,7 @@ class Main():
                           list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
                           return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
                         with gr.Row():
-                          clear_btn = gr.ClearButton(components=[media_input,link_input,srt_input,media_output,tmp_output], size='sm')
+                          clear_btn = gr.ClearButton(components=[media_input,link_input, source_srt_input, target_srt_input,media_output,tmp_output], size='sm')
                           clear_btn.click(reset_param,[],[media_output,tmp_output, ])
                         line_ = gr.HTML("<hr>")
                         if os.getenv("YOUR_HF_TOKEN") == None or os.getenv("YOUR_HF_TOKEN") == "":
@@ -1431,7 +1457,8 @@ class Main():
             link_btn.click(self.handle_link_input, inputs=[media_input, link_input], outputs=[media_input, link_input])
             media_btn.click(self.batch_preprocess, inputs=[
                 media_input,
-                srt_input,
+                source_srt_input,
+                target_srt_input,
                 s2t_method,
                 t2t_method,
                 t2s_method,

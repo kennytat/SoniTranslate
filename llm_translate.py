@@ -25,7 +25,7 @@ from langchain.prompts import (
 )
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
 
@@ -34,7 +34,11 @@ fault_words = [
   "im_end",
   "<skip_think>"
   "<think>",
-  "</think>"
+  "</think>",
+  "```",
+  "English:",
+  "Vietnamese:",
+  "English–Vietnamese"
 ]
 
 default_endpoints = [
@@ -52,6 +56,9 @@ def cleanup_text(text):
       text = text.split('<skip_think>')[1]
     return text
   
+def is_valid_input(source_text):
+  return True
+
 def is_valid_response(source_text, target_text):
     source_text = str(source_text).replace("-", " ").strip()
     target_text = str(target_text).replace("-", " ").strip()
@@ -71,7 +78,10 @@ def is_valid_response(source_text, target_text):
         return False
 
     return True
-    
+
+def post_process(target_text):
+  return target_text  
+ 
 class LLM():
   def __init__(self, systemPrompt = "") -> None:
     self._monitor_thread = None
@@ -102,7 +112,7 @@ class LLM():
           
           if response.status_code == 200:
               self.available_endpoints.add(endpoint)  # Add to available endpoints
-              self.llm_chain[endpoint] = ChatOpenAI(
+              chain = ChatOpenAI(
                           model=self.model,
                           openai_api_key=self.api_key,
                           openai_api_base=endpoint,
@@ -112,6 +122,13 @@ class LLM():
                           frequency_penalty=1.3,
                           stop=["<|im_end|>"],
                       )
+              self.llm_chain[endpoint] = RunnableWithMessageHistory(
+                  self.prompt | chain | StrOutputParser(),
+                  lambda session_id: ChatMessageHistory(),  # Factory for creating history storage
+                  input_messages_key="input",               # Key for input messages
+                  history_messages_key="history",      # Key for history in the chain
+                  window_size=self.k                            # This is equivalent to the 'k' parameter - keep last 2 exchanges
+              )
           else:
               self.available_endpoints.discard(endpoint)  # Remove from available endpoints
               if endpoint in self.llm_chain:
@@ -134,7 +151,10 @@ class LLM():
               for future in concurrent.futures.as_completed(future_to_endpoint):
                   result = future.result()
                   print("Available llm endpoints::\n", result)
-          self.interval = 60
+          if len(self.available_endpoints) >= 1:
+            self.interval = 30
+          else:
+            self.interval = 5
           time.sleep(self.interval)
           
   def start(self):
@@ -156,7 +176,7 @@ class LLM():
           print("Endpoint monitoring stopped")
       else:
           print("Monitoring is not running")
-                          
+
   def initLLM(self, endpoints="", model="", api_key="", temp=0.5, k=5):
     print("Initializing LLM::")
     endpoints = endpoints.split(',')
@@ -170,39 +190,34 @@ class LLM():
     return True
         
   def process(self, text, source_lang="en", target_lang="vn"):
-    max_attempts = 5
-    attempts = 0
-    source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
-    target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
-    llms = self.llm_chain.values()
+    if is_valid_input(text):
+      max_attempts = 5
+      attempts = 0
+      source_language = next((key for key, value in LANGUAGES.items() if value == source_lang), None)
+      target_language = next((key for key, value in LANGUAGES.items() if value == target_lang), None)
 
-    while attempts < max_attempts:
-      try:
-        llm = random.choice(llms)
-        print('translate inferencing::', source_language, target_language)
-        chain = self.prompt | llm
-        llm_chain = RunnableWithMessageHistory(
-            chain,
-            lambda session_id: ChatMessageHistory(),  # Factory for creating history storage
-            input_messages_key="input",               # Key for input messages
-            history_messages_key="history",      # Key for history in the chain
-            window_size=self.k                            # This is equivalent to the 'k' parameter - keep last 2 exchanges
-        )
-        result = llm_chain.invoke({
-                  "input": text,
-                  "source_language": source_language,
-                  "target_language": target_language,
-              }, config={"configurable": {"session_id": "default_session"}
-        })
-        if result.content and is_valid_response(text, cleanup_text(result.content)) and target_lang in detect(result.content):
-            return result.content, cleanup_text(result.content)
-      except Exception as e:
-        print("error::", e)
-        result = {"content": ""}
-      print(f"re-run {attempts}:\n")
-      time.sleep(2)
-      attempts += 1
-    return text, text
+      while attempts < max_attempts:
+        try:
+          if len(list(self.llm_chain.values())) >= 1:
+            llm_chain = random.choice(list(self.llm_chain.values()))
+            print('translate inferencing::', source_language, target_language)
+            result = llm_chain.invoke({
+                      "input": text,
+                      "source_language": source_language,
+                      "target_language": target_language,
+                  }, config={"configurable": {"session_id": "default_session"}
+            })
+            if is_valid_response(text, cleanup_text(result)) and target_lang in detect(result):
+                return result, post_process(cleanup_text(result))
+        except Exception as e:
+          print("error::", e)
+          result = ""
+        print(f"re-run {attempts}:\n")
+        time.sleep(2)
+        attempts += 1
+      return text, text
+    else:
+      return text, text
 
   def translate(self, segments, source_lang="en", target_lang="vi"):
       print("start llm_translate::")
