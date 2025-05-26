@@ -523,12 +523,12 @@ class Main():
       if source_srt_inputs is not None and len(source_srt_inputs)> 0:
         Path(source_srt_temp_dir).mkdir(parents=True, exist_ok=True)
         for srt in source_srt_inputs:
-          os.system(f"mv {srt.name} {source_srt_temp_dir}/")
+          os.system(f"mv '{srt.name}' '{source_srt_temp_dir}/'")
                 
       if target_srt_inputs is not None and len(target_srt_inputs)> 0:
         Path(target_srt_temp_dir).mkdir(parents=True, exist_ok=True)
         for srt in target_srt_inputs:
-          os.system(f"mv {srt.name} {target_srt_temp_dir}/")
+          os.system(f"mv '{srt.name}' '{target_srt_temp_dir}/'")
       global total_input
       global total_output
       print("process total files::", len(media_inputs))
@@ -805,15 +805,18 @@ class Main():
         # 1. Transcribe with original whisper (batched)
         print("Start transcribing source language::")
         ### Got from srt if any found
-        source_srt_inputs = [srt_input.name for srt_input in source_srt_inputs if file_name in srt_input] if source_srt_inputs else []
+        source_srt_inputs = [srt_input.name for srt_input in source_srt_inputs if file_name in re.sub(r'\s+', '_', srt_input)] if source_srt_inputs else []
         source_srt_inputpath = os.path.join(source_srt_temp_dir, os.path.basename(source_srt_inputs[0])) if len(source_srt_inputs) > 0 else None
+        print("srt::", file_name, source_srt_inputs, SOURCE_LANGUAGE, TRANSLATE_AUDIO_TO)
         if source_srt_inputpath and os.path.exists(source_srt_inputpath):
+          print("srt file exist::", source_srt_inputpath)
           progress(0.30, desc="SRT to Text...")
           # Start convert from srt if srt found
-          print("srt file exist::", source_srt_inputpath)
           result['segments'] = srt_to_segments(source_srt_inputpath)
+          segments_to_srt(result['segments'], f'{source_media_output_basename}-origin.srt')
           result['segments'] = concise_srt(result['segments'], max_word_length)
-          os.system(f'mv {source_srt_inputpath} {source_media_output_basename}.srt')
+          segments_to_txt(result['segments'], f'{source_media_output_basename}.txt')
+          segments_to_srt(result['segments'], f'{source_media_output_basename}.srt')
         else:
           progress(0.30, desc="Speech to Text...")
           
