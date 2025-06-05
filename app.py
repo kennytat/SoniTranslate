@@ -948,7 +948,7 @@ class Main():
                 print('Error initialize spell check::', e)        
             with open(f'{source_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
               srtFile.write(json.dumps(result['segments']))
-            segments_to_srt(result['segments'], f'{source_media_output_basename}-origin.srt')
+            segments_to_srt(result['segments'], f'{source_media_output_basename}-origin-{self.WHISPER_MODEL_SIZE}.srt')
             result['segments'] = concise_srt(result['segments'], max_word_length)
             segments_to_txt(result['segments'], f'{source_media_output_basename}.txt')
             segments_to_srt(result['segments'], f'{source_media_output_basename}.srt')
@@ -1247,7 +1247,7 @@ class Main():
                                   # gr.HTML("<hr>")
                                   gr.Markdown("Default configuration of Whisper.")
                                   with gr.Row():
-                                    WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'base.en', 'small','small.en', 'medium', 'medium.en', 'large-v1', 'large-v2', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
+                                    WHISPER_MODEL_SIZE = gr.Dropdown(['tiny', 'base', 'base.en', 'small','small.en', 'medium', 'medium.en', 'large-v1', 'large-v2', 'large-v3', 'turbo'], value=whisper_model_default, label="Whisper model",  scale=1)
                                     WHISPER_MODEL_SIZE.change(None, WHISPER_MODEL_SIZE, None, js="(v) => setStorage('WHISPER_MODEL_SIZE',v)")
                                     compute_type = gr.Dropdown(list_compute_type, value=compute_type_default, label="Compute type",  scale=1)
                                     compute_type.change(None, compute_type, None, js="(v) => setStorage('compute_type',v)")
