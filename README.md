@@ -32,19 +32,27 @@ SonyTranslate is a powerful and user-friendly web application that allows you to
 ## Installation
 
 ```
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
-dpkg -i cuda-keyring_1.0-1_all.deb
 sudo apt-get update -y && apt-get upgrade -y
-sudo apt-get -y install cudnn9-cuda-12
-sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux nvidia-cuda-toolkit
-
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update -y
+sudo apt-get install -y aria2 build-essential ffmpeg wget curl git vim cmake unzip cifs-utils tmux cudnn9-cuda-12 nvidia-cuda-toolkit
+wget \
+	https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-x86_64.sh \
+	&& mkdir ~/.conda \
+	&& bash Miniconda3-py310_23.5.2-0-Linux-x86_64.sh -b \
+	&& rm -f Miniconda3-py310_23.5.2-0-Linux-x86_64.sh
+~/miniconda3/bin/conda init
 conda create -n soni python=3.10.12 -y
 conda activate soni
 git submodule update --init --recursive
-pip install -r requirements_stt.txt --no-cache-dir
-pip install -r requirements_tts.txt --no-cache-dir
-pip install -r requirements_ttt.txt --no-cache-dir
+pip install -r requirements_stt.txt --no-cache-dir --resume-retries 10
+pip install -r requirements_tts.txt --no-cache-dir --resume-retries 10
+pip install -r requirements_ttt.txt --no-cache-dir --resume-retries 10
 python -m spacy download en_core_web_sm
+python
+import nltk
+nltk.download("punkt_tab")
 
 export LD_LIBRARY_PATH=/home/vgm/miniconda3/envs/soni/lib/python3.10/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}
 
