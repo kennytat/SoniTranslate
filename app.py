@@ -8,6 +8,7 @@ import joblib
 from joblib import Parallel, delayed
 from natsort import natsorted
 import gradio as gr
+import whisper as whisper_mlx
 import whisperx
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
 from IPython.utils import capture
@@ -281,6 +282,11 @@ if torch.cuda.is_available():
     compute_type_default = 'float16'
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
     whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
+elif torch.backends.mps.is_available():
+    device = "mps"
+    list_compute_type = ['float32']
+    compute_type_default = 'float32'
+    whisper_model_default = 'large-v3'
 else:
     device = "cpu"
     list_compute_type = ['float32']
@@ -820,18 +826,22 @@ class Main():
         else:
           progress(0.30, desc="Speech to Text...")
           
-          ### Speech to text if no srt provided
-          with capture.capture_output() as cap:
-            model = whisperx.load_model(
-                self.WHISPER_MODEL_SIZE,
-                device,
-                compute_type=self.compute_type,
-                language=SOURCE_LANGUAGE,
-                )
-            del cap
-          audio = whisperx.load_audio(audio_mp3)
-          result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
-          gc.collect(); torch.cuda.empty_cache(); del model
+          if device == "mps":
+            result = whisper_mlx.transcribe(audio_mp3, path_or_hf_repo=f"model/mlx-whisper-{self.WHISPER_MODEL_SIZE}-fp16")    
+          else:
+            ### Speech to text if no srt provided
+            with capture.capture_output() as cap:
+              model = whisperx.load_model(
+                  self.WHISPER_MODEL_SIZE,
+                  device,
+                  compute_type=self.compute_type,
+                  language=SOURCE_LANGUAGE,
+                  )
+              del cap
+            audio = whisperx.load_audio(audio_mp3)
+            result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
+          
+          gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del model
           print("Transcript complete::", len(result["segments"]))
 
           ## =================================================================

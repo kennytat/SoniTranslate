@@ -21,6 +21,7 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
+import whisper as whisper_mlx
 import whisperx
 from whisperx.utils import get_writer
 
@@ -36,6 +37,11 @@ if torch.cuda.is_available():
     compute_type_default = 'float16'
     CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
     whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
+elif torch.backends.mps.is_available():
+    device = "mps"
+    list_compute_type = ['float32']
+    compute_type_default = 'float32'
+    whisper_model_default = 'large-v3'
 else:
     device = "cpu"
     list_compute_type = ['float32']
@@ -109,12 +115,15 @@ class Whisper:
             device=device,
             compute_type=compute_type,
             language=None if language == 'Automatic detection' else language,
-            )
+            ) if device != 'mps' else None
 
     def stt(self, file_path="", batch_size=16, chunk_size=5):
         try:
-          audio_bytes = whisperx.load_audio(file_path)
-          result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)
+          if device == 'mps':
+            result = whisper_mlx.transcribe(file_path, path_or_hf_repo=f"model/mlx-whisper-{self.current_model}-fp16")
+          else:
+            audio_bytes = whisperx.load_audio(file_path)
+            result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)
           return result
         except Exception as e:
           print('Error stt::', e)
