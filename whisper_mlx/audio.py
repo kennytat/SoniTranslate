@@ -4,7 +4,6 @@ import os
 from functools import lru_cache
 from subprocess import CalledProcessError, run
 from typing import Optional, Union
-
 import mlx.core as mx
 import numpy as np
 

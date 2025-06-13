@@ -21,8 +21,11 @@ from passlib.hash import bcrypt
 import uvicorn
 from itsdangerous import URLSafeSerializer
 import aiosqlite
-import whisper as whisper_mlx
-import whisperx
+import sys
+if sys.platform == "darwin":
+    import whisper_mlx as whisperx
+else:
+    import whisperx
 from whisperx.utils import get_writer
 
 from dotenv import load_dotenv
@@ -120,7 +123,7 @@ class Whisper:
     def stt(self, file_path="", batch_size=16, chunk_size=5):
         try:
           if device == 'mps':
-            result = whisper_mlx.transcribe(file_path, path_or_hf_repo=f"model/mlx-whisper-{self.current_model}-fp16")
+            result = whisperx.transcribe(file_path, path_or_hf_repo=f"mlx-community/whisper-{self.current_model}-mlx")
           else:
             audio_bytes = whisperx.load_audio(file_path)
             result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)

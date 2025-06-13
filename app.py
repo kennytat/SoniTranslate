@@ -8,8 +8,11 @@ import joblib
 from joblib import Parallel, delayed
 from natsort import natsorted
 import gradio as gr
-import whisper as whisper_mlx
-import whisperx
+import sys
+if sys.platform == "darwin":
+    import whisper_mlx as whisperx
+else:
+    import whisperx
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
 from IPython.utils import capture
 import torch
@@ -827,7 +830,7 @@ class Main():
           progress(0.30, desc="Speech to Text...")
           
           if device == "mps":
-            result = whisper_mlx.transcribe(audio_mp3, path_or_hf_repo=f"model/mlx-whisper-{self.WHISPER_MODEL_SIZE}-fp16")    
+            result = whisperx.transcribe(audio_mp3, path_or_hf_repo=f"mlx-community/whisper-{self.WHISPER_MODEL_SIZE}-mlx")
           else:
             ### Speech to text if no srt provided
             with capture.capture_output() as cap:
@@ -841,7 +844,7 @@ class Main():
             audio = whisperx.load_audio(audio_mp3)
             result = model.transcribe(audio, batch_size=self.batch_size, chunk_size=self.chunk_size, print_progress=True)
           
-          gc.collect(); torch.mps.empty_cache(); torch.cuda.empty_cache(); del model
+          gc.collect(); torch.cuda.empty_cache() if device == "cuda" else (torch.mps.empty_cache() if device == "mps" else None); del model
           print("Transcript complete::", len(result["segments"]))
 
           ## =================================================================
