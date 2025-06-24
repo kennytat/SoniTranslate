@@ -9,6 +9,7 @@ from typing import Any, Dict
 from tqdm import tqdm
 import librosa, os, re, torch, gc, subprocess, json
 import soundfile as sf
+from pydub import AudioSegment
 
 class TTS_OperationError(Exception):
     def __init__(self, message="The operation did not complete successfully."):
@@ -169,7 +170,7 @@ def synthesize_text_to_audio_np_array(voice, text, synthesize_args):
     return audio_np
 
 
-def piper_tts(tts_text, tts_voice, tts_speed, filename):
+def piper_tts(tts_text, tts_voice, tts_speed):
     """
     Install:
     pip install -q piper-tts==1.2.0 onnxruntime-gpu # for cuda118
@@ -192,7 +193,7 @@ def piper_tts(tts_text, tts_voice, tts_speed, filename):
 
     text = tts_text
     tts_name = tts_voice.replace(" VITS-onnx", "")
-    print("piper_tts called::", tts_name, tts_speed, filename)
+    print("piper_tts called::", tts_name, tts_speed)
     model = load_piper_model(
         tts_name, data_dir, download_dir, update_voices
     )
@@ -203,15 +204,6 @@ def piper_tts(tts_text, tts_voice, tts_speed, filename):
         speech_output = synthesize_text_to_audio_np_array(
             model, text, synthesize_args
         )
-
-        # Save file
-        sf.write(
-            file=filename,
-            samplerate=sampling_rate,
-            data=speech_output,
-            format="wav",
-        )
-
     except Exception as error:
         print("Error piperTTS::", error, tts_text)
     gc.collect()
@@ -224,6 +216,12 @@ def piper_tts(tts_text, tts_voice, tts_speed, filename):
         logger.error(str(error))
         gc.collect()
         torch.cuda.empty_cache()
+    return AudioSegment(
+          data=speech_output,
+          sample_width=2,
+          frame_rate=sampling_rate,
+          channels=1
+      )
 
 # try:
 #   piper_tts("Có lẽ loại trợ giúp đọc Kinh Thánh thông thường nhất là loại dự phần hằng ngày, hằng năm và trong phần hướng dẫn ngắn này tôi muốn chỉ cho bạn thấy cách thức, thật dễ dàng như thế nào để có được phần dự phần hằng ngày của bạn, sử dụng bảng dữ liệu mà chúng tôi thiết lập trong một hướng dẫn trước đây, hãy nhìn vào màn hình của tôi, bạn sẽ thấy tôi đã mở ra trang chủ rồi, nếu trang chủ của bạn chưa được mở ra", "vi_VN-25hours_single-low", 1, "audio/107.927.wav")

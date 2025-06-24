@@ -31,6 +31,8 @@ voice_data = {}
 class VietTTS():
   def __init__(self):
     self.name = "VietTTS"
+    self.current_model_name = None
+    self.model = None
     
   def text_to_phone_idx(self, text, phone_set, sil_idx):
       # lowercase
@@ -140,12 +142,12 @@ class VietTTS():
       generator = generator.eval()
       return duration_net, generator
           
-  def text_to_speech(self, text, output_file, model_name,speed = 1):
+  def text_to_speech(self, text, model_name, speed = 1):
       global voice_data
       if model_name not in voice_data:
         voice_data[model_name] = {"config": None, "phone_set": None}
       tts_voice_ckpt_dir = os.path.join(TTS_MODEL_DIR, model_name)
-      print("Starting TTS {}".format(output_file))
+      print("Starting TTS ---")
       ### load hifigan config
       config_file = os.path.join(tts_voice_ckpt_dir,"config.json")
       if not voice_data[model_name]["config"]:
@@ -162,16 +164,16 @@ class VietTTS():
       if re.sub(r'^sil\s+','',text).isnumeric():
           silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
           print("Got integer::", text, silence_duration) 
-          print("\n\n\n ==> Generating {} seconds of silence at {}".format(silence_duration, output_file))
+          print("\n\n\n ==> Generating {} seconds of silence".format(silence_duration))
           second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
-          second_of_silence = second_of_silence.set_frame_rate(sample_rate)
-          second_of_silence.export(output_file, format="wav")
+          return second_of_silence.set_frame_rate(sample_rate)
       elif text == "♪":
           second_of_silence = AudioSegment.silent(duration=2000) # or be explicit
-          second_of_silence = second_of_silence.set_frame_rate(sample_rate)
-          second_of_silence.export(output_file, format="wav")
+          return second_of_silence.set_frame_rate(sample_rate)
       else:
-        duration_net, generator = self.load_models(tts_voice_ckpt_dir, voice_data[model_name]["config"])
+        if self.model == None or self.current_model_name != model_name:
+          self.model = self.load_models(tts_voice_ckpt_dir, voice_data[model_name]["config"])
+        duration_net, generator = self.model
         text = text if detect(text) == 'vi' else ' . '
         text = replace_dict(text)
         tts_result = self.inference(duration_net, generator, text, voice_data[model_name]["phone_set"], voice_data[model_name]["config"], speed)
@@ -189,11 +191,12 @@ class VietTTS():
         max_val = np.max(np.abs(filtered_data))
         wav = filtered_data / max_val
         wav = (wav * 32767).astype(np.int16)
-        ## Write wav to file        
-        sf.write(output_file, wav, samplerate=sample_rate)
-        print("Wav segment written at: {}".format(output_file))
-      gc.collect(); torch.cuda.empty_cache(); del duration_net; del generator
-      return "Done"
+      return AudioSegment(
+          data=wav,
+          sample_width=2,
+          frame_rate=sample_rate,
+          channels=1
+      )
   
 # if __name__ == '__main__':
 #   model_name = "vn_han_male"

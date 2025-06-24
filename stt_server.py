@@ -263,7 +263,7 @@ async def tts(request: TTSRequest) -> Response:
     try:
         try:
             # Process the audio file
-            result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="94", speed=1.0)
+            result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="0", speed=0.8)
             # Normalize and scale if samples are float
             
             if isinstance(result.samples, list) or samples.dtype == np.float32:

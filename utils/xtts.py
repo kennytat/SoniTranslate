@@ -11,6 +11,7 @@ from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 import pinyin
 import math
+import numpy as np
 # import joblib
 # from tqdm import tqdm
 # from joblib import Parallel, delayed
@@ -147,38 +148,47 @@ class XTTS():
           # # Temporary hack for short sentences
           # keep_len = self.calculate_keep_len(text, language)
           # out["wav"] = out["wav"][:keep_len]
-          
+          # Your existing data
+          wav_tensor = torch.tensor(out["wav"]).unsqueeze(0)  # Shape: [1, samples]
 
-          torchaudio.save(outpath, torch.tensor(out["wav"]).unsqueeze(0), self.sample_rate)
-          name, ext = os.path.splitext(outpath)
-          output_temp = f"{name}-tmp{ext}"
-          os.system(f"mv {outpath} {output_temp}")
-          os.system(f"ffmpeg -y -hide_banner -loglevel error -i '{output_temp}' -ac 1 -af 'silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,aformat=dblp,areverse,silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,aformat=dblp,areverse,adelay=300:all=true,apad=pad_dur=0.2' '{outpath}'")		
+          # Convert torch tensor to numpy array
+          wav_numpy = wav_tensor.squeeze(0).numpy()  # Remove batch dimension
+
+          # Convert to int16 (PyDub expects integer samples)
+          wav_int16 = (wav_numpy * 32767).astype(np.int16)
+          # Convert to bytes
+          audio_bytes = wav_int16.tobytes()          
+
+          # torchaudio.save(outpath, torch.tensor(out["wav"]).unsqueeze(0), self.sample_rate)
+          # name, ext = os.path.splitext(outpath)
+          # output_temp = f"{name}-tmp{ext}"
+          # os.system(f"mv {outpath} {output_temp}")
+          # os.system(f"ffmpeg -y -hide_banner -loglevel error -i '{output_temp}' -ac 1 -af 'silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,aformat=dblp,areverse,silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:detection=peak,aformat=dblp,areverse,adelay=300:all=true,apad=pad_dur=0.2' '{outpath}'")		
+          return AudioSegment(
+              data=audio_bytes,
+              sample_width=2,  # 2 bytes for int16
+              frame_rate=self.sample_rate,
+              channels=1  # mono
+          )
           
       except RuntimeError as e:
           print("RuntimeError::", e)
-      return "Done"
+          return None
 
-  def text_to_speech(self, text, output_file, tts_voice, tts_speed, language):
+  def text_to_speech(self, text, tts_voice, tts_speed, language):
       text = pinyin.get(text, format="numerical")
-      print("xtts text::", text, output_file, tts_voice, tts_speed, language)
+      print("xtts text::", text, tts_voice, tts_speed, language)
       if re.sub(r'^sil\s+','',text).isnumeric():
           silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
           print("Got integer::", text, silence_duration) 
-          print("\n\n\n ==> Generating {} seconds of silence at {}".format(silence_duration, output_file))
+          print("\n\n\n ==> Generating {} seconds of silence at".format(silence_duration))
           second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
-          second_of_silence = second_of_silence.set_frame_rate(24000)
-          second_of_silence.export(output_file, format="wav")
+          return second_of_silence.set_frame_rate(24000)
       elif text == "♪":
           second_of_silence = AudioSegment.silent(duration=2000) # or be explicit
-          second_of_silence = second_of_silence.set_frame_rate(24000)
-          second_of_silence.export(output_file, format="wav")
+          return second_of_silence.set_frame_rate(24000)
       else:
-          self.predict(text, output_file, tts_voice, tts_speed, language)
-          print("Wav segment written at: {}".format(output_file))
-      # gc.collect(); torch.cuda.empty_cache()
-      # time.sleep(2)
-      return "Done"
+          return self.predict(text, tts_voice, tts_speed, language)
       
 
   

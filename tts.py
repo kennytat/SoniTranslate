@@ -189,30 +189,20 @@ class TTS():
     self.list_vc = get_vc_list(user_settings["vc"])
     self.list_tts = get_tts_list(user_settings["t2s"], user_settings["t2s_lang"])
           
-  def tts(self, text, output_file, tts_voice, speed, desired_duration, start_time, tts_client):
+  def tts(self, text, output_file, TRANSLATE_AUDIO_TO, tts_voice, speed, desired_duration, start_time, t2s_method):
       try:
         print("Starting TTS {}".format(output_file), desired_duration, start_time)
-
-        if re.sub(r'^sil\s+','',text).isnumeric():
-            silence_duration = int(re.sub(r'^sil\s+','',text)) * 1000
-            print("Got integer::", text, silence_duration) 
-            print("\n\n\n ==> Generating {} seconds of silence at {}".format(silence_duration, output_file))
-            second_of_silence = AudioSegment.silent(duration=silence_duration) # or be explicit
-            second_of_silence = second_of_silence.set_frame_rate(16000)
-            second_of_silence.export(output_file, format="wav")
-        else:
-          # duration_net, generator = self.load_models(tts_voice_ckpt_dir, hps)
-          tts_client.make_voice_gradio(text, tts_voice, speed, output_file, self.TRANSLATE_AUDIO_TO, self.t2s_method)
-          
+        self.tts_client.init_tts_client(t2s_method)
+        TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
+        output_file = self.tts_client.make_voice_gradio(text, tts_voice, speed, output_file, TRANSLATE_AUDIO_TO, t2s_method)
+        if output_file and isinstance(output_file, str):
           ## Export text to file
           txt_path = f"{os.path.splitext(output_file)[0]}.txt"
           print('write to file::', txt_path, text)
           with open(txt_path, "w", encoding="utf-8") as f:
             f.write(text)
-        
           ## For tts with timeline
           if desired_duration > 0:
-            
             try:
               duration_true = desired_duration
               duration_tts = librosa.get_duration(path=output_file)
@@ -234,10 +224,11 @@ class TTS():
             os.system(f"mv {tmp_file} {output_file}")
           else:
             print("No desired duration")
-          gc.collect(); torch.cuda.empty_cache()
+          return WavStruct(output_file, start_time)
       except Exception as error:
         print("tts error::", text, "\n", error)
-      return WavStruct(output_file, start_time)
+        return None
+      return output_file
 
   def upsampling(self, file):
     # if not self.upsampler:
@@ -255,7 +246,7 @@ class TTS():
     # target_samples = int(source_duration * 48000)
     # sf.write(file.wav_path, data=data[:target_samples], samplerate=48000)
     return file
-      
+
   def synthesize(self, output_dir_name, input, is_file, speed, method):
       print("start synthesizing::", output_dir_name, input, is_file, speed)
       filepath = ""
@@ -305,7 +296,7 @@ class TTS():
         self.tts_client.init_tts_client(self.t2s_method)
       print("Initializing TTS Client::", self.t2s_method)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
-        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.tts_voice, speed, total_duration, start_silence, self.tts_client) for (text, output_file, total_duration, start_silence) in tqdm(queue_list.queue))
+        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.TRANSLATE_AUDIO_TO, self.tts_voice, speed, total_duration, start_silence, self.t2s_method) for (text, output_file, total_duration, start_silence) in tqdm(queue_list.queue))
       
       if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
         print("Start Upsampling::")
@@ -363,7 +354,7 @@ class TTS():
     t2s_method="VietTTS",
     vc_method="None"
     ):
-      self.TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
+      self.TRANSLATE_AUDIO_TO = TRANSLATE_AUDIO_TO
       self.tts_voice = tts_voice
       self.vc_voice = vc_voice
       self.t2s_method = t2s_method
@@ -485,6 +476,7 @@ class TTS():
                         with gr.Row():
                           clear_btn = gr.ClearButton([input_files,textbox,files_output,audio_output,logs_output], value="Refresh")
                           btn = gr.Button(value="Generate!", variant="primary")
+                          tts_btn = gr.Button(value="TTS!", variant="primary", visible=False)
             with gr.TabItem("Settings"):
                 with gr.Column():
                   with gr.Accordion("T2S - VC Method", open=False):
@@ -526,6 +518,9 @@ class TTS():
         btn.click(self.speak,
                 inputs=[input_files, textbox, TRANSLATE_AUDIO_TO, tts_voice, vc_voice, tts_speed, method, t2s_method, vc_method],
                 outputs=[files_output, audio_output, logs_output], concurrency_limit=1)
+        tts_btn.click(self.tts,
+                inputs=[textbox, textbox, TRANSLATE_AUDIO_TO, tts_voice, tts_speed, textbox, textbox, t2s_method],
+                outputs=[audio_output], concurrency_limit=1)
         
         app.load(
           update_t2s_list,
@@ -693,7 +688,7 @@ if __name__ == "__main__":
       auth_pass = os.getenv('AUTH_PASS', '')
       app.launch(
         auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-        show_api=False,
+        show_api=True,
         debug=False,
         inbrowser=True,
         show_error=True,

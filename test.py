@@ -1,12 +1,15 @@
-import numpy as np
-from inference import VisemeRegressor
+from gradio_client import Client
 
-pb_filepath = "./visemenet_frozen.pb"
-wav_file_path = "./test_audio.wav"
-out_txt_path = "./maya_viseme_outputs.txt"
-
-viseme_regressor = VisemeRegressor(pb_filepath=pb_filepath)
-
-viseme_outputs = viseme_regressor.predict_outputs(wav_file_path=wav_file_path)
-
-np.savetxt(out_txt_path, viseme_outputs, '%.4f')
+client = Client("http://localhost:7901/")
+result = client.predict(
+		text="Tất cả mọi người đều sinh ra có quyền bình đẳng, Tạo hóa cho họ những quyền không ai có thể xâm phạm được; trong những quyền ấy, có quyền được sống, quyền tự do và quyền mưu cầu hạnh phúc.",
+		output_file="",
+		TRANSLATE_AUDIO_TO="Vietnamese (vi)",
+		tts_voice="vn_anh_female",
+		speed=1,
+		desired_duration="",
+		start_time="",
+		t2s_method="VietTTS",
+		api_name="/tts"
+)
+print(result)
