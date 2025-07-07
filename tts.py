@@ -293,8 +293,8 @@ class TTS():
       print("Start TTS:: concurrency =", N_JOBS)
       
       if self.tts_client.tts_client == None:
+        print("Initializing TTS Client::", self.t2s_method)
         self.tts_client.init_tts_client(self.t2s_method)
-      print("Initializing TTS Client::", self.t2s_method)
       with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
         results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.TRANSLATE_AUDIO_TO, self.tts_voice, speed, total_duration, start_silence, self.t2s_method) for (text, output_file, total_duration, start_silence) in tqdm(queue_list.queue))
       
