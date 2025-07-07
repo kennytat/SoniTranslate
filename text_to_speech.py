@@ -19,10 +19,8 @@ import numpy as np
 class TTSClient():
   def __init__(self):
     self.tts_client = None
-    self.current_tts_client = None
 
   def init_tts_client(self, client):
-    if self.current_tts_client != client:
       match client:
         case "VietTTS":
           self.tts_client = VietTTS()
@@ -30,8 +28,6 @@ class TTSClient():
           self.tts_client = XTTS()
         case _:
           self.tts_client = client
-      self.current_tts_client = client
-    return self.tts_client
         
   def split_long_speech(self, tts_text, tts_voice, tts_speed, language, t2s_method, max_length=200):
       print("split_long_speech::", len(tts_text))
