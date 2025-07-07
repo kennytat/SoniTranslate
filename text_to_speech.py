@@ -23,6 +23,7 @@ class TTSClient():
 
   def init_tts_client(self, client):
     if self.current_tts_client != client:
+      self.current_tts_client = client
       match client:
         case "VietTTS":
           self.tts_client = VietTTS()
@@ -30,7 +31,6 @@ class TTSClient():
           self.tts_client = XTTS()
         case _:
           self.tts_client = client
-      self.current_tts_client = client
       
         
   def split_long_speech(self, tts_text, tts_voice, tts_speed, language, t2s_method, max_length=200):
