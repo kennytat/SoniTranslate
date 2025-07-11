@@ -90,7 +90,7 @@ class CONFIG():
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
-list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_xtts = natsorted(["custom"] + [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 list_svc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
 list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
@@ -194,6 +194,8 @@ class TTS():
         print("Starting TTS {}".format(output_file), desired_duration, start_time)
         self.tts_client.init_tts_client(t2s_method)
         TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
+        if tts_voice == "custom" and self.custom_voice:
+          tts_voice = self.custom_voice
         output_file = self.tts_client.make_voice_gradio(text, tts_voice, speed, output_file, TRANSLATE_AUDIO_TO, t2s_method)
         if output_file and isinstance(output_file, str):
           ## Export text to file
@@ -348,6 +350,7 @@ class TTS():
     input_text,
     TRANSLATE_AUDIO_TO,
     tts_voice,
+    custom_voice,
     vc_voice,
     speed=1,
     method="join",
@@ -359,6 +362,7 @@ class TTS():
       self.vc_voice = vc_voice
       self.t2s_method = t2s_method
       self.vc_method = vc_method
+      self.custom_voice = custom_voice
       output_dir_name = new_dir_now()
       output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
       Path(output_dir_path).mkdir(parents=True, exist_ok=True)
@@ -460,12 +464,15 @@ class TTS():
                           TRANSLATE_AUDIO_TO = gr.Dropdown(['Arabic (ar)', 'Chinese (zh)', 'Czech (cs)', 'Danish (da)', 'Dutch (nl)', 'English (en)', 'Finnish (fi)', 'French (fr)', 'German (de)', 'Greek (el)', 'Hebrew (he)', 'Hindi (hi)', 'Hungarian (hu)', 'Italian (it)', 'Japanese (ja)', 'Korean (ko)', 'Persian (fa)', 'Polish (pl)', 'Portuguese (pt)', 'Russian (ru)', 'Spanish (es)', 'Turkish (tr)', 'Ukrainian (uk)', 'Urdu (ur)', 'Vietnamese (vi)'], value='Vietnamese (vi)',label = 'Target language')
                           tts_voice = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker', visible=True, elem_id="tts_voice")
                           vc_voice = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker', visible=False, elem_id="vc_voice")
-                          sample_button = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_classes="sample-button", scale=0)
+                          sample_button = gr.Button(value="", size="sm", icon="assets/play-icon.png", visible=True, elem_classes="sample-button", scale=0)
+                        with gr.Row(visible=False) as custom_voice_row:
+                          custom_voice = gr.Audio(label="Custom Voice", type="filepath", elem_id="custom_voice")
                         tts_speed = gr.Slider(minimum=0.5, maximum=1.5, value=1, step=0.02, label='Speed')
                         method = gr.Radio(label="Method", value="join", choices=["join","split"])
-                        
+                        def update_custom_voice_visibility(value):
+                          return gr.update(visible=value == "custom"), gr.update(visible=value != "custom")
                         TRANSLATE_AUDIO_TO.change(None, TRANSLATE_AUDIO_TO, None, js="(v) => setStorage('TRANSLATE_AUDIO_TO',v)")
-                        tts_voice.change(None, tts_voice, None, js="(v) => setStorage('tts_voice',v)")
+                        tts_voice.change(update_custom_voice_visibility, tts_voice, [custom_voice_row, sample_button])
                         vc_voice.change(None, vc_voice, None, js="(v) => setStorage('vc_voice',v)")
                         tts_speed.change(None, tts_speed, None, js="(v) => setStorage('tts_speed',v)")
                         
@@ -516,7 +523,7 @@ class TTS():
         )
         ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
         btn.click(self.speak,
-                inputs=[input_files, textbox, TRANSLATE_AUDIO_TO, tts_voice, vc_voice, tts_speed, method, t2s_method, vc_method],
+                inputs=[input_files, textbox, TRANSLATE_AUDIO_TO, tts_voice, custom_voice, vc_voice, tts_speed, method, t2s_method, vc_method],
                 outputs=[files_output, audio_output, logs_output], concurrency_limit=1)
         tts_btn.click(self.tts,
                 inputs=[textbox, textbox, TRANSLATE_AUDIO_TO, tts_voice, tts_speed, textbox, textbox, t2s_method],
@@ -666,6 +673,9 @@ if __name__ == "__main__":
     ## Download model if not exist
     # os.system('/bin/sh update_model.sh')
     ## Initialise app
+    parser = argparse.ArgumentParser(description="VGM TTS")
+    parser.add_argument("-p", "--port", help="port", default=7901)
+    args = parser.parse_args()
     print("Application running on::", sys.platform)
     os.makedirs( CONFIG.os_tmp, exist_ok=True)
     os.system(f'rm -rf { CONFIG.os_tmp}/*')
@@ -676,7 +686,7 @@ if __name__ == "__main__":
     ## Set torch multiprocessing
     mp.set_start_method('spawn', force=True)
     host = "localhost"
-    port = 7901
+    port = int(args.port)
     tts = TTS()
     app = tts.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":

@@ -54,13 +54,12 @@ class XTTS():
   def predict(
       self,
       text,
-      outpath,
       tts_voice,
       tts_speed,
       language,
   ):
       
-      speaker_wav = os.path.join(voice_dir, tts_voice)
+      speaker_wav = tts_voice if os.path.exists(tts_voice) and os.path.isfile(tts_voice) else os.path.join(voice_dir, tts_voice)
       
 
       # if len(text) < 2:
