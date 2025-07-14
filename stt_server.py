@@ -18,6 +18,7 @@ from num2words import num2words
 from speechbrain.inference.text import GraphemeToPhoneme
 from lameenc import Encoder
 from dotenv import load_dotenv
+# from text_to_speech import TTSClient
 import json
 import logging
 # Configure logging
@@ -94,8 +95,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     
 stt_client = Whisper(whisper_model=whisper_model_default, device=device)
 tts_client = STTS()
-
-
+# tts_client1 = TTSClient()
+# tts_client1.init_tts_client("XTTS")
 
 PHONEME_TO_VISEME = {
     # Viseme 0: Silence (not explicitly mapped)
@@ -180,13 +181,14 @@ def convert_numbers_in_text(text):
     result = re.sub(pattern, replace_num, text)
     return result
   
-async def save_upload_file(audio_buffer, filename: str):
+async def save_upload_file(audio_buffer, filename: str, sample_rate: int = 48000, channels: int = 1):
     temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}{Path(filename).suffix}.ogg")
     with open(f"{temp_file}.raw", 'wb') as file:
         file.write(audio_buffer)
-    cmd = f"ffmpeg -f s16le -ac 1 -acodec pcm_s16le -ar 16000 -i {temp_file}.raw {temp_file}"
+    cmd = f"ffmpeg -f s16le -ac {channels} -acodec pcm_s16le -ar {sample_rate} -i {temp_file}.raw {temp_file}"
     os.system(cmd)
     Path(f"{temp_file}.raw").unlink(missing_ok=True)
+    print("stt temp_file::", temp_file)
     return temp_file
 
 # --------------- Route start here ---------------
@@ -217,17 +219,20 @@ async def stt(request: Request, x_audio_metadata: Optional[str] = Header(None)) 
     try:
         # Get the raw audio buffer data
         audio_bytes = await request.body()
-        temp_file = await save_upload_file(audio_buffer=audio_bytes, filename=metadata["filename"])
+        print("stt data::", len(audio_bytes), metadata)
+        temp_file = await save_upload_file(audio_buffer=audio_bytes, filename=metadata["filename"], sample_rate=metadata["sample_rate"], channels=metadata["channels"])
         try:
           stt_result = stt_client.stt(file_path=temp_file, align=False, batch_size=24, chunk_size=24)
           # Process the audio file
           result = "".join([segment["text"] for segment in  stt_result["segments"]])
+          print("stt result::", result)
           return JSONResponse(
               content={"message": "Success", "text": result},
               status_code=200
           )
         finally:
-            Path(temp_file).unlink(missing_ok=True)
+            pass
+            # Path(temp_file).unlink(missing_ok=True)
     except Exception as e:
         print("error::", e)
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
@@ -263,7 +268,7 @@ async def tts(request: TTSRequest) -> Response:
     try:
         try:
             # Process the audio file
-            result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="0", speed=0.8)
+            result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="10", speed=0.9)
             # Normalize and scale if samples are float
             
             if isinstance(result.samples, list) or samples.dtype == np.float32:
@@ -285,14 +290,14 @@ async def tts(request: TTSRequest) -> Response:
             ## Extract visemes
             stt_result = stt_client.stt(file_path=temp_file, align=True, batch_size=24, chunk_size=24)
             stt_result['segments'] = [{'text': segment['text'], 'start': segment['start'], 'end': segment['end'], 'words': [{ 'word': word['word'], 'phonemes': stt_client.g2p(word['word']), 'start': word['start'], 'end': segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end'], 'duration': (segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end']) - word['start']} for (wordIndex, word) in enumerate(segment['words'])] } for segment in stt_result['segments']]
-            logger.info("\nsegment::\n", stt_result['segments'])
+            # logger.info("\nsegment::\n", stt_result['segments'])
             visemes = [
                 {'shape': phoneme, 'duration': round(word['duration']/len(word['phonemes']), 4)}
                 for segment in stt_result['segments']
                 for word in segment['words'] 
                 for phoneme in word['phonemes']
             ]
-            logger.info("\nvisemes::\n", visemes)
+            # logger.info("\nvisemes::\n", visemes)
             metadata = TTSResponseMeta(
                 name=f"{filename}.mp3",
                 sample_rate=result.sample_rate,
@@ -311,7 +316,63 @@ async def tts(request: TTSRequest) -> Response:
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
+
+                
+# @app.post("/tts1")
+# async def tts1(request: TTSRequest) -> Response:
+#     """
+#     Process text and return tts results.
+    
+#     Args:
+#         text: string to tts
+    
+#     Returns:
+#         JSONResponse containing the processing results or error message
+    
+#     Raises:
+#         HTTPException: If any processing fails
+#     """
+#     print("TTS request::", request)
+#     if not request.text:
+#         raise HTTPException(status_code=400, detail="No text received")
+#     filename = request.filename if 'filename' in request else uuid.uuid4()
+#     try:
+#         try:
+#             # Process the audio file
+#             temp_file = os.path.join(TMP_FILE_DIRECTORY, f"{filename}.wav")
+#             logger.info("temp_file::", temp_file)
+#             tts_client1.make_voice_gradio(request.text, "sg_male_han.wav", 1.0, temp_file, "en", "XTTS")
+#             ## Extract visemes
+#             stt_result = stt_client.stt(file_path=temp_file, align=True, batch_size=24, chunk_size=24)
+#             stt_result['segments'] = [{'text': segment['text'], 'start': segment['start'], 'end': segment['end'], 'words': [{ 'word': word['word'], 'phonemes': stt_client.g2p(word['word']), 'start': word['start'], 'end': segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end'], 'duration': (segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end']) - word['start']} for (wordIndex, word) in enumerate(segment['words'])] } for segment in stt_result['segments']]
+#             # logger.info("\nsegment::\n", stt_result['segments'])
+#             visemes = [
+#                 {'shape': phoneme, 'duration': round(word['duration']/len(word['phonemes']), 4)}
+#                 for segment in stt_result['segments']
+#                 for word in segment['words'] 
+#                 for phoneme in word['phonemes']
+#             ]
+#             # logger.info("\nvisemes::\n", visemes)
+#             metadata = TTSResponseMeta(
+#                 name=f"{filename}.wav",
+#                 sample_rate=24000,
+#                 visemes=visemes,
+#                 **request.model_dump()
+#             )
+#             headers = {"X-Audio-Metadata": metadata.model_dump_json()}
+#             return FileResponse(
+#                 path=temp_file,
+#                 filename=f"{filename}.wav",
+#                 media_type=None,  # Let FastAPI guess the content type
+#                 headers=headers
+#             )
+#         except Exception as error:
+#             logger.info("error tts::", error)
+            
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
       
+           
 @app.get("/file")
 async def serve_file(name: Optional[str] = None):
     """
