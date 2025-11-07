@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} 
 RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} -r requirements_tts.txt
 RUN --mount=type=cache,target=${CACHE_DIR} pip install --cache-dir=${CACHE_DIR} -r requirements_extra.txt
 RUN python -m spacy download en_core_web_sm
-RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu121 torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1+cu121
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu121 torch==2.5.1+cu121 torchvision==0.20.1+cu121 torchaudio==2.5.1+cu121
 
 RUN rm -rf /var/cache/apt/*
 

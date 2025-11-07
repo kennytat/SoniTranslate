@@ -33,6 +33,9 @@ load_dotenv()
 total_input = []
 total_output = []
 
+FAULT_TEXT = [
+  "Hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn"
+]
 # Check GPU
 if torch.cuda.is_available():
     device = "cuda"
@@ -80,7 +83,7 @@ LANGUAGES = {
     'Vietnamese (vi)': 'vi',
     'Hindi (hi)': 'hi',
 }
-   
+
   
 class ExitHooks(object):
     def __init__(self):
@@ -127,6 +130,7 @@ class Whisper:
           else:
             audio_bytes = whisperx.load_audio(file_path)
             result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)
+            result["segments"] = [seg for seg in result["segments"] if not any(ft in seg["text"] for ft in FAULT_TEXT)]
           return result
         except Exception as e:
           print('Error stt::', e)
@@ -173,6 +177,9 @@ class STT():
           shutil.make_archive(archive_path, 'zip', tmp_dir)   
           results_list.append(f"{archive_path}.zip")
           total_output.append(f"{archive_path}.zip")
+          copy_output_dir = os.getenv('COPY_OUTPUT_DIR', '')
+          if copy_output_dir and os.path.isdir(copy_output_dir):
+            subprocess.run(["cp", f"{archive_path}.zip", copy_output_dir], capture_output=True, text=True)
           ## Remove tmp files
           shutil.rmtree(tmp_dir, ignore_errors=True)
           os.remove(file_path)

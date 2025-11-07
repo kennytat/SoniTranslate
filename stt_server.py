@@ -231,8 +231,7 @@ async def stt(request: Request, x_audio_metadata: Optional[str] = Header(None)) 
               status_code=200
           )
         finally:
-            pass
-            # Path(temp_file).unlink(missing_ok=True)
+            Path(temp_file).unlink(missing_ok=True)
     except Exception as e:
         print("error::", e)
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
@@ -266,54 +265,53 @@ async def tts(request: TTSRequest) -> Response:
         raise HTTPException(status_code=400, detail="No text received")
     filename = request.filename if 'filename' in request else uuid.uuid4()
     try:
-        try:
-            # Process the audio file
-            result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="10", speed=0.9)
-            # Normalize and scale if samples are float
-            
-            if isinstance(result.samples, list) or samples.dtype == np.float32:
-                samples = np.array(result.samples, dtype=np.float32)
-                samples = (samples * 32767).astype(np.int16)
-            # Initialize MP3 encoder
-            encoder = Encoder()
-            encoder.set_bit_rate(128)  # Set desired bit rate (e.g., 192 kbps)
-            encoder.set_in_sample_rate(result.sample_rate)
-            encoder.set_channels(1 if samples.ndim == 1 else 2)
-            encoder.set_out_sample_rate(result.sample_rate)
-            # Encode samples to MP3
-            mp3_data = encoder.encode(samples.tobytes())
-            mp3_data += encoder.flush()
-            temp_file = os.path.join(TMP_FILE_DIRECTORY, f"{filename}.mp3")
-            with open(temp_file, "wb") as mp3_file:
-              mp3_file.write(mp3_data)
-            
-            ## Extract visemes
-            stt_result = stt_client.stt(file_path=temp_file, align=True, batch_size=24, chunk_size=24)
-            stt_result['segments'] = [{'text': segment['text'], 'start': segment['start'], 'end': segment['end'], 'words': [{ 'word': word['word'], 'phonemes': stt_client.g2p(word['word']), 'start': word['start'], 'end': segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end'], 'duration': (segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end']) - word['start']} for (wordIndex, word) in enumerate(segment['words'])] } for segment in stt_result['segments']]
-            # logger.info("\nsegment::\n", stt_result['segments'])
-            visemes = [
-                {'shape': phoneme, 'duration': round(word['duration']/len(word['phonemes']), 4)}
-                for segment in stt_result['segments']
-                for word in segment['words'] 
-                for phoneme in word['phonemes']
-            ]
-            # logger.info("\nvisemes::\n", visemes)
-            metadata = TTSResponseMeta(
-                name=f"{filename}.mp3",
-                sample_rate=result.sample_rate,
-                visemes=visemes,
-                **request.model_dump()
-            )
-            headers = {"X-Audio-Metadata": metadata.model_dump_json()}
-            return FileResponse(
-                path=temp_file,
-                filename=f"{filename}.mp3",
-                media_type=None,  # Let FastAPI guess the content type
-                headers=headers
-            )
-        except Exception as error:
-            logger.info("error tts::", error)
-            
+        # Process the audio file
+        result = tts_client.predict(text=request.text, outpath="", repo_id=tts_model, sid="10", speed=0.9)
+        # Normalize and scale if samples are float
+        
+        if isinstance(result.samples, list) or samples.dtype == np.float32:
+            samples = np.array(result.samples, dtype=np.float32)
+            samples = (samples * 32767).astype(np.int16)
+        # Initialize MP3 encoder
+        encoder = Encoder()
+        encoder.set_bit_rate(128)  # Set desired bit rate (e.g., 192 kbps)
+        encoder.set_in_sample_rate(result.sample_rate)
+        encoder.set_channels(1 if samples.ndim == 1 else 2)
+        encoder.set_out_sample_rate(result.sample_rate)
+        # Encode samples to MP3
+        mp3_data = encoder.encode(samples.tobytes())
+        mp3_data += encoder.flush()
+        temp_file = os.path.join(TMP_FILE_DIRECTORY, f"{filename}.mp3")
+        with open(temp_file, "wb") as mp3_file:
+          mp3_file.write(mp3_data)
+        
+        ## Extract visemes
+        stt_result = stt_client.stt(file_path=temp_file, align=True, batch_size=24, chunk_size=24)
+        # with open(os.path.join(TMP_FILE_DIRECTORY, f"{filename}_segments.json"), "w", encoding="utf-8") as seg_file:
+        #     import json
+        #     json.dump(stt_result['segments'], seg_file, ensure_ascii=False, indent=2)
+        stt_result['segments'] = [{'text': segment['text'], 'start': segment['start'], 'end': segment['end'], 'words': [{ 'word': word['word'], 'phonemes': stt_client.g2p(word['word']), 'start': word['start'], 'end': segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end'], 'duration': (segment['words'][wordIndex + 1]['start'] if (wordIndex < len(segment['words'])-1) else word['end']) - word['start']} for (wordIndex, word) in enumerate(segment['words'])] } for segment in stt_result['segments']]
+        # logger.info("\nsegment::\n", stt_result['segments'])
+        visemes = [
+            {'shape': phoneme, 'duration': round(word['duration']/len(word['phonemes']), 4), 'start': word['start'] if index == 0 else word['start'] + round(word['duration']/len(word['phonemes']), 4) * index, 'end': word['end'] if index == len(word['phonemes']) - 1 else word['start'] + round(word['duration']/len(word['phonemes']), 4) * (index + 1)}
+            for segment in stt_result['segments']
+            for word in segment['words'] 
+            for index, phoneme in enumerate(word['phonemes'])
+        ]
+        # logger.info("\nvisemes::\n", visemes)
+        metadata = TTSResponseMeta(
+            name=f"{filename}.mp3",
+            sample_rate=result.sample_rate,
+            visemes=visemes,
+            **request.model_dump()
+        )
+        headers = {"X-Audio-Metadata": metadata.model_dump_json()}
+        return FileResponse(
+            path=temp_file,
+            filename=f"{filename}.mp3",
+            media_type=None,  # Let FastAPI guess the content type
+            headers=headers
+        )      
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
 
@@ -428,5 +426,5 @@ if __name__ == "__main__":
     Path(TMP_FILE_DIRECTORY).mkdir(exist_ok=True, parents=True)
     os.system(f"rm -rf {TMP_FILE_DIRECTORY}/*")
     import uvicorn
-    port = os.getenv("PORT", 8008)
+    port = os.getenv("PORT", 8010)
     uvicorn.run(app, host="0.0.0.0", port=port)
