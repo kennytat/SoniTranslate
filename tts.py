@@ -393,7 +393,7 @@ class TTS():
                 output_temp_file, log_temp_file = self.synthesize(output_dir_name, file_path, True, speed, method)
                 results_list.append(output_temp_file)
                 if log_temp_file:
-                  logs_list.append(log_temp_file)
+                    logs_list.append(log_temp_file)
             except:
                 print("Skip error file while synthesizing doc: {}".format(file_path))
       print("[DONE] {} tasks: {}".format(len(results_list), results_list))
