@@ -1,3 +1,4 @@
+mlx; sys_platform == "darwin"
 # TTS
 gradio==4.44.1
 yt_dlp
@@ -18,7 +19,7 @@ nest_asyncio
 ## === xTTS ===
 transformers==4.33.0
 spacy==3.8.0
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl; sys_platform == "linux"
 typing-extensions
 cutlet
 deepspeed
@@ -33,7 +34,8 @@ pinyin
 gTTS
 edge_tts
 piper-tts
-onnxruntime-gpu
+onnxruntime-gpu; sys_platform == "linux"
+onnxruntime-coreml; sys_platform == "darwin"
 TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
 ## === SVC ===
 so-vits-svc-fork==4.2.26

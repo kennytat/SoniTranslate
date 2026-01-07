@@ -21,3 +21,6 @@ aiosqlite
 natsort
 srt
 IPython
+mlx; sys_platform == "darwin"
+numba; sys_platform == "darwin"
+vietnam_number; sys_platform == "darwin"

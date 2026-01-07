@@ -36,18 +36,18 @@ def translate_text(segments, SOURCE_LANGUAGE="", TARGET_LANGUAGE="", t2t_method=
         llm.stop()
         del llm
     
-    ## Last option to check if any non-translated sentences left then using Google translator
-    google_translator = GoogleTranslator(source='auto', target=TARGET_LANGUAGE)
-    for line in tqdm(range(len(segments))):
-      # print("gg_translator::")
-      try:
-        text = segments[line]['text']
-        if text and TARGET_LANGUAGE not in detect(text.strip()):
-          translated_line = google_translator.translate(text.strip())
-          # print("translate_text_in::", TARGET_LANGUAGE, t2t_method,f'{text}\n{translated_line}')
-          segments[line]['text'] = post_process_text(translated_line)
-      except Exception as e:
-        pass
+    # ## Last option to check if any non-translated sentences left then using Google translator
+    # google_translator = GoogleTranslator(source='auto', target=TARGET_LANGUAGE)
+    # for line in tqdm(range(len(segments))):
+    #   # print("gg_translator::")
+    #   try:
+    #     text = segments[line]['text']
+    #     if text and TARGET_LANGUAGE not in detect(text.strip()):
+    #       translated_line = google_translator.translate(text.strip())
+    #       # print("translate_text_in::", TARGET_LANGUAGE, t2t_method,f'{text}\n{translated_line}')
+    #       segments[line]['text'] = post_process_text(translated_line)
+    #   except Exception as e:
+    #     pass
 
     return segments
 
