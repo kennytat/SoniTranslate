@@ -864,7 +864,7 @@ def split_and_join_by_comma(long_string, max_length=200, min_length=50):
     else:
       return [long_string]
 
-def split_segments_by_length(segments, max_length=100):
+def split_segments_by_length(segments, max_length=80):
     """
     Split segments where text length exceeds max_length.
     For each long segment:
@@ -915,6 +915,7 @@ def split_segments_by_length(segments, max_length=100):
 
     # Re-index all segments starting from 1
     [segment.update({'index': index + 1}) for index, segment in enumerate(result_segments)]
+    print(f"split_segments_by_length::: {len(segments)}|{len(result_segments)}")
 
     return result_segments
     

@@ -990,7 +990,8 @@ class Main():
             print("translated segments::", result['segments'])
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
-          segments_to_srt(result['segments'], f'{target_media_output_basename}-split.srt', split_segments=True)
+          srt_segments = srt_to_segments(f'{target_media_output_basename}.srt')
+          segments_to_srt(srt_segments, f'{target_media_output_basename}-split.srt', split_segments=True)
           segments_to_txt(result['segments'], f'{target_media_output_basename}.txt')
           with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as jsonFile:
             jsonFile.write(json.dumps(result['segments']))
