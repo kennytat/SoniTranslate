@@ -194,20 +194,23 @@ def fix_special(text):
   text = text + "." if not text.endswith('.') else text
   return text
 
-def segments_to_srt(segments, output_path):
+def segments_to_srt(segments, output_path, split_segments=False):
   # print("segments_to_srt::", type(segments[0]), segments)
-  segments = [ segment for segment in segments if 'speaker' in segment ]
+  filter_segments = [ segment for segment in segments if 'speaker' in segment ]
+  # INSERT_YOUR_CODE
+  if split_segments:
+      filter_segments = split_segments_by_length(filter_segments)
   shutil.rmtree(output_path, ignore_errors=True)
   def srt_time(str):
     return re.sub(r"\.",",",re.sub(r"0{3}$","",str)) if re.search(r"\.\d{6}", str) else f'{str},000'
   
-  for index, segment in enumerate(segments):
+  for index, segment in enumerate(filter_segments):
       basename, ext = os.path.splitext(output_path)
       startTime = srt_time(str(0)+str(timedelta(seconds=segment['start'])))
       endTime = srt_time(str(0)+str(timedelta(seconds=segment['end'])))
       text = fix_special(str(segment['text']).capitalize())
       segmentId = index+1
-      speaker = segment['speaker'] if 'speaker' in segment else segments[index - 1]['speaker']
+      speaker = segment['speaker'] if 'speaker' in segment else filter_segments[index - 1]['speaker']
       segment = f"{segmentId}\n{startTime} --> {endTime}\n{text[1:] if text and text[0] == ' ' else text}\n\n"
       with open(output_path, 'a', encoding='utf-8') as srtFile:
           srtFile.write(segment)
@@ -836,14 +839,14 @@ def find_most_matching_prefix(path_list, path):
     return matching_prefix
   
 def split_and_join_by_comma(long_string, max_length=200, min_length=50):
-    if ',' in long_string:  
+    if ',' in long_string:
       # Split the string by commas
       parts = long_string.split(',')
-      
+
       # Initialize the result list and a temporary buffer
       result = []
       temp_buffer = ""
-      
+
       for part in parts:
           if len(temp_buffer) + len(part) + 1 <= max_length:
               if temp_buffer:
@@ -853,13 +856,67 @@ def split_and_join_by_comma(long_string, max_length=200, min_length=50):
           else:
               result.append(temp_buffer.strip())
               temp_buffer = part
-      
+
       # Append the remaining buffer if it's not empty
       if temp_buffer:
           result.append(temp_buffer.strip())
       return list(filter(lambda item: item, result))
     else:
       return [long_string]
+
+def split_segments_by_length(segments, max_length=100):
+    """
+    Split segments where text length exceeds max_length.
+    For each long segment:
+    1. Split the text using split_and_join_by_comma()
+    2. Create multiple segments based on split text count
+    3. Split start and end time equally among new segments
+    4. Re-index all segments starting from 1
+
+    Args:
+        segments: List of segment dictionaries with 'text', 'start', 'end' keys
+        max_length: Maximum text length before splitting (default: 150)
+
+    Returns:
+        List of segments with long texts split into multiple segments
+    """
+    result_segments = []
+
+    for segment in segments:
+        text = segment.get('text', '')
+
+        # If text length is within limit, keep segment as is
+        if len(text) <= max_length:
+            result_segments.append(segment)
+            continue
+
+        # Split text using split_and_join_by_comma
+        split_texts = split_and_join_by_comma(text, max_length=max_length)
+        num_splits = len(split_texts)
+
+        # If no actual split occurred, keep original segment
+        if num_splits <= 1:
+            result_segments.append(segment)
+            continue
+
+        # Calculate time duration for each split segment
+        start_time = round(segment.get('start', 0), 3)
+        end_time = round(segment.get('end', 0), 3)
+        total_duration = round(end_time - start_time, 3)
+        duration_per_split = round(total_duration / num_splits, 3)
+
+        # Create new segments with split text and time ranges
+        for i, split_text in enumerate(split_texts):
+            new_segment = segment.copy()
+            new_segment['text'] = split_text
+            new_segment['start'] = round(start_time + (i * duration_per_split), 3)
+            new_segment['end'] = round(start_time + ((i + 1) * duration_per_split), 3)
+            result_segments.append(new_segment)
+
+    # Re-index all segments starting from 1
+    [segment.update({'index': index + 1}) for index, segment in enumerate(result_segments)]
+
+    return result_segments
     
 def segments_to_parquet(segments, output_path):
   segments = [{

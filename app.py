@@ -33,7 +33,7 @@ import tempfile
 from vietTTS.utils import concise_srt
 import sys
 # from vietTTS.upsample import Predictor
-from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES
+from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES, LANGUAGE_CODE_IN_THREE_LETTERS
 from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_media_files, find_most_matching_prefix, youtube_download, get_llm_models, segments_to_parquet
 # from utils.logging_setup import logger
 logging.getLogger("numba").setLevel(logging.WARNING)
@@ -990,6 +990,7 @@ class Main():
             print("translated segments::", result['segments'])
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
+          segments_to_srt(result['segments'], f'{target_media_output_basename}-split.srt', split_segments=True)
           segments_to_txt(result['segments'], f'{target_media_output_basename}.txt')
           with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as jsonFile:
             jsonFile.write(json.dumps(result['segments']))
@@ -1084,7 +1085,11 @@ class Main():
           if result['segments'] and len(result['segments']) > 0:
             # Subtitle file paths
             original_srt = f'{source_media_output_basename}-origin-{self.WHISPER_MODEL_SIZE}.srt'
-            translated_srt = f'{target_media_output_basename}.srt'
+            translated_srt = f'{target_media_output_basename}-split.srt'
+
+            # Convert language codes to 3-letter ISO 639-2 format for FFmpeg metadata
+            target_lang_3 = LANGUAGE_CODE_IN_THREE_LETTERS.get(TRANSLATE_AUDIO_TO, TRANSLATE_AUDIO_TO)
+            source_lang_3 = LANGUAGE_CODE_IN_THREE_LETTERS.get(SOURCE_LANGUAGE, SOURCE_LANGUAGE) if SOURCE_LANGUAGE else "und"
 
             # Build ffmpeg command with separate audio tracks and soft subtitles
             # Input order: video, translated audio, original audio, translated subtitle, original subtitle
@@ -1096,19 +1101,19 @@ class Main():
             if os.path.exists(translated_srt):
                 ffmpeg_cmd += f" -i '{translated_srt}'"
                 srt_map += " -map 3:s"
-                metadata += f" -metadata:s:s:0 language={TRANSLATE_AUDIO_TO} -metadata:s:s:0 title='{TRANSLATE_AUDIO_TO}'"
+                metadata += f" -metadata:s:s:0 language={target_lang_3} -metadata:s:s:0 title='{TRANSLATE_AUDIO_TO}'"
             if os.path.exists(original_srt):
                 input_idx = 4 if os.path.exists(translated_srt) else 3
                 srt_idx = 1 if os.path.exists(translated_srt) else 0
                 ffmpeg_cmd += f" -i '{original_srt}'"
                 srt_map += f" -map {input_idx}:s"
-                metadata += f" -metadata:s:s:{srt_idx} language={SOURCE_LANGUAGE} -metadata:s:s:{srt_idx} title='{SOURCE_LANGUAGE}'"
+                metadata += f" -metadata:s:s:{srt_idx} language={source_lang_3} -metadata:s:s:{srt_idx} title='{SOURCE_LANGUAGE}'"
 
             # Map video, translated audio (first), original audio (second), and subtitles
             ffmpeg_cmd += f" -map 0:v -map 1:a -map 2:a{srt_map}"
             ffmpeg_cmd += f" -c:v copy -c:a aac -c:s mov_text"
-            ffmpeg_cmd += f" -metadata:s:a:0 language={TRANSLATE_AUDIO_TO} -metadata:s:a:0 title='{TRANSLATE_AUDIO_TO}'"
-            ffmpeg_cmd += f" -metadata:s:a:1 language={SOURCE_LANGUAGE} -metadata:s:a:1 title='{SOURCE_LANGUAGE}'"
+            ffmpeg_cmd += f" -metadata:s:a:0 language={target_lang_3} -metadata:s:a:0 title='{TRANSLATE_AUDIO_TO}'"
+            ffmpeg_cmd += f" -metadata:s:a:1 language={source_lang_3} -metadata:s:a:1 title='{SOURCE_LANGUAGE}'"
             ffmpeg_cmd += metadata
             ffmpeg_cmd += f" -shortest '{media_output_path}'"
 
