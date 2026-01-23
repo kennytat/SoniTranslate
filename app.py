@@ -991,8 +991,8 @@ class Main():
           ## Write target segment and srt to file
           segments_to_srt(result['segments'], f'{target_media_output_basename}.srt')
           segments_to_txt(result['segments'], f'{target_media_output_basename}.txt')
-          with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as srtFile:
-            srtFile.write(json.dumps(result['segments']))
+          with open(f'{target_media_output_basename}.json', 'a', encoding='utf-8') as jsonFile:
+            jsonFile.write(json.dumps(result['segments']))
           # ## Sort segments by speaker
           # result['segments'] = sorted(result['segments'], key=lambda x: x['speaker'])
           print("Translation complete")
@@ -1077,27 +1077,42 @@ class Main():
         # print("Transcribe target language complete::", len(result["segments"]),result["segments"])
 
         # 8. Combine final audio and video
-        print("Mixing source and target voices::")
-        progress(0.95, desc="Mixing final video...")
-        os.system(f"rm -rf {mix_audio}")  
-        # TYPE MIX AUDIO
-        if result['segments'] and len(result['segments']) > 0:
-          if self.AUDIO_MIX_METHOD == 'Adjusting volumes and mixing audio':
-              # volume mix
-              os.system(f'ffmpeg -y -i "{audio_mp3}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.15[a];[1:0]volume=1.90[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
-          else:
-              try:
-                  # background mix
-                  os.system(f'ffmpeg -i "{audio_mp3}" -i "{translated_output_file}" -filter_complex "[1:a]asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg]; [bg][mix]amerge[final]" -map [final] "{mix_audio}"')
-              except:
-                  # volume mix except
-                  os.system(f'ffmpeg -y -i "{audio_mp3}" -i "{translated_output_file}" -filter_complex "[0:0]volume=0.25[a];[1:0]volume=1.80[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame "{mix_audio}"')
-
-        print("Mixing target audio and video::")
+        print("Combining video with separate audio tracks and subtitles::")
+        progress(0.95, desc="Creating final video with multi-track audio and subtitles...")
         os.system(f"rm -rf {media_output_path}")
         if is_video:
           if result['segments'] and len(result['segments']) > 0:
-            os.system(f"ffmpeg -i '{OutputFile}' -i '{mix_audio}' -c:v copy -c:a aac -map 0:v -map 1:a -shortest '{media_output_path}'")
+            # Subtitle file paths
+            original_srt = f'{source_media_output_basename}-origin-{self.WHISPER_MODEL_SIZE}.srt'
+            translated_srt = f'{target_media_output_basename}.srt'
+
+            # Build ffmpeg command with separate audio tracks and soft subtitles
+            # Input order: video, translated audio, original audio, translated subtitle, original subtitle
+            ffmpeg_cmd = f"ffmpeg -i '{OutputFile}' -i '{translated_output_file}' -i '{audio_mp3}'"
+
+            # Add subtitle inputs if they exist
+            srt_map = ""
+            metadata = ""
+            if os.path.exists(translated_srt):
+                ffmpeg_cmd += f" -i '{translated_srt}'"
+                srt_map += " -map 3:s"
+                metadata += f" -metadata:s:s:0 language={TRANSLATE_AUDIO_TO} -metadata:s:s:0 title='{TRANSLATE_AUDIO_TO}'"
+            if os.path.exists(original_srt):
+                input_idx = 4 if os.path.exists(translated_srt) else 3
+                srt_idx = 1 if os.path.exists(translated_srt) else 0
+                ffmpeg_cmd += f" -i '{original_srt}'"
+                srt_map += f" -map {input_idx}:s"
+                metadata += f" -metadata:s:s:{srt_idx} language={SOURCE_LANGUAGE} -metadata:s:s:{srt_idx} title='{SOURCE_LANGUAGE}'"
+
+            # Map video, translated audio (first), original audio (second), and subtitles
+            ffmpeg_cmd += f" -map 0:v -map 1:a -map 2:a{srt_map}"
+            ffmpeg_cmd += f" -c:v copy -c:a aac -c:s mov_text"
+            ffmpeg_cmd += f" -metadata:s:a:0 language={TRANSLATE_AUDIO_TO} -metadata:s:a:0 title='{TRANSLATE_AUDIO_TO}'"
+            ffmpeg_cmd += f" -metadata:s:a:1 language={SOURCE_LANGUAGE} -metadata:s:a:1 title='{SOURCE_LANGUAGE}'"
+            ffmpeg_cmd += metadata
+            ffmpeg_cmd += f" -shortest '{media_output_path}'"
+
+            os.system(ffmpeg_cmd)
             os.system(f"rm -rf {translated_output_file} {mix_audio}")
           else:
             os.system(f"cp '{OutputFile}' '{media_output_path}'")
