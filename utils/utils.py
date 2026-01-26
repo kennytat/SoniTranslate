@@ -884,6 +884,7 @@ def split_segments_by_length(segments, max_length=80):
 
     for segment in segments:
         text = segment.get('text', '')
+        text = fix_special(str(text).capitalize())
 
         # If text length is within limit, keep segment as is
         if len(text) <= max_length:
