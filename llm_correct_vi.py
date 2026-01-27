@@ -20,7 +20,7 @@ from requests.exceptions import RequestException
 import threading
 # from langchain import ConversationChain, LLMChain, PromptTemplate
 # from langchain.memory import ConversationBufferWindowMemory
-from langchain.prompts import (
+from langchain_core.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
     MessagesPlaceholder,

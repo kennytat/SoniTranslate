@@ -45,7 +45,6 @@ wget \
 ~/miniconda3/bin/conda init
 conda create -n soni python=3.10.12 -y
 conda activate soni
-git submodule update --init --recursive
 pip install -r requirements_stt.txt --no-cache-dir --resume-retries 10
 pip install -r requirements_tts.txt --no-cache-dir --resume-retries 10
 pip install -r requirements_ttt.txt --no-cache-dir --resume-retries 10

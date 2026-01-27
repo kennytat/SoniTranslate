@@ -17,7 +17,7 @@ from langchain_openai import ChatOpenAI
 import concurrent.futures
 from requests.exceptions import RequestException
 import threading
-from langchain.prompts import (
+from langchain_core.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
     MessagesPlaceholder,

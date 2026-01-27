@@ -16,6 +16,7 @@ else:
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
 from IPython.utils import capture
 import torch
+import torchaudio
 import torch.multiprocessing as mp
 import librosa
 import math
@@ -56,6 +57,22 @@ from utils.tts_utils import piper_tts_voices_list
 from ovc_voice_main import OpenVoice
 from pydub import AudioSegment
 load_dotenv()
+
+# torchaudio 2.0+ compatibility shims
+if not hasattr(torchaudio, 'AudioMetaData'):
+    torchaudio.AudioMetaData = type('AudioMetaData', (), {})
+if not hasattr(torchaudio, 'list_audio_backends'):
+    torchaudio.list_audio_backends = lambda: ['soundfile', 'sox']
+
+# PyTorch 2.6+ defaults torch.load(weights_only=True), which breaks loading
+# Pyannote/WhisperX checkpoints (omegaconf types). Lightning passes weights_only=None
+# so we must force False whenever it's not explicitly False.
+_torch_load_orig = torch.load
+def _torch_load_patched(*args, **kwargs):
+    if kwargs.get("weights_only") is not False:
+        kwargs["weights_only"] = False
+    return _torch_load_orig(*args, **kwargs)
+torch.load = _torch_load_patched
 
 total_input = []
 total_output = []
@@ -1175,7 +1192,7 @@ class Main():
       return gr.update(value="")
          
     def create_ui(self):
-        self.app = gr.Blocks(title="VGM Translate", theme=theme, css=css)
+        self.app = gr.Blocks(title="VGM Translate")
         with self.app:
           with gr.Row():
             with gr.Column():
@@ -1475,7 +1492,7 @@ class Main():
             # with gr.Accordion("Logs", open = False):
             #     logs = gr.Textbox()
             #     self.app.load(read_logs, None, logs, every=1)
-            def update_output_visibility(self):
+            def update_output_visibility():
               return gr.update(label="TRANSLATED VIDEO"),gr.update(visible=False)
             
             # run
@@ -1713,11 +1730,13 @@ if __name__ == "__main__":
     
     mainApp.app.launch(
       auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-      show_api=False,
+      footer_links=["gradio", "settings"],
       debug=True,
       inbrowser=True,
       show_error=True,
       server_name="0.0.0.0",
       server_port=int(args.port),
       # quiet=True,
-      share=False)
+      share=False,
+      theme=theme,
+      css=css)

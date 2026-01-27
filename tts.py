@@ -455,7 +455,7 @@ class TTS():
           with gr.Column():
             gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn", visible=True if os.getenv('ENABLE_AUTH', '') == "true" else False)
         with gr.Tabs():
-            with gr.TabItem("TTS"):
+            with gr.Tab("TTS"):
                 with gr.Row():
                     with gr.Column():
                         input_files = gr.Files(label="Upload .doc|.docx|.txt|.srt file(s)", file_types=[".doc", ".docx", ".txt", ".srt"])
@@ -481,10 +481,10 @@ class TTS():
                         audio_output = gr.Audio(label="Text Audio Output", elem_id="tts-audio")
                         logs_output = gr.Files(label="Error Audio Logs")
                         with gr.Row():
-                          clear_btn = gr.ClearButton([input_files,textbox,files_output,audio_output,logs_output], value="Refresh")
+                          clear_btn = gr.ClearButton(components=[input_files, textbox, files_output, audio_output, logs_output], value="Refresh")
                           btn = gr.Button(value="Generate!", variant="primary")
                           tts_btn = gr.Button(value="TTS!", variant="primary", visible=False)
-            with gr.TabItem("Settings"):
+            with gr.Tab("Settings"):
                 with gr.Column():
                   with gr.Accordion("T2S - VC Method", open=False):
                     with gr.Row():
@@ -698,7 +698,7 @@ if __name__ == "__main__":
       auth_pass = os.getenv('AUTH_PASS', '')
       app.launch(
         auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-        show_api=True,
+        footer_links=["api", "gradio", "settings"],
         debug=False,
         inbrowser=True,
         show_error=True,

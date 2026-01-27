@@ -9,6 +9,24 @@ import shutil
 import tempfile
 import gradio as gr
 import torch
+import torchaudio
+
+# torchaudio 2.0+ compatibility shims
+if not hasattr(torchaudio, 'AudioMetaData'):
+    torchaudio.AudioMetaData = type('AudioMetaData', (), {})
+if not hasattr(torchaudio, 'list_audio_backends'):
+    torchaudio.list_audio_backends = lambda: ['soundfile', 'sox']
+
+# PyTorch 2.6+ defaults torch.load(weights_only=True), which breaks loading
+# Pyannote/WhisperX checkpoints (omegaconf types). Lightning passes weights_only=None
+# so we must force False whenever it's not explicitly False.
+_torch_load_orig = torch.load
+def _torch_load_patched(*args, **kwargs):
+    if kwargs.get("weights_only") is not False:
+        kwargs["weights_only"] = False
+    return _torch_load_orig(*args, **kwargs)
+torch.load = _torch_load_patched
+
 from fastapi import FastAPI, HTTPException, Form, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -205,7 +223,8 @@ class STT():
       output_dir_path = os.path.join(CONFIG.os_tmp, output_dir_name)
       Path(output_dir_path).mkdir(parents=True, exist_ok=True)
       print("stt called::",   input_files, whisper_model, LANGUAGE, batch_size, chunk_size)
-      file_list = [f.name for f in input_files]
+      input_files = input_files or []
+      file_list = [getattr(f, "name", f) if not isinstance(f, str) else f for f in input_files]
       results_list = []
       LANGUAGE = LANGUAGES[LANGUAGE]
       print("Start transcribing source language::")
@@ -267,7 +286,7 @@ class STT():
             with gr.Column():
               gr.Button("Logout", link="/logout", size="sm", icon=None, elem_id="logout_btn")
         with gr.Tabs():
-            with gr.TabItem("STT"):
+            with gr.Tab("STT"):
                 with gr.Row():
                     with gr.Column():
                         input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
@@ -278,8 +297,8 @@ class STT():
                           WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'base.en', 'small','small.en', 'medium', 'medium.en', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                           LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
                         with gr.Row():
-                          batch_size = gr.Slider(1, 32, value=16, label="Batch size", step=1, scale=1)
-                          chunk_size = gr.Slider(2, 30, value=24, label="Chunk size", step=1, scale=1)
+                          batch_size = gr.Slider(minimum=1, maximum=32, value=16, label="Batch size", step=1, scale=1)
+                          chunk_size = gr.Slider(minimum=2, maximum=30, value=24, label="Chunk size", step=1, scale=1)
                     with gr.Column():
                         def update_output_list():
                           global total_input
@@ -297,7 +316,7 @@ class STT():
                             total_input = []
                             total_output = []
                             return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="Audio Files Output", visible=True)
-                          clear_btn = gr.ClearButton([input_files,files_output])
+                          clear_btn = gr.ClearButton(components=[input_files, files_output])
                           clear_btn.click(reset_param,[],[files_output,tmp_output])
                           def update_output_visibility():
                             return gr.update(label="Audio Files Output"),gr.update(visible=False)
@@ -323,8 +342,7 @@ def cleanup_tmp():
       print("atexit call:: natural death")
       print("closing app:: cleanup_tmp")
       if os.path.exists( CONFIG.os_tmp): shutil.rmtree( CONFIG.os_tmp)
-      if sys._MEIPASS2 and os.path.exists(sys._MEIPASS2): shutil.rmtree(sys._MEIPASS2)
-  sys.exit()
+      if hasattr(sys, '_MEIPASS2') and sys._MEIPASS2 and os.path.exists(sys._MEIPASS2): shutil.rmtree(sys._MEIPASS2)
 
 
 
@@ -456,7 +474,7 @@ if __name__ == "__main__":
       auth_pass = os.getenv('AUTH_PASS', '')
       app.launch(
         auth=(auth_user, auth_pass) if auth_user != '' and auth_pass != '' else None,
-        show_api=False,
+        footer_links=["gradio", "settings"],
         debug=False,
         inbrowser=True,
         show_error=True,

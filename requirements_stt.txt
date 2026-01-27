@@ -1,7 +1,5 @@
-whisperx==3.3.2
---extra-index-url https://download.pytorch.org/whl/cu121 torch==2.4.1+cu121 torchvision==0.19.1+cu121 torchaudio==2.4.1+cu121
-numpy==1.26.4
-gradio==4.44.1
+whisperx==3.7.4
+gradio==6.4.0
 yt-dlp
 python-dotenv
 ffmpeg-python
@@ -10,9 +8,9 @@ jmespath
 babel
 colorama
 ## === FastAPI ===
-fastapi==0.111.1
-pandas==1.5.3
-pydantic==2.10.6
+fastapi
+pandas
+pydantic
 starlette
 asyncio
 passlib

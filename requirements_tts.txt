@@ -1,6 +1,6 @@
 mlx; sys_platform == "darwin"
 # TTS
-gradio==4.44.1
+gradio==6.4.0
 yt_dlp
 rarfile
 ffmpeg-python
@@ -18,9 +18,12 @@ vietnam_number
 nest_asyncio
 ## === xTTS ===
 transformers==4.33.0
+huggingface-hub==0.33.5
 spacy==3.8.0
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl; sys_platform == "linux"
+TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
 typing-extensions
+torchcodec
 cutlet
 deepspeed
 pinyin
@@ -36,18 +39,16 @@ edge_tts
 piper-tts
 onnxruntime-gpu; sys_platform == "linux"
 onnxruntime-coreml; sys_platform == "darwin"
-TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
-## === SVC ===
-so-vits-svc-fork==4.2.26
 ## === RVC ===
 praat-parselmouth>=0.4.3
 pyworld==0.3.2
 faiss-cpu==1.7.3
 torchcrepe
+
 gdown
 antlr4-python3-runtime==4.8
 ## === Open voice ===
-librosa==0.10.0
+librosa==0.11.0
 pydub
 wavmark
 numpy==1.26.4
@@ -60,12 +61,11 @@ pypinyin
 cn2an
 jieba
 langid
-huggingface-hub
 ## === Audio Upsampling ===
 # audiosr
 # cog
 ## === FastAPI ===
-fastapi==0.111.1
+fastapi
 starlette
 asyncio
 passlib
