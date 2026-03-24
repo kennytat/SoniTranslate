@@ -157,7 +157,29 @@ def select_zip_and_rar_files(directory_path="downloads/"):
 def new_dir_now():
     now = datetime.now() # current date and time
     date_time = now.strftime("%Y%m%d%H%M")
-    return date_time  
+    return date_time
+
+
+def _n2w_ascii_digits(s: str) -> str:
+  """Convert a span of ASCII digits to Vietnamese words.
+
+  Older vietnam_number builds unpack three parts in n2w_hundreds for every length,
+  which raises ValueError for two-digit inputs. Padding to three digits and stripping
+  the leading hundred phrase matches fixed-library output (e.g. 26 → hai mươi sáu).
+  """
+  if not s.isdigit():
+    return s
+  try:
+    return n2w(s)
+  except ValueError:
+    if len(s) >= 3:
+      raise
+    w = n2w(s.zfill(3))
+    if w.startswith("không trăm lẽ "):
+      w = w[len("không trăm lẽ ") :].lstrip()
+    elif w.startswith("không trăm "):
+      w = w[len("không trăm ") :].lstrip()
+    return w
 
 def num_to_str(text):
   try:
@@ -170,17 +192,20 @@ def num_to_str(text):
         # Detect word is number
         match = re.search(pattern='(\d[\d*\—\-\–\“\”\’\‘\!\@\#\$\%\^\&\*\(\)\_\=\+\(\)\[\]\{\}\;\:\"\'\,\.\<\>\/\?\\\|\`\~]*)', string=word)
         if match:
-            num = re.findall(r'\d+', match[1])
-            to_be_replaced = match[1]
+            # Use ASCII digits only: Python's \d matches Unicode digits; vietnam_number.n2w
+            # rejects non-ASCII (raises ValueError). macOS copy/paste often yields fullwidth etc.
+            num = re.findall(r"[0-9]+", match.group(1))
+            to_be_replaced = match.group(1)
             for i in num:
-              to_be_replaced = to_be_replaced.replace(i, n2w(i))
+              to_be_replaced = to_be_replaced.replace(i, _n2w_ascii_digits(i))
               to_be_replaced = to_be_replaced.replace("không trăm", "") if to_be_replaced.endswith("không trăm") else to_be_replaced
               to_be_replaced = to_be_replaced.replace("nghìn", "ngàn")
-            words[index] = word.replace((match[1]), to_be_replaced)
+            words[index] = word.replace(match.group(1), to_be_replaced)
     w = " ".join(words).strip()
     return w
-  except:
-    print("num_to_str error:::")
+  except Exception:
+    logger.exception("num_to_str error")
+    return text
     
 def fix_special(text):
   # verse = TTSnorm(verse)
