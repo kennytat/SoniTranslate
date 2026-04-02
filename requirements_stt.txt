@@ -1,4 +1,7 @@
+torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
 whisperx==3.7.4
+# Same constraint as requirements_tts.txt if using one conda env (TTS xTTS breaks on transformers v5).
+transformers>=4.48.0,<5
 gradio==6.4.0
 yt-dlp
 python-dotenv
@@ -23,3 +26,5 @@ IPython
 mlx; sys_platform == "darwin"
 numba; sys_platform == "darwin"
 vietnam_number; sys_platform == "darwin"
+thinc==8.3.11
+spacy==3.8.11
