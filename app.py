@@ -1,61 +1,77 @@
-from dotenv import load_dotenv
 import argparse
-import subprocess
 import json
-import yt_dlp
-from pathlib import Path,PureWindowsPath, PurePosixPath
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath, PureWindowsPath
+
+import gradio as gr
 import joblib
+import yt_dlp
+from dotenv import load_dotenv
 from joblib import Parallel, delayed
 from natsort import natsorted
-import gradio as gr
-import sys
+
 if sys.platform == "darwin":
     import whisper_mlx as whisperx
 else:
     import whisperx
-from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT, DEFAULT_ALIGN_MODELS_HF as DAMHF
-from IPython.utils import capture
-import torch
-import torchaudio
-import torch.multiprocessing as mp
-import librosa
-import math
+
 import gc
-import re
-from tqdm import tqdm
+import logging
+import math
 import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+
+import librosa
+import torch
+import torch.multiprocessing as mp
+import torchaudio
+from IPython.utils import capture
+from tqdm import tqdm
+from whisperx.alignment import DEFAULT_ALIGN_MODELS_HF as DAMHF
+from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT
+
 from audio_segments import create_translated_audio
 from text_to_speech import TTSClient, voice_conversion
-from translate_segments import translate_text, grammar_correction
-import time
-import shutil
-import logging
-import tempfile
-from vietTTS.utils import concise_srt
-import sys
+from translate_segments import grammar_correction, translate_text
 # from vietTTS.upsample import Predictor
-from utils.language_configuration import LANGUAGES, EXTRA_ALIGN, INVERTED_LANGUAGES, LANGUAGE_CODE_IN_THREE_LETTERS
-from utils.utils import new_dir_now, segments_to_srt, srt_to_segments, segments_to_txt, is_video_file, is_audio_file, is_windows_path, convert_to_wsl_path, find_all_media_files, find_most_matching_prefix, youtube_download, get_llm_models, segments_to_parquet
+from utils.language_configuration import (EXTRA_ALIGN, INVERTED_LANGUAGES,
+                                          LANGUAGE_CODE_IN_THREE_LETTERS,
+                                          LANGUAGES)
+from utils.utils import (convert_to_wsl_path, find_all_media_files,
+                         find_most_matching_prefix, get_llm_models,
+                         is_audio_file, is_video_file, is_windows_path,
+                         new_dir_now, segments_to_parquet, segments_to_srt,
+                         segments_to_txt, srt_to_segments, youtube_download)
+from vietTTS.utils import concise_srt
+
 # from utils.logging_setup import logger
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("markdown_it").setLevel(logging.WARNING)
-from fastapi import FastAPI, HTTPException, Form, Request, Depends
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from starlette.responses import RedirectResponse
-from starlette.middleware.sessions import SessionMiddleware
 import asyncio
 import sqlite3
-from passlib.hash import bcrypt
-import uvicorn
-from itsdangerous import URLSafeSerializer
+
 import aiosqlite
+import uvicorn
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from itsdangerous import URLSafeSerializer
+from passlib.hash import bcrypt
+from pydub import AudioSegment
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import RedirectResponse
+
+from ovc_voice_main import OpenVoice
 from spell_check import SpellCheck
 from utils.tts_utils import piper_tts_voices_list
-from ovc_voice_main import OpenVoice
-from pydub import AudioSegment
+
 load_dotenv()
 
 # torchaudio 2.0+ compatibility shims
@@ -330,6 +346,7 @@ f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
 # rvc_voices = RVCClassVoices()
 
 from svc_voice_main import SVCClassVoices
+
 svc_voices = SVCClassVoices()
 
 # Function to save settings to a JSON file
@@ -1128,11 +1145,14 @@ class Main():
 
             # Map video, translated audio (first), original audio (second), and subtitles
             ffmpeg_cmd += f" -map 0:v -map 1:a -map 2:a{srt_map}"
-            ffmpeg_cmd += f" -c:v copy -c:a aac -c:s mov_text"
+            ffmpeg_cmd += f" -c:v copy -c:a:0 aac -ac:a:0 2 -c:a:1 aac -c:s mov_text"
             ffmpeg_cmd += f" -metadata:s:a:0 language={target_lang_3} -metadata:s:a:0 title='{TRANSLATE_AUDIO_TO}'"
-            ffmpeg_cmd += f" -metadata:s:a:1 language={source_lang_3} -metadata:s:a:1 title='{SOURCE_LANGUAGE}'"
+            # ffmpeg_cmd += f" -metadata:s:a:1 language={source_lang_3} -metadata:s:a:1 title='{SOURCE_LANGUAGE}'"
+            ffmpeg_cmd += f" -metadata:s:a:1 language=unk -metadata:s:a:1 title='Unknown'"
             ffmpeg_cmd += metadata
+            ffmpeg_cmd += f" -disposition:a:0 default -disposition:a:1 0"
             ffmpeg_cmd += f" -shortest '{media_output_path}'"
+
 
             os.system(ffmpeg_cmd)
             os.system(f"rm -rf {translated_output_file} {mix_audio}")
