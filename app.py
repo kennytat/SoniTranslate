@@ -1112,8 +1112,8 @@ class Main():
         # print("Transcribe target language complete::", len(result["segments"]),result["segments"])
 
         # 8. Combine final audio and video
-        print("Combining video with separate audio tracks and subtitles::")
-        progress(0.95, desc="Creating final video with multi-track audio and subtitles...")
+        print("Combining video with translated audio and subtitles::")
+        progress(0.95, desc="Creating final video with translated audio and subtitles...")
         os.system(f"rm -rf {media_output_path}")
         if is_video:
           if result['segments'] and len(result['segments']) > 0:
@@ -1125,32 +1125,27 @@ class Main():
             target_lang_3 = LANGUAGE_CODE_IN_THREE_LETTERS.get(TRANSLATE_AUDIO_TO, TRANSLATE_AUDIO_TO)
             source_lang_3 = LANGUAGE_CODE_IN_THREE_LETTERS.get(SOURCE_LANGUAGE, SOURCE_LANGUAGE) if SOURCE_LANGUAGE else "und"
 
-            # Build ffmpeg command with separate audio tracks and soft subtitles
-            # Input order: video, translated audio, original audio, translated subtitle, original subtitle
-            ffmpeg_cmd = f"ffmpeg -i '{OutputFile}' -i '{translated_output_file}' -i '{audio_mp3}'"
+            # Input order: video, translated audio, translated subtitle (optional), original subtitle (optional)
+            ffmpeg_cmd = f"ffmpeg -i '{OutputFile}' -i '{translated_output_file}'"
 
             # Add subtitle inputs if they exist
             srt_map = ""
             metadata = ""
             if os.path.exists(translated_srt):
                 ffmpeg_cmd += f" -i '{translated_srt}'"
-                srt_map += " -map 3:s"
+                srt_map += " -map 2:s"
                 metadata += f" -metadata:s:s:0 language={target_lang_3} -metadata:s:s:0 title='{TRANSLATE_AUDIO_TO}'"
             if os.path.exists(original_srt):
-                input_idx = 4 if os.path.exists(translated_srt) else 3
+                input_idx = 3 if os.path.exists(translated_srt) else 2
                 srt_idx = 1 if os.path.exists(translated_srt) else 0
                 ffmpeg_cmd += f" -i '{original_srt}'"
                 srt_map += f" -map {input_idx}:s"
                 metadata += f" -metadata:s:s:{srt_idx} language={source_lang_3} -metadata:s:s:{srt_idx} title='{SOURCE_LANGUAGE}'"
 
-            # Map video, translated audio (first), original audio (second), and subtitles
-            ffmpeg_cmd += f" -map 0:v -map 1:a -map 2:a{srt_map}"
-            ffmpeg_cmd += f" -c:v copy -c:a:0 aac -ac:a:0 2 -c:a:1 aac -c:s mov_text"
+            ffmpeg_cmd += f" -map 0:v -map 1:a{srt_map}"
+            ffmpeg_cmd += f" -c:v copy -c:a aac -ac 2 -c:s mov_text"
             ffmpeg_cmd += f" -metadata:s:a:0 language={target_lang_3} -metadata:s:a:0 title='{TRANSLATE_AUDIO_TO}'"
-            # ffmpeg_cmd += f" -metadata:s:a:1 language={source_lang_3} -metadata:s:a:1 title='{SOURCE_LANGUAGE}'"
-            ffmpeg_cmd += f" -metadata:s:a:1 language=unk -metadata:s:a:1 title='Unknown'"
             ffmpeg_cmd += metadata
-            ffmpeg_cmd += f" -disposition:a:0 default -disposition:a:1 0"
             ffmpeg_cmd += f" -shortest '{media_output_path}'"
 
 

@@ -17,8 +17,8 @@ cryptography
 vietnam_number
 nest_asyncio
 ## === xTTS ===
-# With whisperx in the same env: MUST stay on transformers 4.x. v5 removes BeamSearchScorer
-# (Coqui TTS xtts stream_generator). whisperx 3.7.x needs transformers>=4.48.0.
+# Stay on transformers 4.x until Coqui TTS supports v5. whisperx 3.7.x needs transformers>=4.48.0.
+# 4.57+ drops top-level BeamSearchScorer; utils/transformers_coqui_shim.py patches that for Coqui TTS.
 transformers>=4.48.0,<5
 huggingface-hub==0.33.5
 spacy==3.8.11

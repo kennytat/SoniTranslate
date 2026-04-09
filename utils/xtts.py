@@ -7,6 +7,8 @@ import torchaudio
 import librosa
 import gc
 from pydub import AudioSegment
+
+import utils.transformers_coqui_shim  # noqa: F401 — before Coqui TTS (BeamSearchScorer)
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 import pinyin
