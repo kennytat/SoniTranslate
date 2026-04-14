@@ -235,7 +235,7 @@ function() {
     tts_voice03,
     tts_speed03 || 1,
     vc_voice03,
-    tts_voice04 || 1,
+    tts_voice04,
     tts_speed04,
     vc_voice04,
     tts_voice05,

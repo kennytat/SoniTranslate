@@ -9,8 +9,19 @@ import gc
 from pydub import AudioSegment
 
 import utils.transformers_coqui_shim  # noqa: F401 — before Coqui TTS (BeamSearchScorer)
-from TTS.tts.configs.xtts_config import XttsConfig
-from TTS.tts.models.xtts import Xtts
+try:
+    from TTS.tts.configs.xtts_config import XttsConfig
+    from TTS.tts.models.xtts import Xtts
+except ImportError as exc:
+    if "BeamSearchScorer" not in str(exc):
+        raise
+    # Fallback for environments where Coqui is imported before the shim takes effect.
+    import transformers
+    from transformers.generation.beam_search import BeamSearchScorer
+
+    transformers.BeamSearchScorer = BeamSearchScorer
+    from TTS.tts.configs.xtts_config import XttsConfig
+    from TTS.tts.models.xtts import Xtts
 import pinyin
 import math
 import numpy as np
