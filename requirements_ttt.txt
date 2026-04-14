@@ -21,3 +21,4 @@ langchain_community
 langchain-openai
 ## === Spell check ===
 neuspell
+gdown
