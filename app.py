@@ -311,13 +311,64 @@ Tip: You can use `Test RVC` to experiment and find the best TTS or configuration
 
 """
 
+# --- STT defaults (Whisper / faster-whisper): FP16 probe + VRAM-aware model size ---
+
+
+def _cuda_vram_free_total():
+    """(free_bytes, total_bytes) for CUDA device 0; falls back to total-only if mem_get_info fails."""
+    try:
+        free_b, total_b = torch.cuda.mem_get_info()
+        return int(free_b), int(total_b)
+    except Exception:
+        t = int(torch.cuda.get_device_properties(0).total_memory)
+        return t, t
+
+
+def _cuda_float16_ops_ok():
+    """True if FP16 runs on device 0; synchronize so failures are not missed asynchronously."""
+    try:
+        with torch.cuda.device(0):
+            x = torch.ones(1, dtype=torch.float16, device="cuda")
+            y = x * x
+            torch.cuda.synchronize()
+            _ = y.item()
+        return True
+    except Exception:
+        return False
+
+
+# Total VRAM at or below this (bytes) is treated as 6GB-class → default Whisper to "small".
+_WHISPER_TOTAL_MAX_FOR_SMALL_DEFAULT = 7 * 1024**3  # ≤7 GiB covers typical 6GB cards; 8GB stays above
+# Min *free* VRAM to default the Whisper dropdown to large-v3 (prior code used ~9 GB total for FP16).
+_WHISPER_LARGE_V3_MIN_FREE_FP16 = 9_000_000_000
+# float32 roughly doubles weight RAM vs FP16; require more free VRAM before defaulting to large-v3.
+_WHISPER_LARGE_V3_MIN_FREE_FP32 = 12_000_000_000
+
+
+def _default_whisper_model_cuda(compute_type, free_vram_b, total_vram_b):
+    if total_vram_b <= _WHISPER_TOTAL_MAX_FOR_SMALL_DEFAULT:
+        return "small"
+    need = (
+        _WHISPER_LARGE_V3_MIN_FREE_FP32
+        if compute_type == "float32"
+        else _WHISPER_LARGE_V3_MIN_FREE_FP16
+    )
+    return "large-v3" if free_vram_b >= need else "medium"
+
+
 # Check GPU
 if torch.cuda.is_available():
     device = "cuda"
     list_compute_type = ['float16', 'float32']
     compute_type_default = 'float16'
-    CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory)
-    whisper_model_default = 'large-v3' if CUDA_MEM > 9000000000 else 'medium'
+    if not _cuda_float16_ops_ok():
+        compute_type_default = 'float32'
+        list_compute_type = ['float32']
+    free_vram_b, total_vram_b = _cuda_vram_free_total()
+    CUDA_MEM = total_vram_b
+    whisper_model_default = _default_whisper_model_cuda(
+        compute_type_default, free_vram_b, total_vram_b
+    )
 elif torch.backends.mps.is_available():
     device = "mps"
     list_compute_type = ['float32']
