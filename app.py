@@ -1751,6 +1751,7 @@ if __name__ == "__main__":
       show_error=True,
       server_name="0.0.0.0",
       server_port=int(args.port),
+			allowed_paths=["/mnt"],
       # quiet=True,
       share=False,
       theme=theme,
