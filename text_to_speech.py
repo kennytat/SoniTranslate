@@ -5,6 +5,7 @@ import edge_tts
 import asyncio
 # import nest_asyncio
 from vietTTS.vietTTS import normalize, VietTTS
+from utils.gpu_tts_pool import GpuJobSlot, is_cuda_oom, release_cuda
 from utils.tts_utils import piper_tts
 from utils.xtts import XTTS
 from utils.utils import split_and_join_by_comma, num_to_str
@@ -16,13 +17,24 @@ from ovc_voice_main import OpenVoice
 from pathlib import Path
 from pydub import AudioSegment
 import numpy as np
+
 class TTSClient():
   def __init__(self):
     self.tts_client = None
     self.current_tts_client = None
 
+  def release(self):
+    if self.tts_client is not None and hasattr(self.tts_client, "release"):
+      self.tts_client.release()
+    self.tts_client = None
+    self.current_tts_client = None
+    gc.collect()
+    if torch.cuda.is_available():
+      torch.cuda.empty_cache()
+
   def init_tts_client(self, client):
     if self.current_tts_client != client:
+      self.release()
       self.current_tts_client = client
       match client:
         case "VietTTS":
@@ -55,44 +67,44 @@ class TTSClient():
           tts_text = normalize(tts_text)
           tts_text = num_to_str(tts_text)
 
-        if t2s_method == "GTTS" and self.tts_client and self.tts_client == t2s_method: 
-          audio = gTTS(tts_text, lang=language)
-          if filename:
-            audio.save(filename)
-            sound = AudioSegment.from_mp3(filename)
-            sound.export(filename, format="wav")
-            return filename
-          else:
+        with GpuJobSlot(t2s_method):
+          if t2s_method == "GTTS" and self.tts_client and self.tts_client == t2s_method:
+            audio = gTTS(tts_text, lang=language)
+            if filename:
+              audio.save(filename)
+              sound = AudioSegment.from_mp3(filename)
+              sound.export(filename, format="wav")
+              return filename
             audio_bytes = b''.join(audio.stream())
             return (24000, np.frombuffer(audio_bytes, dtype=np.int16))
-        if t2s_method == "PiperTTS" and self.tts_client and self.tts_client == t2s_method:
-          audio = piper_tts(tts_text, tts_voice, tts_speed)
-          if filename:
-            audio.export(filename)
-            return filename
-          else:
+          if t2s_method == "PiperTTS" and self.tts_client and self.tts_client == t2s_method:
+            audio = piper_tts(tts_text, tts_voice, tts_speed)
+            if filename:
+              audio.export(filename)
+              return filename
             return (audio.frame_rate, np.array(audio.get_array_of_samples()))
-        if t2s_method == "VietTTS" and language == "vi" and self.tts_client and self.tts_client.name == t2s_method:
-          print("vietTTS::")
-          audio = self.tts_client.text_to_speech(tts_text, tts_voice, tts_speed if tts_speed else 1)
-          if filename:
-            audio.export(filename, format="wav")
-            return filename
-          else:
+          if t2s_method == "VietTTS" and language == "vi" and self.tts_client and self.tts_client.name == t2s_method:
+            print("vietTTS::")
+            audio = self.tts_client.text_to_speech(tts_text, tts_voice, tts_speed if tts_speed else 1)
+            if filename:
+              audio.export(filename, format="wav")
+              return filename
             return (audio.frame_rate, np.array(audio.get_array_of_samples()))
-        if t2s_method == "XTTS" and self.tts_client and self.tts_client.name == t2s_method:
-          print("xTTS::")
-          if len(tts_text) > 250 and "," in tts_text:
-            audio = self.split_long_speech(tts_text, tts_voice, tts_speed, language, t2s_method, 200)
-          else:
-            audio = self.tts_client.text_to_speech(tts_text, tts_voice, tts_speed, language)
-          if filename:
-            audio.export(filename, format="wav")
-            return filename
-          else:
+          if t2s_method == "XTTS" and self.tts_client and self.tts_client.name == t2s_method:
+            print("xTTS::")
+            if len(tts_text) > 250 and "," in tts_text:
+              audio = self.split_long_speech(tts_text, tts_voice, tts_speed, language, t2s_method, 200)
+            else:
+              audio = self.tts_client.text_to_speech(tts_text, tts_voice, tts_speed, language)
+            if filename:
+              audio.export(filename, format="wav")
+              return filename
             return (audio.frame_rate, np.array(audio.get_array_of_samples()))
       except Exception as error:
         print("tts error:", error, tts_text)
+        release_cuda()
+        if is_cuda_oom(error):
+          raise
       return None
   
 def start_svc_voice(input_path, vc_voice):

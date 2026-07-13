@@ -50,6 +50,17 @@ class XTTS():
     self.sample_rate = 24000
     if torch.cuda.is_available():
         self.MODEL.cuda()
+
+  def release(self):
+    if getattr(self, "MODEL", None) is not None:
+      if torch.cuda.is_available():
+        self.MODEL.cpu()
+      del self.MODEL
+      self.MODEL = None
+    gc.collect()
+    if torch.cuda.is_available():
+      torch.cuda.empty_cache()
+
   def calculate_keep_len(self, text, lang):
       """Simple hack for short sentences"""
       if lang in ["ja", "zh-cn"]:

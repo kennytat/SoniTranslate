@@ -1,53 +1,61 @@
-from dotenv import load_dotenv
-import os
-import sys
+import argparse
+import atexit
 import gc
 import glob
-from natsort import natsorted
-from pathlib import Path
-import atexit
-from datetime import datetime
-import argparse
-import shutil
-import tempfile
-import librosa
 import math
-import torch  # isort:skip
+import os
+import shutil
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+import librosa
 import torch.multiprocessing as mp
+from dotenv import load_dotenv
+from natsort import natsorted
+
+import torch  # isort:skip
 torch.manual_seed(42)
-import soundfile as sf
+import asyncio
 import json
 import re
+import sqlite3
 import unicodedata
-from types import SimpleNamespace
-import joblib
-from joblib import Parallel, delayed
-from tqdm import tqdm
-from pydub import AudioSegment
 from queue import Queue
+from types import SimpleNamespace
+
+import aiosqlite
 import gradio as gr
+import joblib
+import nltk
 import numpy as np
 import regex
-from vietTTS.models import DurationNet, SynthesizerTrn
-from vietTTS.utils import normalize, num_to_str, read_number, pad_zero, encode_filename, new_dir_now, file_to_paragraph, txt_to_paragraph, combine_wav_segment
-# from vietTTS.upsample import Predictor
-from fastapi import FastAPI, HTTPException, Form, Request, Depends
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from starlette.responses import RedirectResponse
-from starlette.middleware.sessions import SessionMiddleware
-import asyncio
-import sqlite3
-from passlib.hash import bcrypt
+import soundfile as sf
 import uvicorn
+# from vietTTS.upsample import Predictor
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeSerializer
-import aiosqlite
-from text_to_speech import TTSClient, voice_conversion
-from utils.tts_utils import piper_tts_voices_list
-from utils.language_configuration import LANGUAGES
+from joblib import Parallel, delayed
+from passlib.hash import bcrypt
+from pydub import AudioSegment
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import RedirectResponse
+from tqdm import tqdm
+
 from ovc_voice_main import OpenVoice
-import nltk
+from text_to_speech import TTSClient, voice_conversion
+from utils.gpu_tts_pool import compute_max_workers, is_cuda_oom, release_cuda, run_parallel_with_retry
+from utils.language_configuration import LANGUAGES
+from utils.tts_utils import piper_tts_voices_list
+from vietTTS.models import DurationNet, SynthesizerTrn
+from vietTTS.utils import (combine_wav_segment, encode_filename,
+                           file_to_paragraph, new_dir_now, normalize,
+                           num_to_str, pad_zero, read_number, txt_to_paragraph)
+
 nltk.data.path.append("model/nltk")
 load_dotenv()
 
@@ -110,6 +118,8 @@ def load_settings(filename='user_settings.json'):
         return {}
 
 user_settings=load_settings()
+
+_tts_instance = None
 
 def get_tts_list(method, language):
   print("method::", method, language)
@@ -192,7 +202,6 @@ class TTS():
   def tts(self, text, output_file, TRANSLATE_AUDIO_TO, tts_voice, speed, desired_duration, start_time, t2s_method):
       try:
         print("Starting TTS {}".format(output_file), desired_duration, start_time)
-        self.tts_client.init_tts_client(t2s_method)
         TRANSLATE_AUDIO_TO = LANGUAGES[TRANSLATE_AUDIO_TO]
         if tts_voice == "custom" and self.custom_voice:
           tts_voice = self.custom_voice
@@ -229,6 +238,9 @@ class TTS():
           return WavStruct(output_file, start_time)
       except Exception as error:
         print("tts error::", text, "\n", error)
+        release_cuda()
+        if is_cuda_oom(error):
+          raise
         return None
       return output_file
 
@@ -289,16 +301,28 @@ class TTS():
           
       # print("Parallel processing {} tasks".format(len(process_list)))
       print("Queue list:: ", queue_list.qsize())
-      CUDA_MEM = int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None
-      N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-      N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
-      print("Start TTS:: concurrency =", N_JOBS)
-      
+      tasks = list(queue_list.queue)
       if self.tts_client.tts_client == None:
         print("Initializing TTS Client::", self.t2s_method)
         self.tts_client.init_tts_client(self.t2s_method)
-      with joblib.parallel_config(backend="loky", prefer="threads", n_jobs=int(N_JOBS)):
-        results = Parallel(verbose=100)(delayed(self.tts)(text, output_file, self.TRANSLATE_AUDIO_TO, self.tts_voice, speed, total_duration, start_silence, self.t2s_method) for (text, output_file, total_duration, start_silence) in tqdm(queue_list.queue))
+      max_workers = compute_max_workers(self.t2s_method, len(tasks))
+      print("Start TTS:: concurrency =", max_workers)
+      results = run_parallel_with_retry(
+        tasks,
+        lambda text, output_file, total_duration, start_silence: self.tts(
+          text, output_file, self.TRANSLATE_AUDIO_TO, self.tts_voice,
+          speed, total_duration, start_silence, self.t2s_method,
+        ),
+        self.t2s_method,
+        max_workers=max_workers,
+      )
+      failed = sum(1 for r in results if r is None)
+      if failed:
+        print(f"TTS warning:: {failed}/{len(results)} segments failed after retries")
+      results = [r for r in results if r is not None]
+      release_cuda()
+      if not results:
+        raise RuntimeError("All TTS segments failed (check logs for CUDA OOM or other errors)")
       
       if os.getenv('UPSAMPLING_ENABLE', '') == "true":  
         print("Start Upsampling::")
@@ -315,6 +339,8 @@ class TTS():
       if method == 'join':
         result_path, log_path = combine_wav_segment(results, final_output)
         print("combine_wav_segment result::", result_path, log_path)
+        if not result_path:
+          raise RuntimeError("Failed to concatenate TTS segments")
         final_output = result_path
         log_output = log_path
       if method == 'split':
@@ -551,6 +577,10 @@ class TTS():
 
 @atexit.register
 def cleanup_tmp():
+  global _tts_instance
+  if _tts_instance is not None:
+    print("closing app:: releasing TTS CUDA memory")
+    _tts_instance.tts_client.release()
   if hooks.exit_code is not None:
       print("atexit call:: death by sys.exit(%d)" % hooks.exit_code)
   elif hooks.exception is not None:
@@ -559,7 +589,7 @@ def cleanup_tmp():
       print("atexit call:: natural death")
       print("closing app:: cleanup_tmp")
       if os.path.exists( CONFIG.os_tmp): shutil.rmtree( CONFIG.os_tmp)
-      if sys._MEIPASS2 and os.path.exists(sys._MEIPASS2): shutil.rmtree(sys._MEIPASS2)
+      if hasattr(sys, "_MEIPASS2") and sys._MEIPASS2 and os.path.exists(sys._MEIPASS2): shutil.rmtree(sys._MEIPASS2)
   sys.exit()
 
 
@@ -687,7 +717,8 @@ if __name__ == "__main__":
     mp.set_start_method('spawn', force=True)
     host = "localhost"
     port = int(args.port)
-    tts = TTS()
+    _tts_instance = TTS()
+    tts = _tts_instance
     app = tts.web_interface(port)
     if os.getenv('ENABLE_AUTH', '') == "true":
       root = gr.mount_gradio_app(root, app, path="/app", auth_dependency=is_authenticated)

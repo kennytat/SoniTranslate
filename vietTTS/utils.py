@@ -298,6 +298,13 @@ def txt_to_paragraph(txt_input):
     return p_list
   
 def combine_wav_segment(wav_list, output_file):
+    wav_list = [
+        w for w in wav_list
+        if w is not None and getattr(w, "wav_path", None) and os.path.isfile(w.wav_path)
+    ]
+    if not wav_list:
+        print("combine_wav_segment: no valid wav segments to concatenate")
+        return (None, None)
     print("synthesization done, start concatenating:: ", wav_list[0].start)
     if len(wav_list) == 1 and wav_list[0].start == 0:
       # move wav_list[0] to output_file

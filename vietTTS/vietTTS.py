@@ -33,6 +33,19 @@ class VietTTS():
     self.name = "VietTTS"
     self.current_model_name = None
     self.model = None
+
+  def release(self):
+    if self.model is not None:
+      duration_net, generator = self.model
+      if device == "cuda":
+        duration_net.cpu()
+        generator.cpu()
+      del duration_net, generator
+      self.model = None
+      self.current_model_name = None
+    gc.collect()
+    if torch.cuda.is_available():
+      torch.cuda.empty_cache()
     
   def text_to_phone_idx(self, text, phone_set, sil_idx):
       # lowercase
@@ -117,6 +130,9 @@ class VietTTS():
               phone_idx, phone_length, spec_length, attn, max_len=None, noise_scale=0.667
           )[0]
       wave = y_hat[0, 0].data.cpu().numpy()
+      del y_hat, attn, pos, phone_duration, phone_idx, phone_length
+      if device == "cuda":
+        torch.cuda.empty_cache()
       return (wave * (2**15)).astype(np.int16)
 
   def load_models(self, model_path, hps):

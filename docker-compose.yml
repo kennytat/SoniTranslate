@@ -9,14 +9,14 @@ services:
         - type=bind,source=${HOME}/.cache/pip,target=/root/.cache/pip
     image: ghcr.io/mdds-labs/sonitranslate:stable
     container_name: soni
-    command: ["python", "app.py"]
+    command: [ "python", "app.py" ]
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [ gpu ]
     # shm_size: 1024m
     ports:
       - 6860:6860
@@ -30,13 +30,12 @@ services:
       # ENABLE_AUTH: "true"
       # UPSAMPLING_ENABLE: "true"
       # COPY_OUTPUT_DIR: "/mnt/hdd6tb/man-smb"
-    #   AUTH_USER: 'test'
-    #   AUTH_PASS: 'test'
+      #   AUTH_USER: 'test'
+      #   AUTH_PASS: 'test'
     restart: unless-stopped
     volumes:
       - /mnt/backup/AI/sonitranslate/cache:/root/.cache
       - /mnt/backup/AI/sonitranslate/model:/app/model
       - ./db:/app/db
-      - /mnt/backup/AI/sonitranslate/model/neuspell:/usr/local/lib/python3.10/site-packages/data/checkpoints
       # - /mnt/hdd6tb/man-smb:/mnt/hdd6tb/man-smb
       # - /mnt/hdd6tb/tmp:/tmp
