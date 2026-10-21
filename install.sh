@@ -27,7 +27,6 @@ CONDA_BIN=~/miniconda3/bin
 
 ENV_BIN=~/miniconda3/envs/"${ENV_NAME}"/bin
 
-"${ENV_BIN}"/pip install so-vits-svc-fork==4.2.29 --no-deps
 for req in requirements_stt.txt requirements_ttt.txt requirements_tts.txt; do
 	"${ENV_BIN}"/pip install -r ${req} --no-cache-dir --resume-retries 10 --force-reinstall
 done

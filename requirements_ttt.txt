@@ -1,7 +1,7 @@
 ## Google translate
 deep_translator
 python-docx
-## T5 transformer translate
+# T5 transformer translate
 # pytesseract
 # transformers
 # accelerate
@@ -11,7 +11,6 @@ python-docx
 # bitsandbytes
 # peft
 # scipy
-## VB translate
 langdetect
 ## LLM translate
 openai

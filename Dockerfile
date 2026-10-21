@@ -15,7 +15,6 @@ COPY requirements_stt.txt requirements_tts.txt requirements_ttt.txt ./
 ARG CACHE_DIR=/root/.cache/pip
 RUN --mount=type=cache,target=${CACHE_DIR} \
     pip install --upgrade pip && \
-    pip install --cache-dir=${CACHE_DIR} so-vits-svc-fork==4.2.29 --no-deps && \
     for req in requirements_stt.txt requirements_ttt.txt requirements_tts.txt; do \
         pip install --cache-dir=${CACHE_DIR} -r ${req} --resume-retries 10; \
     done && \

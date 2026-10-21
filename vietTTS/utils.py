@@ -385,13 +385,3 @@ def combine_wav_segment(wav_list, output_file):
         # create the output file
         audio.export(output_file, format="wav")
         return (output_file, None)
-
-def convert_voice(input_dir, model_dir):
-  print("start convert_voice::", input_dir, model_dir)
-  model_path = os.path.join(model_dir, "G.pth")
-  config_path = os.path.join(model_dir, "config.json")
-  output_dir = f'{input_dir}.out'
-  os.system(f'svc infer -re -m {model_path} -c {config_path} {input_dir}')
-  if os.path.exists(input_dir): shutil.rmtree(input_dir, ignore_errors=True)
-  shutil.move(output_dir, input_dir)
-  

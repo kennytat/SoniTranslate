@@ -9,8 +9,7 @@ def configure_logging_libs(debug=False):
       action="ignore", category=UserWarning, module="pyannote"
     )
     modules = [
-      "numba", "httpx", "markdown_it", "speechbrain", "fairseq", "pyannote",
-      "faiss",
+      "numba", "httpx", "markdown_it", "speechbrain", "pyannote",
       "pytorch_lightning.utilities.migration.utils",
       "pytorch_lightning.utilities.migration",
       "pytorch_lightning",
