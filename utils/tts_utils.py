@@ -5,9 +5,28 @@ from .utils import download_manager
 from pathlib import Path
 import numpy as np
 import platform
+import threading
 from typing import Any, Dict
 from tqdm import tqdm
 import librosa, os, re, torch, gc, subprocess, json
+
+# Piper voice sessions are expensive to build (ONNX session + voice file read).
+# Cache them per voice name — synthesize calls are cheap afterwards and
+# onnxruntime sessions are safe to share across threads for sequential use.
+_piper_voice_cache: Dict[str, Any] = {}
+_piper_cache_lock = threading.Lock()
+
+
+def get_cached_piper_voice(model_name, data_dir, download_dir, update_voices=True):
+    key = f"{model_name}::{download_dir}"
+    with _piper_cache_lock:
+        voice = _piper_voice_cache.get(key)
+        if voice is None:
+            voice = load_piper_model(
+                model_name, data_dir, download_dir, update_voices
+            )
+            _piper_voice_cache[key] = voice
+        return voice
 import soundfile as sf
 from pydub import AudioSegment
 
@@ -105,123 +124,93 @@ def load_piper_model(
     download_dir: str = "",
     update_voices: bool = False,
 ):
+    """Load a Piper voice for piper-tts >= 1.4 (new module layout, no piper.download)."""
     from piper import PiperVoice
-    from piper.download import ensure_voice_exists, find_voice, get_voices
 
-    try:
-        import onnxruntime as rt
-
-        if rt.get_device() == "GPU" and os.environ.get("SONITR_DEVICE") == "cuda":
-            logger.debug("onnxruntime device > GPU")
-            cuda = True
-        else:
-            logger.info(
-                "onnxruntime device > CPU"
-            )  # try pip install onnxruntime-gpu
-            cuda = False
-    except Exception as error:
-        raise TTS_OperationError(f"onnxruntime error: {str(error)}")
-
-    # Disable CUDA in Windows
-    if platform.system() == "Windows":
-        logger.info("Employing CPU exclusivity with Piper TTS")
-        cuda = False
+    # Disable CUDA in Windows (untested path)
+    cuda = (
+        platform.system() != "Windows"
+        and os.environ.get("SONITR_DEVICE") == "cuda"
+    )
+    logger.info(f"onnxruntime device > {'GPU' if cuda else 'CPU'}")
 
     if not download_dir:
-        # Download to first data directory by default
         download_dir = data_dir[0]
-    else:
-        data_dir = [os.path.join(data_dir[0], download_dir)]
 
-    # Download voice if file doesn't exist
     model_path = Path(os.path.join(download_dir, f"{model}.onnx"))
-    
+    config_path = Path(str(model_path) + ".json")
+
     if not model_path.exists():
-        # Load voice info
-        voices_info = get_voices(download_dir, update_voices=update_voices)
-        # Resolve aliases for backwards compatibility with old voice names
-        aliases_info: Dict[str, Any] = {}
-        for voice_info in voices_info.values():
-            for voice_alias in voice_info.get("aliases", []):
-                aliases_info[voice_alias] = {"_is_alias": True, **voice_info}
-        voices_info.update(aliases_info)
-        ensure_voice_exists(model, data_dir, download_dir, voices_info)
-        
-    model, config = find_voice(model, data_dir)
-    replace_text_in_json(
-        config, "phoneme_type", "espeak", "PhonemeType.ESPEAK"
-    )
-    # Load voice
-    voice = PiperVoice.load(model, config_path=config, use_cuda=cuda)
+        from piper.download_voices import download_voice
+        download_voice(model, Path(download_dir))
+
+    # Keep eager-phonemizer compatibility if the config declares the old type
+    try:
+        replace_text_in_json(
+            config_path, "phoneme_type", "espeak", "PhonemeType.ESPEAK"
+        )
+    except Exception as error:
+        logger.debug(f"piper phoneme_type patch skipped: {error}")
+
+    voice = PiperVoice.load(model_path, config_path=config_path, use_cuda=cuda)
 
     return voice
 
 
 def synthesize_text_to_audio_np_array(voice, text, synthesize_args):
-    audio_stream = voice.synthesize_stream_raw(text, **synthesize_args)
+    """piper-tts >= 1.4: build int16 numpy audio via SynthesisConfig."""
+    from piper import SynthesisConfig
 
-    # Collect the audio bytes into a single NumPy array
-    audio_data = b""
-    for audio_bytes in audio_stream:
-        audio_data += audio_bytes
-
-    # Ensure correct data type and convert audio bytes to NumPy array
-    audio_np = np.frombuffer(audio_data, dtype=np.int16)
-    return audio_np
+    syn_config = SynthesisConfig(
+        speaker_id=synthesize_args.get("speaker_id"),
+        length_scale=synthesize_args.get("length_scale", 1.0),
+        noise_scale=synthesize_args.get("noise_scale", 0.667),
+        noise_w_scale=synthesize_args.get("noise_w", 0.8),
+    )
+    chunks = list(voice.synthesize(text, syn_config=syn_config))
+    if not chunks:
+        raise RuntimeError("piper returned no audio")
+    audio_np = np.concatenate([c.audio_int16_array for c in chunks])
+    return audio_np, chunks[0].sample_rate
 
 
 def piper_tts(tts_text, tts_voice, tts_speed):
     """
-    Install:
-    pip install -q piper-tts==1.2.0 onnxruntime-gpu # for cuda118
+    piper-tts >= 1.4 API. Voice sessions are cached per voice name
+    (see get_cached_piper_voice).
     """
-  
-    data_dir = [
-        str(Path.cwd())
-    ]  # "Data directory to check for downloaded models (default: current directory)"
-    download_dir = os.path.join("model", "piperTTS")
     # model_name = "en_US-lessac-medium" tts_name in a dict like VITS
-    update_voices = True  # "Download latest voices.json during startup",
+    download_dir = os.path.join("model", "piperTTS")
 
+    text = tts_text
+    tts_name = tts_voice.replace(" VITS-onnx", "")
+    print("piper_tts called::", tts_name, tts_speed)
+    model = get_cached_piper_voice(tts_name, [str(Path.cwd())], download_dir)
+
+    # Speed: piper uses length_scale (duration factor) -> scale = 1/speed
     synthesize_args = {
         "speaker_id": None,
-        "length_scale": 1.0,
+        "length_scale": 1.0 / max(tts_speed, 0.1),
         "noise_scale": 0.667,
         "noise_w": 0.8,
         "sentence_silence": 0.0,
     }
 
-    text = tts_text
-    tts_name = tts_voice.replace(" VITS-onnx", "")
-    print("piper_tts called::", tts_name, tts_speed)
-    model = load_piper_model(
-        tts_name, data_dir, download_dir, update_voices
-    )
-    sampling_rate = model.config.sample_rate
-
     try:
-        # Infer
-        speech_output = synthesize_text_to_audio_np_array(
+        audio_np, sampling_rate = synthesize_text_to_audio_np_array(
             model, text, synthesize_args
         )
     except Exception as error:
         print("Error piperTTS::", error, tts_text)
+        raise
     gc.collect()
-    torch.cuda.empty_cache()
-    try:
-        del model
-        gc.collect()
-        torch.cuda.empty_cache()
-    except Exception as error:
-        logger.error(str(error))
-        gc.collect()
-        torch.cuda.empty_cache()
     return AudioSegment(
-          data=speech_output,
+          data=audio_np.tobytes(),
           sample_width=2,
           frame_rate=sampling_rate,
           channels=1
       )
+
 
 # try:
 #   piper_tts("Có lẽ loại trợ giúp đọc Kinh Thánh thông thường nhất là loại dự phần hằng ngày, hằng năm và trong phần hướng dẫn ngắn này tôi muốn chỉ cho bạn thấy cách thức, thật dễ dàng như thế nào để có được phần dự phần hằng ngày của bạn, sử dụng bảng dữ liệu mà chúng tôi thiết lập trong một hướng dẫn trước đây, hãy nhìn vào màn hình của tôi, bạn sẽ thấy tôi đã mở ra trang chủ rồi, nếu trang chủ của bạn chưa được mở ra", "vi_VN-25hours_single-low", 1, "audio/107.927.wav")

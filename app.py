@@ -1,3 +1,4 @@
+import importlib
 import argparse
 import json
 import subprocess
@@ -36,7 +37,7 @@ from whisperx.alignment import DEFAULT_ALIGN_MODELS_HF as DAMHF
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_TORCH as DAMT
 
 from audio_segments import create_translated_audio
-from text_to_speech import TTSClient, voice_conversion
+from text_to_speech import TTSClient
 from translate_segments import grammar_correction, translate_text
 # from vietTTS.upsample import Predictor
 from utils.language_configuration import (EXTRA_ALIGN, INVERTED_LANGUAGES,
@@ -68,7 +69,6 @@ from pydub import AudioSegment
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
 
-from ovc_voice_main import OpenVoice
 from spell_check import SpellCheck
 from utils.tts_utils import piper_tts_voices_list
 
@@ -171,7 +171,6 @@ function() {
   const s2t_method = getStorage("s2t_method");
   const t2t_method = getStorage("t2t_method");
   const t2s_method = getStorage("t2s_method");
-  const vc_method = getStorage("vc_method");
   const llm_url = getStorage("llm_url");
   const llm_model = getStorage("llm_model");
   const llm_temp = getStorage("llm_temp");
@@ -180,27 +179,21 @@ function() {
 
   const tts_voice00 = getStorage("tts_voice00");
   const tts_speed00 = getStorage("tts_speed00");
-  const vc_voice00 = getStorage("vc_voice00");
 
   const tts_voice01 = getStorage("tts_voice01");
   const tts_speed01 = getStorage("tts_speed01");
-  const vc_voice01 = getStorage("vc_voice01");
 
   const tts_voice02 = getStorage("tts_voice02");
   const tts_speed02 = getStorage("tts_speed02");
-  const vc_voice02 = getStorage("vc_voice02");
 
   const tts_voice03 = getStorage("tts_voice03");
   const tts_speed03 = getStorage("tts_speed03");
-  const vc_voice03 = getStorage("vc_voice03");
 
   const tts_voice04 = getStorage("tts_voice04");
   const tts_speed04 = getStorage("tts_speed04");
-  const vc_voice04 = getStorage("vc_voice04");
 
   const tts_voice05 = getStorage("tts_voice05");
   const tts_speed05 = getStorage("tts_speed05");
-  const vc_voice05 = getStorage("vc_voice05");
 
   const match_length = getStorage("match_length");
   const match_start = getStorage("match_start");
@@ -217,7 +210,6 @@ function() {
     s2t_method || "Whisper",
     t2t_method || "LLM",
     t2s_method || "VietTTS",
-    vc_method || "None",
     llm_url || "http://localhost:8081/v1",
     llm_model,
     llm_temp || 0.3,
@@ -225,22 +217,16 @@ function() {
     max_speakers || 1,
     tts_voice00,
     tts_speed00 || 1,
-    vc_voice00,
     tts_voice01,
     tts_speed01 || 1,
-    vc_voice01,
     tts_voice02,
     tts_speed02 || 1,
-    vc_voice02,
     tts_voice03,
     tts_speed03 || 1,
-    vc_voice03,
     tts_voice04,
     tts_speed04 || 1,
-    vc_voice04,
     tts_voice05,
     tts_speed05 || 1,
-    vc_voice05,
     match_length || true,
     match_start || true,
     SOURCE_LANGUAGE || "English (en)",
@@ -254,12 +240,11 @@ function() {
 """
 
 play_sample_audio_js = """
-(tts_method, tts_voice, vc_method, vc_voice) => {
-  console.log('play sample::', tts_method, tts_voice, vc_method, vc_voice)
+(tts_method, tts_voice) => {
+  console.log('play sample::', tts_method, tts_voice)
   tts_voice = tts_voice ? tts_voice : "None";
-  vc_voice = vc_voice ? vc_voice : "None";
-  const filename = `${tts_method}-${tts_voice.split(".")[0]}-${vc_method}-${vc_voice.split('.')[0]}`;
-  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}.wav`);
+  const filename = `${tts_method}-${tts_voice.split(".")[0]}.wav`;
+  var audio = new Audio(`file=/tmp/gradio-vgm/voices/${filename}`);
   audio.play().then(() => {
     console.log("Audio is playing");
   }).catch(error => {
@@ -383,22 +368,10 @@ else:
 # list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
-list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vienue")) if os.path.isdir(os.path.join("model","vienue", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
-list_svc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","svc")) if os.path.isdir(os.path.join("model","svc", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
-# list_rvc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","rvc")) if voice.endswith('.pth')]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x))) 
-list_ovc = natsorted((["None"] + [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]), key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # models, index_paths = upload_model_list()
-
-f0_methods_voice = ["pm", "harvest", "crepe", "rmvpe"]
-
-# from rvc_voice_main import RVCClassVoices
-# rvc_voices = RVCClassVoices()
-
-from svc_voice_main import SVCClassVoices
-
-svc_voices = SVCClassVoices()
 
 # Function to save settings to a JSON file
 def save_settings(settings, filename='user_settings.json'):
@@ -431,25 +404,12 @@ def get_tts_list(method, language):
       list_tts = list_gtts
   return list_tts
 
-def get_vc_list(method):
-  match method:
-    case 'SVC':
-      list_vc = list_svc
-    # case 'RVC':
-    #   list_vc = list_rvc
-    case 'OpenVoice':
-      list_vc = list_ovc
-    case _:
-      list_vc = [""]
-  return list_vc
-    
 class Main():
     def __init__(self):
         self.local_input_dirs = []
         self.local_input_temp_pairs = []
         self.tts_client = TTSClient()
         self.list_tts = get_tts_list(user_settings["t2s"], user_settings["t2s_lang"])
-        self.list_vc = get_vc_list(user_settings["vc"])
         self.create_ui()
  
     def handle_link_input(self, media_inputs, link_inputs):
@@ -505,7 +465,6 @@ class Main():
       s2t_method,
       t2t_method,
       t2s_method,
-      vc_method,
       llm_url,
       llm_model,
       llm_temp,
@@ -534,12 +493,6 @@ class Main():
       tts_speed03=1,
       tts_speed04=1,
       tts_speed05=1,
-      vc_voice00=None,
-      vc_voice01=None,
-      vc_voice02=None,
-      vc_voice03=None,
-      vc_voice04=None,
-      vc_voice05=None,
       AUDIO_MIX_METHOD='Adjusting volumes and mixing audio',
       progress=gr.Progress(),
     ):
@@ -547,7 +500,6 @@ class Main():
       self.s2t_method = s2t_method
       self.t2t_method = t2t_method
       self.t2s_method = t2s_method
-      self.vc_method = vc_method
       self.llm_url = llm_url
       self.llm_model = llm_model
       self.llm_temp = llm_temp
@@ -574,12 +526,6 @@ class Main():
       self.tts_speed03=tts_speed03
       self.tts_speed04=tts_speed04
       self.tts_speed05=tts_speed05
-      self.vc_voice00=vc_voice00
-      self.vc_voice01=vc_voice01
-      self.vc_voice02=vc_voice02
-      self.vc_voice03=vc_voice03
-      self.vc_voice04=vc_voice04
-      self.vc_voice05=vc_voice05
       self.AUDIO_MIX_METHOD=AUDIO_MIX_METHOD
       
       ## =================================================================
@@ -665,6 +611,26 @@ class Main():
           segments = [{**segment, 'speaker': speaker_remap[segment['speaker']] if 'speaker' in segment else "SPEAKER_00"} for segment in segments]
         return segments
 
+    def _fit_segment_duration(self, filename, filename_temp, duration_true):
+      """Stretch/compress the generated wav so it fits its segment slot
+      (audio -> audio2), same policy the per-segment tts() path uses."""
+      if os.path.isfile(filename):
+        try:
+          duration_tts = librosa.get_duration(path=filename)
+          # porcentaje
+          porcentaje = duration_tts / duration_true
+          print("change speed::", porcentaje, duration_tts, duration_true)
+          # Smooth and round
+          porcentaje = math.floor(porcentaje * 10000) / 10000
+          porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
+          porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
+          porcentaje = 1.0 if not self.match_length else porcentaje
+        except Exception as e:
+          porcentaje = 1.0
+          print('An exception occurred:', e)
+        # apply aceleration or opposite to the audio file in audio2 folder
+        os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje},agate=threshold=-15dB {filename_temp}")
+
     def tts(self, segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, tts_client):
         text = segment['text']
         start = segment['start']
@@ -691,25 +657,75 @@ class Main():
             second_of_silence.export(filename, format="wav")
 
         # duration
-        if os.path.isfile(filename):
-          try:
-            duration_tts = librosa.get_duration(path=filename)
-            # porcentaje
-            porcentaje = duration_tts / duration_true
-            print("change speed::", porcentaje, duration_tts, duration_true)
-            # Smooth and round
-            porcentaje = math.floor(porcentaje * 10000) / 10000
-            porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
-            porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje
-            porcentaje = 1.0 if not self.match_length else porcentaje     
-          except Exception as e:
-            porcentaje = 1.0 
-            print('An exception occurred:', e)
-          # apply aceleration or opposite to the audio file in audio2 folder
-          os.system(f"ffmpeg -y -loglevel panic -i {filename} -filter:a atempo={porcentaje},agate=threshold=-15dB {filename_temp}")
+        self._fit_segment_duration(filename, filename_temp, duration_true)
         gc.collect(); torch.cuda.empty_cache()
         # duration_create = librosa.get_duration(filename=f"audio2/{filename}")
-        return (filename, speaker) 
+        return (filename, speaker)
+
+    def tts_batched(self, segments, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, tts_client):
+        """VietTTS (Vieneu) fast path: group segments by speaker and synthesize all
+        of a speaker's sentences in ONE batched GPU call (Vieneu.infer_batch via
+        VieneuTTS.text_to_speech_batch). Semantics are identical to tts():
+          - SPEAKER_99 / unassigned speakers -> silent wav sized to the segment
+          - every segment gets the same duration-fit ffmpeg pass
+        Returns [(filename, speaker)] in the same order as the input segments.
+        """
+        from vietTTS.vietTTS import normalize as vi_normalize
+        from utils.utils import num_to_str
+
+        vi_engine = tts_client.tts_client  # VieneuTTS instance
+        results = [None] * len(segments)
+
+        groups = {}
+        for idx, segment in enumerate(segments):
+            speaker = segment.get('speaker', 'SPEAKER_99')
+            groups.setdefault(speaker, []).append((idx, segment))
+
+        progress_tts = tqdm(total=len(segments), desc="Batched TTS per speaker")
+        for speaker, items in groups.items():
+            # 1. Prepare texts for the real synthesis batch; write silences inline
+            real = []
+            for idx, segment in items:
+                filename = os.path.join(app_temp_dir, "audio", f"{segment['start']}.wav")
+                # Static markers must be checked on the RAW text BEFORE vi
+                # normalization: normalize turns "sil 3" -> "sil ba." and
+                # "♪" -> "♪." which defeats the engine's static detection
+                # (same fix applies to tts() for consistency).
+                static = re.match(r'^\s*(sil\s+(\d+)|♪)\s*\.?\s*$', segment['text'], re.IGNORECASE) \
+                    if isinstance(segment['text'], str) else None
+                if static:
+                    dur_ms = int(static.group(2)) * 1000 if static.group(2) else 2000
+                    AudioSegment.silent(duration=dur_ms).set_frame_rate(48000) \
+                        .export(filename, format="wav")
+                elif speaker in speaker_to_voice and speaker_to_voice[speaker] != 'None' and tts_client and tts_client.tts_client != None:
+                    # identical preprocessing as make_voice_gradio for Vieneu
+                    text = segment['text']
+                    text = text.lower()
+                    text = vi_normalize(text)
+                    text = num_to_str(text)
+                    real.append((idx, segment, text, filename))
+                elif speaker == "SPEAKER_99":
+                    AudioSegment.silent(duration=(segment['end'] - segment['start'])) \
+                        .set_frame_rate(16000).export(filename, format="wav")
+                progress_tts.update(1)
+
+            # 2. One batched GPU call per speaker
+            if real:
+                texts = [t for _, _, t, _ in real]
+                audio_segments = vi_engine.text_to_speech_batch(
+                    texts, speaker_to_voice[speaker], speaker_to_speed[speaker])
+                for (idx, segment, text, filename), audio in zip(real, audio_segments):
+                    if audio is not None:
+                        audio.export(filename, format="wav")
+
+            # 3. Duration fit + map results back to their original positions
+            for idx, segment in items:
+                filename = os.path.join(app_temp_dir, "audio", f"{segment['start']}.wav")
+                filename_temp = os.path.join(app_temp_dir, "audio2", "audio", f"{segment['start']}.wav")
+                self._fit_segment_duration(filename, filename_temp, segment['end'] - segment['start'])
+                results[idx] = (filename, speaker)
+        progress_tts.close()
+        return results
       
     def translate_from_media(self,
         media_input,
@@ -873,14 +889,6 @@ class Main():
             'SPEAKER_04': self.tts_speed04,
             'SPEAKER_05': self.tts_speed05
         }
-        speaker_to_vc = {
-            'SPEAKER_00': self.vc_voice00,
-            'SPEAKER_01': self.vc_voice01,
-            'SPEAKER_02': self.vc_voice02,
-            'SPEAKER_03': self.vc_voice03,
-            'SPEAKER_04': self.vc_voice04,
-            'SPEAKER_05': self.vc_voice05
-        }
         
         ## Export speaker info
         speaker_info = {
@@ -888,10 +896,6 @@ class Main():
             'method': self.t2s_method,
             'voice' : speaker_to_voice,
             'speed' : speaker_to_speed
-          },
-          'voice_conversion': {
-            'method': self.vc_method,
-            'voice' : speaker_to_vc 
           },
         }
         
@@ -1012,8 +1016,7 @@ class Main():
             progress(0.50, desc="Diarizing...")
             if self.max_speakers > 1:
               with capture.capture_output() as cap:
-                diarize_model = "pyannote/speaker-diarization-3.1" ## "pyannote/speaker-diarization-3.1" "pyannote/speaker-diarization@2.1"
-                diarize_model = whisperx.DiarizationPipeline(model_name=diarize_model, use_auth_token=self.YOUR_HF_TOKEN, device=device)
+                diarize_model = importlib.import_module("whisperx.diarize").DiarizationPipeline(token=self.YOUR_HF_TOKEN, device=device)
                 del cap
               diarize_segments = diarize_model(
                   audio_mp3,
@@ -1089,13 +1092,27 @@ class Main():
           speakers_list = []
 
           if result['segments'] and len(result['segments']) > 0: 
-              N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-              N_JOBS = N_JOBS if self.t2s_method != "XTTS" else 1
-              print("Start TTS:: concurrency =", N_JOBS)
-              
               self.tts_client.init_tts_client(self.t2s_method)
-              with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
-                tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result['segments'], key=lambda x: x['speaker'])))
+              if self.t2s_method == "VietTTS" and TRANSLATE_AUDIO_TO == "vi":
+                # Vieneu fast path: batch all sentences of one speaker in a single
+                # GPU call instead of a joblib thread per segment.
+                tts_results = self.tts_batched(
+                    sorted(result['segments'], key=lambda x: x['speaker']),
+                    TRANSLATE_AUDIO_TO,
+                    speaker_to_voice,
+                    speaker_to_speed,
+                    self.tts_client,
+                )
+              else:
+                N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
+                # VietTTS (Vieneu) and XTTS share one engine instance: parallel
+                # threads are not safe for independent inference (adapter swaps +
+                # non-reentrant generation -> CUDA device-side asserts).
+                N_JOBS = N_JOBS if self.t2s_method not in ("VietTTS", "XTTS") else 1
+                print("Start TTS:: concurrency =", N_JOBS)
+
+                with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
+                  tts_results = Parallel(verbose=100)(delayed(self.tts)(segment, TRANSLATE_AUDIO_TO, speaker_to_voice, speaker_to_speed, self.tts_client) for (segment) in tqdm(sorted(result['segments'], key=lambda x: x['speaker'])))
               
               if os.getenv('UPSAMPLING_ENABLE', '') == "true":
                 progress(0.75, desc="Upsampling...")
@@ -1113,24 +1130,6 @@ class Main():
               speakers_list = [result[1] for result in tts_results]
               print("audio_files:",len(audio_files))
               print("speakers_list:",len(speakers_list))
-              
-              # 6. Convert to target voices
-              if self.vc_method == 'SVC':
-                  progress(0.80, desc="Applying SVC customized voices...")
-                  print("start SVC::")
-                  svc_voices(speakers_list, audio_files, speaker_to_vc)
-                  
-              # if self.vc_method == 'RVC':
-              #     progress(0.80, desc="Applying RVC customized voices...")
-              #     print("start RVC::")
-              #     rvc_voices(speakers_list, audio_files, speaker_to_vc)
-
-              if self.vc_method == 'OpenVoice':
-                  progress(0.80, desc="Applying OVC customized voices...")
-                  print("start OVC::")
-                  ov = OpenVoice()
-                  ov.batch_convert(tts_results, speaker_to_voice, speaker_to_vc)
-                  del ov
           else:
               print('---------- Empty TTS segment length ----------')
               pass
@@ -1229,17 +1228,9 @@ class Main():
           print('copy to target dir failed')
         return final_output
       
-    def create_open_voice(self, file_path, model_name):
-      ov = OpenVoice()
-      ov.create_voice(file_path, model_name)
-      gr.Info(f'Created voice: {model_name}')
-      del ov
-      return None, None  
-
-    def create_sample_audio(self, tts_method="", tts_voice="", vc_method="", vc_voice=""):
+    def create_sample_audio(self, tts_method="", tts_voice=""):
       tts_voice = tts_voice if tts_voice else "None"
-      vc_voice = vc_voice if vc_voice else "None"
-      file_name = f"{tts_method}-{tts_voice.split('.')[0]}-{vc_method}-{vc_voice.split('.')[0]}.wav"
+      file_name = f"{tts_method}-{tts_voice.split('.')[0]}.wav"
       voice_path = os.path.join("sample_audio", file_name)
       voice_tmp_path = os.path.join(gradio_temp_dir, "voices", file_name)
       sample_text = "Đoạn trường tân thanh, thường được biết đến với cái tên đơn giản là Truyện Kiều, là một truyện thơ của đại thi hào Nguyễn Du."
@@ -1249,8 +1240,6 @@ class Main():
       if not os.path.isfile(voice_path):
         gr.Info(f'Creating sample audio: {tts_method} - {tts_voice}')
         self.tts_client.make_voice_gradio(sample_text, tts_voice, 1, voice_path, "vi", tts_method)
-        if vc_method and vc_method != "None" and vc_voice and vc_voice != "None":
-          voice_conversion(voice_path, tts_voice, vc_method, vc_voice)
         if os.path.isfile(voice_path):
           shutil.copy(voice_path, voice_tmp_path)
         else:
@@ -1301,50 +1290,38 @@ class Main():
                         with gr.Row() as tts_voice00_row:
                           tts_voice00 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 1', visible=True, elem_id="tts_voice00")
                           tts_speed00 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 1", step=0.02, elem_id="tts_speed00", interactive=True)
-                          vc_voice00 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 1', visible=user_settings['vc']!="None", elem_id="vc_voice00")
                           tts_voice00.change(None, tts_voice00, None, js="(v) => setStorage('tts_voice00',v)")
                           tts_speed00.change(None, tts_speed00, None, js="(v) => setStorage('tts_speed00',v)")
-                          vc_voice00.change(None, vc_voice00, None, js="(v) => setStorage('vc_voice00',v)")
                           sample_button00 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button00", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice01_row:
                           tts_voice01 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 2', visible=True, elem_id="tts_voice01")
                           tts_speed01 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 2", step=0.02, elem_id="tts_speed01", interactive=True)
-                          vc_voice01 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 2', visible=user_settings['vc']!="None", elem_id="vc_voice01")
                           tts_voice01.change(None, tts_voice01, None, js="(v) => setStorage('tts_voice01',v)")
                           tts_speed01.change(None, tts_speed01, None, js="(v) => setStorage('tts_speed01',v)")
-                          vc_voice01.change(None, vc_voice01, None, js="(v) => setStorage('vc_voice01',v)")
                           sample_button01 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button01", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice02_row:
                           tts_voice02 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 3', visible=True, elem_id="tts_voice02")
                           tts_speed02 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 3", step=0.02, elem_id="tts_speed02", interactive=True)
-                          vc_voice02 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 3', visible=user_settings['vc']!="None", elem_id="vc_voice02")
                           tts_voice02.change(None, tts_voice02, None, js="(v) => setStorage('tts_voice02',v)")
                           tts_speed02.change(None, tts_speed02, None, js="(v) => setStorage('tts_speed02',v)")
-                          vc_voice02.change(None, vc_voice02, None, js="(v) => setStorage('vc_voice02',v)")
                           sample_button02 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button02", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice03_row:
                           tts_voice03 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 4', visible=True, elem_id="tts_voice03")
                           tts_speed03 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 4", step=0.02, elem_id="tts_speed03", interactive=True)
-                          vc_voice03 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 4', visible=user_settings['vc']!="None", elem_id="vc_voice03")
                           tts_voice03.change(None, tts_voice03, None, js="(v) => setStorage('tts_voice03',v)")
                           tts_speed03.change(None, tts_speed03, None, js="(v) => setStorage('tts_speed03',v)")
-                          vc_voice03.change(None, vc_voice03, None, js="(v) => setStorage('vc_voice03',v)")
                           sample_button03 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button03", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice04_row:
                           tts_voice04 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 5', visible=True, elem_id="tts_voice04")
                           tts_speed04 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 5", step=0.02, elem_id="tts_speed04", interactive=True)
-                          vc_voice04 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 5', visible=user_settings['vc']!="None", elem_id="vc_voice04")
                           tts_voice04.change(None, tts_voice04, None, js="(v) => setStorage('tts_voice04',v)")
                           tts_speed04.change(None, tts_speed04, None, js="(v) => setStorage('tts_speed04',v)")
-                          vc_voice04.change(None, vc_voice04, None, js="(v) => setStorage('vc_voice04',v)")
                           sample_button04 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button04", elem_classes="sample-button", scale=0)
                         with gr.Row(visible=False) as tts_voice05_row:
                           tts_voice05 = gr.Dropdown(choices=self.list_tts, value=self.list_tts[0], label='TTS Speaker 6', visible=True, elem_id="tts_voice05")
                           tts_speed05 = gr.Slider(0.5, 1.5, value=1, label="TTS Speed 6", step=0.02, elem_id="tts_speed05", interactive=True)
-                          vc_voice05 = gr.Dropdown(choices=self.list_vc, value=self.list_vc[0], label='VC Speaker 6', visible=user_settings['vc']!="None", elem_id="vc_voice05")
                           tts_voice05.change(None, tts_voice05, None, js="(v) => setStorage('tts_voice05',v)")
                           tts_speed05.change(None, tts_speed05, None, js="(v) => setStorage('tts_speed05',v)")
-                          vc_voice05.change(None, vc_voice05, None, js="(v) => setStorage('vc_voice05',v)")
                           sample_button05 = gr.Button(value="", size="sm", icon="assets/play-icon.png", elem_id="sample_button05", elem_classes="sample-button", scale=0)
                           
                         def update_speaker_visibility(value):
@@ -1397,13 +1374,11 @@ class Main():
                         def reset_param():
                           global total_input
                           global total_output
-                          global list_ovc
                           total_input = []
                           total_output = []
                           self.local_input_dirs = []
                           self.local_input_temp_pairs = []
                           clear_cache()
-                          list_ovc = [voice for voice in os.listdir(os.path.join("model","openvoice","target_voice")) if os.path.isdir(os.path.join("model","openvoice","target_voice", voice))]
                           return gr.update(label="PROGRESS BAR", visible=True), gr.update(label="TRANSLATED VIDEO", visible=True)
                         with gr.Row():
                           clear_btn = gr.ClearButton(components=[media_input,link_input, source_srt_input, target_srt_input,media_output,tmp_output], size='sm')
@@ -1469,21 +1444,9 @@ class Main():
                       s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['s2t'], visible=True, elem_id="s2t_method", interactive=True)
                       t2t_method = gr.Dropdown(["Google", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method",interactive=True)
                       t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS", "VietTTS", "XTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
-                      vc_method = gr.Dropdown(["None", "SVC", "OpenVoice"], label='Voice Conversion', value=user_settings['vc'], visible=True, elem_id="vc_method",interactive=True)
                       s2t_method.change(None, s2t_method, None, js="(v) => setStorage('s2t_method',v)")
                       t2t_method.change(None, t2t_method, None, js="(v) => setStorage('t2t_method',v)")
                       t2s_method.change(None, t2s_method, None, js="(v) => setStorage('t2s_method',v)")
-                      vc_method.change(None, vc_method, None, js="(v) => setStorage('vc_method',v)")
-                    ## update t2s method
-                    def update_vc_list(method):
-                      visible = True if method != "None" else False
-                      self.list_vc = get_vc_list(method)
-                      visibility_dict = {
-                          f'vc_voice{i:02d}': gr.update(choices=self.list_vc, visible=visible) for i in range(6)
-                      }
-                      return [value for value in visibility_dict.values()]               
-                    vc_method.change(update_vc_list, [vc_method], [vc_voice00, vc_voice01, vc_voice02, vc_voice03, vc_voice04, vc_voice05])
-                    
                     ## update t2s method
                     def update_t2s_list(method="", language=""):
                       method = method if method else user_settings['t2s']
@@ -1526,30 +1489,21 @@ class Main():
                       llm_refresh.click(update_llm_model, [llm_url], [llm_model])
                       
                   with gr.Row():
-                    def save_user_setting(llm_url, s2t_method, t2t_method, t2s_method, vc_method, TRANSLATE_AUDIO_TO):
+                    def save_user_setting(llm_url, s2t_method, t2t_method, t2s_method, TRANSLATE_AUDIO_TO):
                       user_settings['llm_url'] = llm_url
                       user_settings['s2t'] = s2t_method
                       user_settings['t2t'] = t2t_method
                       user_settings['t2s'] = t2s_method
-                      user_settings['vc'] = vc_method
                       user_settings['t2s_lang'] = TRANSLATE_AUDIO_TO
                       save_settings(settings=user_settings)
                       gr.Info("Setting Saved!!")
                       return None                    
                     save_setting_button = gr.Button("Save Setting")
-                    save_setting_button.click(save_user_setting, [llm_url,s2t_method,t2t_method,t2s_method,vc_method, TRANSLATE_AUDIO_TO], None)
+                    save_setting_button.click(save_user_setting, [llm_url,s2t_method,t2t_method,t2s_method, TRANSLATE_AUDIO_TO], None)
                       
                   def update_llm_setting(method):
                     return gr.update(visible=method=='LLM')
                   t2t_method.change(update_llm_setting, t2t_method, LLM_Setting)
-
-                  with gr.Accordion("Open Voice", visible=False) as open_voice_accordion:
-                    ov_file = gr.File(label="Upload audio file", file_types=["audio"])
-                    ov_name = gr.Textbox(label="Model Name")
-                    ov_btn = gr.Button(value="Create Voice", variant="primary")
-                  def update_voice_conversion(method):
-                    return gr.update(visible=method=='OpenVoice')
-                  vc_method.change(update_voice_conversion, [vc_method], [open_voice_accordion])                     
 
             with gr.Tab("Help"):
                 gr.Markdown(tutorial)
@@ -1564,12 +1518,10 @@ class Main():
             # run
             buttons = [sample_button00, sample_button01, sample_button02, sample_button03, sample_button04, sample_button05]
             tts_voices = [tts_voice00, tts_voice01, tts_voice02, tts_voice03, tts_voice04, tts_voice05]
-            vc_voices = [vc_voice00, vc_voice01, vc_voice02, vc_voice03, vc_voice04, vc_voice05]
-            for button, tts_voice, vc_voice in zip(buttons, tts_voices, vc_voices):
-                button.click(self.create_sample_audio, inputs=[t2s_method, tts_voice, vc_method, vc_voice], outputs=button).then(
-                    None, inputs=[t2s_method, tts_voice, vc_method, vc_voice], outputs=None, js=play_sample_audio_js)     
+            for button, tts_voice in zip(buttons, tts_voices):
+                button.click(self.create_sample_audio, inputs=[t2s_method, tts_voice], outputs=button).then(
+                    None, inputs=[t2s_method, tts_voice], outputs=None, js=play_sample_audio_js)     
 
-            ov_btn.click(self.create_open_voice, inputs=[ov_file, ov_name], outputs=[ov_file, ov_name])
             link_btn.click(self.handle_link_input, inputs=[media_input, link_input], outputs=[media_input, link_input])
             media_btn.click(self.batch_preprocess, inputs=[
                 media_input,
@@ -1578,7 +1530,6 @@ class Main():
                 s2t_method,
                 t2t_method,
                 t2s_method,
-                vc_method,
                 llm_url,
                 llm_model,
                 llm_temp,
@@ -1607,12 +1558,6 @@ class Main():
                 tts_speed03,
                 tts_speed04,
                 tts_speed05,
-                vc_voice00,
-                vc_voice01,
-                vc_voice02,
-                vc_voice03,
-                vc_voice04,
-                vc_voice05,
                 AUDIO_MIX,
                 ], outputs=media_output, concurrency_limit=1).then(
                 #time.sleep(2),
@@ -1632,7 +1577,6 @@ class Main():
               s2t_method,
               t2t_method,
               t2s_method,
-              vc_method,
               llm_url,
               llm_model,
               llm_temp,
@@ -1640,22 +1584,16 @@ class Main():
               max_speakers,
               tts_voice00,
               tts_speed00,
-              vc_voice00,
               tts_voice01,
               tts_speed01,
-              vc_voice01,
               tts_voice02,
               tts_speed02,
-              vc_voice02,
               tts_voice03,
               tts_speed03,
-              vc_voice03,
               tts_voice04,
               tts_speed04,
-              vc_voice04,
               tts_voice05,
               tts_speed05,
-              vc_voice05,
               match_length,
               match_start,
               SOURCE_LANGUAGE,

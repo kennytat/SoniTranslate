@@ -48,6 +48,11 @@ def compute_max_workers(t2s_method: str, task_count: int) -> int:
     cap = max(1, int(os.getenv("TTS_JOBS", "1")))
     if task_count <= 0:
         return 1
+    # VieneuTTS is serialized at the wrapper level (engine is not thread-safe
+    # for independent calls) — parallel workers would only queue on the lock.
+    # XTTS shares one Coqui model instance: concurrent inference is unsafe.
+    if t2s_method in ("VietTTS", "XTTS"):
+        return 1
     if t2s_method not in _GPU_TTS_METHODS or not torch.cuda.is_available():
         return max(1, min(cap, task_count))
 
