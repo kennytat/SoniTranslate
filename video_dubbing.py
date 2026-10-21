@@ -1,3 +1,4 @@
+import importlib
 import numpy as np
 import gradio as gr
 import whisperx
@@ -127,7 +128,7 @@ def translate_from_video(
       return
 
     # 3. Assign speaker labels
-    diarize_model = whisperx.DiarizationPipeline(use_auth_token=YOUR_HF_TOKEN, device=device)
+    diarize_model = importlib.import_module("whisperx.diarize").DiarizationPipeline(token=YOUR_HF_TOKEN, device=device)
     diarize_segments = diarize_model(
         audio_wav,
         min_speakers=min_speakers,

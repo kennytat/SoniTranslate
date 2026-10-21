@@ -1,3 +1,4 @@
+import importlib
 from whisperx.alignment import (
     DEFAULT_ALIGN_MODELS_TORCH as DAMT,
     DEFAULT_ALIGN_MODELS_HF as DAMHF,
@@ -389,9 +390,8 @@ def diarize_speech(
     if max(min_speakers, max_speakers) > 1 and model_name:
         try:
 
-            diarize_model = whisperx.DiarizationPipeline(
-                model_name=model_name,
-                use_auth_token=YOUR_HF_TOKEN,
+            diarize_model = importlib.import_module("whisperx.diarize").DiarizationPipeline(
+                token=YOUR_HF_TOKEN,
                 device=os.environ.get("SONITR_DEVICE"),
             )
 
