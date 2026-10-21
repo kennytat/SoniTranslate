@@ -1,8 +1,7 @@
 # import re
 import os
+import re
 from tqdm import tqdm
-from translate_text_processor import titlecase_with_dash
-# from vb_translate import vb_translate
 from langdetect import detect
 from llm_translate import LLM
 # from llama_translate import LLM as Llama
@@ -12,6 +11,11 @@ import torch
 
 from repl_dict import dictOfReplacementStrings
 device = torch.device("cuda")
+
+def titlecase_with_dash(string):
+    def titlecase_word(match):
+        return match.group(0).capitalize()
+    return re.sub(r"(?=[\S]*['-])([A-Za-zÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂẾưăạảấầẩẫậắằẳẵặẹẻẽềềểếỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ'-]+)", titlecase_word, string)
 
 def post_process_text(text):
   text = titlecase_with_dash(text)
