@@ -48,10 +48,6 @@ conda activate soni
 pip install -r requirements_stt.txt --no-cache-dir --resume-retries 10
 pip install -r requirements_tts.txt --no-cache-dir --resume-retries 10
 pip install -r requirements_ttt.txt --no-cache-dir --resume-retries 10
-python -m spacy download en_core_web_sm
-python
-import nltk
-nltk.download("punkt_tab")
 
 export LD_LIBRARY_PATH=/home/vgm/miniconda3/envs/soni/lib/python3.10/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}
 
