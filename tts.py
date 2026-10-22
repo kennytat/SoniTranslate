@@ -495,6 +495,7 @@ class TTS():
                           return gr.update(visible=value == "custom"), gr.update(visible=value != "custom")
                         TRANSLATE_AUDIO_TO.change(None, TRANSLATE_AUDIO_TO, None, js="(v) => setStorage('TRANSLATE_AUDIO_TO',v)")
                         tts_voice.change(update_custom_voice_visibility, tts_voice, [custom_voice_row, sample_button])
+                        tts_voice.change(None, tts_voice, None, js="(v) => setStorage('tts_voice',v)")
                         tts_speed.change(None, tts_speed, None, js="(v) => setStorage('tts_speed',v)")
                         
                     with gr.Column():
