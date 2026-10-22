@@ -176,6 +176,38 @@ class TTS():
     self.tts_client = TTSClient()
     self.list_tts = get_tts_list(user_settings["t2s"], user_settings["t2s_lang"])
           
+  def _postprocess_segment(self, text, output_file, desired_duration):
+      """Shared TTS post-steps: text sidecar export + duration fit."""
+      if output_file and isinstance(output_file, str):
+        ## Export text to file
+        txt_path = f"{os.path.splitext(output_file)[0]}.txt"
+        print('write to file::', txt_path, text)
+        with open(txt_path, "w", encoding="utf-8") as f:
+          f.write(text)
+        ## For tts with timeline
+        if desired_duration > 0:
+          try:
+            duration_true = desired_duration
+            duration_tts = librosa.get_duration(path=output_file)
+
+            # porcentaje
+            porcentaje = duration_tts / duration_true
+            print("change speed::", porcentaje, duration_tts, duration_true)
+            # Smooth and round
+            porcentaje = math.floor(porcentaje * 10000) / 10000
+            porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
+            porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje    
+          except Exception as e:
+            porcentaje = 1.0 
+            print('An exception occurred:', e)
+          # apply aceleration or opposite to the audio file in audio2 folder
+          name, ext = os.path.splitext(output_file)
+          tmp_file = f"{name}-tmp{ext}"
+          os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje},agate=threshold=-15dB {tmp_file}")
+          os.system(f"mv {tmp_file} {output_file}")
+        else:
+          print("No desired duration")
+
   def tts(self, text, output_file, TRANSLATE_AUDIO_TO, tts_voice, speed, desired_duration, start_time, t2s_method):
       try:
         print("Starting TTS {}".format(output_file), desired_duration, start_time)
@@ -183,35 +215,8 @@ class TTS():
         if tts_voice == "custom" and self.custom_voice:
           tts_voice = self.custom_voice
         output_file = self.tts_client.make_voice_gradio(text, tts_voice, speed, output_file, TRANSLATE_AUDIO_TO, t2s_method)
+        self._postprocess_segment(text, output_file, desired_duration)
         if output_file and isinstance(output_file, str):
-          ## Export text to file
-          txt_path = f"{os.path.splitext(output_file)[0]}.txt"
-          print('write to file::', txt_path, text)
-          with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(text)
-          ## For tts with timeline
-          if desired_duration > 0:
-            try:
-              duration_true = desired_duration
-              duration_tts = librosa.get_duration(path=output_file)
-
-              # porcentaje
-              porcentaje = duration_tts / duration_true
-              print("change speed::", porcentaje, duration_tts, duration_true)
-              # Smooth and round
-              porcentaje = math.floor(porcentaje * 10000) / 10000
-              porcentaje = 0.8 if porcentaje <= 0.8 else porcentaje + 0.005
-              porcentaje = 1.5 if porcentaje >= 1.5 else porcentaje    
-            except Exception as e:
-              porcentaje = 1.0 
-              print('An exception occurred:', e)
-            # apply aceleration or opposite to the audio file in audio2 folder
-            name, ext = os.path.splitext(output_file)
-            tmp_file = f"{name}-tmp{ext}"
-            os.system(f"ffmpeg -y -loglevel panic -i {output_file} -filter:a atempo={porcentaje},agate=threshold=-15dB {tmp_file}")
-            os.system(f"mv {tmp_file} {output_file}")
-          else:
-            print("No desired duration")
           return WavStruct(output_file, start_time)
       except Exception as error:
         print("tts error::", text, "\n", error)
@@ -220,6 +225,35 @@ class TTS():
           raise
         return None
       return output_file
+
+  def _tts_batch_vieneu(self, tasks, speed):
+      """Vieneu fast path: ALL paragraphs share one speaker, so synth them in
+      ONE batched infer_batch GPU call (Vieneu.infer_batch) instead of N
+      lock-serialized single calls. Returns a list of WavStruct (None-able)
+      in task order, or None to signal fallback to the per-segment path."""
+      try:
+        texts, files, durs, starts = [], [], [], []
+        for (text, output_file, desired_duration, start_time) in tasks:
+          texts.append(text)
+          files.append(output_file)
+          durs.append(desired_duration)
+          starts.append(start_time)
+        voice = self.custom_voice if self.tts_voice == "custom" and self.custom_voice else self.tts_voice
+        print("Vieneu batch fast path:: {} texts in one infer_batch".format(len(texts)))
+        files = self.tts_client.make_voice_batch(
+            texts, voice, speed, files, LANGUAGES[self.TRANSLATE_AUDIO_TO], self.t2s_method)
+        results = []
+        for text, output_file, desired_duration, start_time in zip(texts, files, durs, starts):
+          self._postprocess_segment(text, output_file, desired_duration)
+          if output_file and isinstance(output_file, str):
+            results.append(WavStruct(output_file, start_time))
+          else:
+            results.append(None)
+        return results
+      except Exception as error:
+        print("Vieneu batch fast path failed, falling back to per-segment TTS::", error)
+        release_cuda()
+        return None
 
   def upsampling(self, file):
     # if not self.upsampler:
@@ -282,17 +316,26 @@ class TTS():
       if self.tts_client.tts_client == None:
         print("Initializing TTS Client::", self.t2s_method)
         self.tts_client.init_tts_client(self.t2s_method)
-      max_workers = compute_max_workers(self.t2s_method, len(tasks))
-      print("Start TTS:: concurrency =", max_workers)
-      results = run_parallel_with_retry(
-        tasks,
-        lambda text, output_file, total_duration, start_silence: self.tts(
-          text, output_file, self.TRANSLATE_AUDIO_TO, self.tts_voice,
-          speed, total_duration, start_silence, self.t2s_method,
-        ),
-        self.t2s_method,
-        max_workers=max_workers,
-      )
+      # Vieneu fast path: every paragraph here belongs to ONE speaker, so all
+      # of them fit into a single batched infer_batch GPU call (app.py uses
+      # the same pattern in tts_batched()). Falls back to the per-segment
+      # parallel path below if the batch fails for any reason.
+      results = self._tts_batch_vieneu(tasks, speed) \
+        if self.t2s_method == "VietTTS" \
+           and os.getenv("TTS_VIENEU_BATCH", "1") != "0" \
+           and getattr(self.tts_client.tts_client, "name", "") == "VietTTS" else None
+      if results is None:
+        max_workers = compute_max_workers(self.t2s_method, len(tasks))
+        print("Start TTS:: concurrency =", max_workers)
+        results = run_parallel_with_retry(
+          tasks,
+          lambda text, output_file, total_duration, start_silence: self.tts(
+            text, output_file, self.TRANSLATE_AUDIO_TO, self.tts_voice,
+            speed, total_duration, start_silence, self.t2s_method,
+          ),
+          self.t2s_method,
+          max_workers=max_workers,
+        )
       failed = sum(1 for r in results if r is None)
       if failed:
         print(f"TTS warning:: {failed}/{len(results)} segments failed after retries")

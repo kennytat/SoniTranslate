@@ -110,3 +110,63 @@ class TTSClient():
         if is_cuda_oom(error):
           raise
       return None
+
+  def make_voice_batch(self, tts_texts, tts_voice, tts_speed, filenames, language, t2s_method):
+    """Batched single-speaker synthesis (Vieneu/VietTTS fast path).
+
+    Synthesizes N texts of ONE speaker in a single infer_batch GPU pass,
+    mirroring make_voice_gradio()'s preprocessing exactly:
+
+      - static markers ("sil N" / "♪") are detected on the RAW text BEFORE
+        normalization (normalize would turn "sil 3" -> "sil ba." and defeat
+        the engine's static detection) and exported inline as silence
+      - vi texts get the same lower() + normalize() + num_to_str() chain
+      - other (language != vi) or non-VietTTS engines fall back to
+        per-text make_voice_gradio()
+
+    Returns a list of output file paths (None entries preserved in-order
+    on failure), aligned with tts_texts/filenames.
+    """
+    files = list(filenames)
+    if not (t2s_method == "VietTTS" and self.tts_client and self.tts_client.name == t2s_method) or language != 'vi':
+      return [self.make_voice_gradio(text, tts_voice, tts_speed, filename, language, t2s_method)
+              for text, filename in zip(tts_texts, files)]
+
+    static_re = re.compile(r'^\s*(sil\s+(\d+)|♪)\s*\.?\s*$', re.IGNORECASE)
+    real = []
+    for i, (text, filename) in enumerate(zip(tts_texts, files)):
+      static = static_re.match(text or "") if isinstance(text, str) else None
+      if static:
+        if filename:
+          dur_ms = int(static.group(2)) * 1000 if static.group(2) else 2000
+          AudioSegment.silent(duration=dur_ms).set_frame_rate(48000).export(filename, format="wav")
+      else:
+        normalized = num_to_str(normalize((text or "").lower()))
+        real.append((i, normalized))
+
+    try:
+      with GpuJobSlot(t2s_method):
+        texts = [t for _, t in real]
+        audio_segments = self.tts_client.text_to_speech_batch(
+            texts, tts_voice, tts_speed if tts_speed else 1)
+      for (i, _), audio in zip(real, audio_segments):
+        if files[i] and audio is not None:
+          audio.export(files[i], format="wav")
+        else:
+          files[i] = None
+    except Exception as error:
+      print("tts batch error:", error)
+      release_cuda()
+      if is_cuda_oom(error):
+        raise
+      # Fall back to per-text synthesis for the segments that failed
+      for (i, text) in real:
+        try:
+          files[i] = self.make_voice_gradio(tts_texts[i], tts_voice, tts_speed, files[i], language, t2s_method)
+        except Exception as inner:
+          print("tts error:", inner, tts_texts[i])
+          release_cuda()
+          if is_cuda_oom(inner):
+            raise
+          files[i] = None
+    return files
