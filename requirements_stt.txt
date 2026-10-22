@@ -1,6 +1,7 @@
 torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
+torchcodec==0.7.0  # pairs with torch 2.8 (unpinned, resolver goes to latest which pairs with torch 2.14+)
 whisperx==3.8.6
 # Same constraint as requirements_tts.txt if using one conda env (TTS needs transformers 4.x; see transformers_coqui_shim for 4.57+).
 transformers>=4.48.0,<5

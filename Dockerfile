@@ -12,6 +12,7 @@ WORKDIR /app
 
 # Install Python dependencies (cached layer)
 COPY requirements_stt.txt requirements_tts.txt requirements_ttt.txt ./
+COPY vendor/vieneu /app/vendor/vieneu/
 ARG CACHE_DIR=/root/.cache/pip
 RUN --mount=type=cache,target=${CACHE_DIR} \
     pip install --upgrade pip && \

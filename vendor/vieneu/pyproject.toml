@@ -1,0 +1,50 @@
+[project]
+name = "vieneu"
+version = "3.2.8"
+# Vendored copy of the private VGM-TTS fork (see VENDORED.md).
+description = "VieNeu-TTS v3 Turbo engine (vendored fork build)"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+authors = [
+    { name = "Pham Nguyen Ngoc Bao", email = "pnnbao@gmail.com" }
+]
+requires-python = ">=3.10"
+# Torch-free core (identical to upstream dependencies). SoniTranslate installs
+# the PyTorch/torchaudio/transformers GPU stack itself in requirements_stt.txt.
+dependencies = [
+    "sea-g2p>=0.9.0",
+    "onnxruntime>=1.20.0",
+    "numpy",
+    "soundfile",
+    "soxr",
+    "tokenizers>=0.20",
+    "huggingface_hub",
+    "PyYAML",
+    "gradio>=5.49.1",
+    "librosa>=0.11.0",
+    "perth>=0.2.0",
+    "onnx>=1.22.0",
+    "onnxscript>=0.7.1",
+    "cryptography>=50.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "." }
+packages = [
+    "vieneu",
+    "vieneu._v3_turbo_engine",
+    "vieneu._v3_turbo_engine.speaker",
+    "vieneu.v3_turbo_serve",
+    "vieneu_utils",
+]

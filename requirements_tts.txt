@@ -17,10 +17,10 @@ cryptography
 vietnam_number
 nest_asyncio
 ## === Vieneu TTS (VieneuTTS wrapper) ===
-# PyPI vieneu==3.2.8 is upstream and does NOT match this tested private fork
-# (differs in every engine file). Install from VGM-TTS pinned to the tested
-# commit. NOTE: Docker builds need credentials for git.vgm.cloud to fetch it.
-vieneu @ git+https://git.vgm.cloud/models/VGM-TTS@de1a2af2ffa5c0964807dc6b0c42e74c48617507
+# Vendored from the private VGM-TTS fork at commit de1a2af2ffa5c0 (see
+# vendor/vieneu/VENDORED.md). Do NOT use PyPI vieneu==3.2.8: that is the
+# upstream release and differs from this tested fork in every engine file.
+./vendor/vieneu
 peft>=0.13.0
 # neucodec is NOT needed for the v3turbo engine (MOSS codec is built in); it is
 # only used by vieneu's legacy engine and hard-requires numpy>=2.0.2, which
@@ -37,6 +37,12 @@ peft>=0.13.0
 # huggingface-hub, gradio>=5.49.1, librosa, onnx) resolve automatically.
 # A numpy pin must NOT live in this file: see the note under the VieneuTTS
 # section (numpy 1.26.x is acceptable here; whisperx upgrades it later).
+# torch stack bound: requirements_stt.txt pins torch/torchaudio==2.8.0 (cu128
+# pytorch index). These bounds stop a standalone TTS-file resolve from
+# floating torch to latest and breaking the torchvision/torchcodec pairing.
+torch>=2.8,<2.9
+torchaudio>=2.8,<2.9
+# torchcodec follows torch 2.8 (pulled by pyannote/whisperx side)
 ## === xTTS ===
 # Stay on transformers 4.x until Coqui TTS supports v5. abi-lstm support via transformers_coqui_shim for 4.57+.
 # 4.57+ drops top-level BeamSearchScorer; utils/transformers_coqui_shim.py patches that for Coqui TTS.
