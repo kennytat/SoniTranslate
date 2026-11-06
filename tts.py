@@ -14,6 +14,7 @@ import librosa
 import torch.multiprocessing as mp
 from dotenv import load_dotenv
 from natsort import natsorted
+from vieneu import list_finetuned_voice_names
 
 import torch  # isort:skip
 torch.manual_seed(42)
@@ -95,7 +96,7 @@ class CONFIG():
 # list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
-list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vienue")) if os.path.isdir(os.path.join("model","vienue", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_vtts = list_finetuned_voice_names()
 list_xtts = natsorted(["custom"] + [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # Function to save settings to a JSON file

@@ -11,6 +11,7 @@ import yt_dlp
 from dotenv import load_dotenv
 from joblib import Parallel, delayed
 from natsort import natsorted
+from vieneu import list_finetuned_voice_names
 
 if sys.platform == "darwin":
     import whisper_mlx as whisperx
@@ -368,7 +369,7 @@ else:
 # list_etts = edge_tts_voices_list()
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
-list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vienue")) if os.path.isdir(os.path.join("model","vienue", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
+list_vtts = list_finetuned_voice_names()
 list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # models, index_paths = upload_model_list()

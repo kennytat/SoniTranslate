@@ -17,11 +17,17 @@ cryptography
 vietnam_number
 nest_asyncio
 ## === Vieneu TTS (VieneuTTS wrapper) ===
-# Vendored from the private VGM-TTS fork at commit de1a2af2ffa5c0 (see
-# vendor/vieneu/VENDORED.md). Do NOT use PyPI vieneu==3.2.8: that is the
-# upstream release and differs from this tested fork in every engine file.
-./vendor/vieneu
-peft>=0.13.0
+# Installed directly from the local vieneuTTS/ git submodule (local rename of
+# the VGM-TTS private fork, remote still git.vgm.cloud/models/VGM-TTS); the
+# vendor/vieneu copy is retired - this environment has submodule access.
+# Do NOT use PyPI vieneu==3.2.8: that is the upstream release and differs from
+# this tested fork in every engine file.
+# NOTE: the submodule's "gpu" dependencies are a PEP 735 dependency-group, not
+# a project extra, so `pip install -e ./vieneuTTS` does not pull torch/peft/
+# transformers/accelerate. torch/torchaudio are pinned below, pydub/librosa
+# are pinned under "Audio / misc", and peft is pinned explicitly here.
+./vieneuTTS
+peft>=0.14.0
 # neucodec is NOT needed for the v3turbo engine (MOSS codec is built in); it is
 # only used by vieneu's legacy engine and hard-requires numpy>=2.0.2, which
 # conflicts with gruut==2.2.3 (via TTS) in a single-file solve. Skip it.

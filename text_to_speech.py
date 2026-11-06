@@ -4,7 +4,7 @@ import edge_tts
 import asyncio
 # import nest_asyncio
 from vietTTS.vietTTS import normalize
-from vieneuTTS.vieneuTTS import VieneuTTS
+from vieneu import VieneuTTS
 from utils.gpu_tts_pool import GpuJobSlot, is_cuda_oom, release_cuda
 from utils.tts_utils import piper_tts
 from utils.xtts import XTTS
