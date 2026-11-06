@@ -95,8 +95,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     
 stt_client = Whisper(whisper_model=whisper_model_default, device=device)
 tts_client = STTS()
-# tts_client1 = TTSClient()
-# tts_client1.init_tts_client("XTTS")
 
 PHONEME_TO_VISEME = {
     # Viseme 0: Silence (not explicitly mapped)

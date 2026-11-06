@@ -97,7 +97,6 @@ class CONFIG():
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = list_finetuned_voice_names()
-list_xtts = natsorted(["custom"] + [voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # Function to save settings to a JSON file
 def save_settings(settings, filename='user_settings.json'):
@@ -120,14 +119,12 @@ _tts_instance = None
 def get_tts_list(method, language):
   print("method::", method, language)
   match method:
-    case 'VietTTS':
+    case 'VieneuTTS':
       list_tts = list_vtts
     # case 'EdgeTTS':
     #   list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
     case 'PiperTTS':
       list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
-    case 'XTTS':
-      list_tts = list_xtts
     case _:
       list_tts = list_gtts
   return list_tts
@@ -148,7 +145,7 @@ function() {
 
 
   return [
-    t2s_method || "VietTTS",
+    t2s_method || "VieneuTTS",
     tts_voice,
     tts_speed || 1,
     TRANSLATE_AUDIO_TO || "Vietnamese (vi)",
@@ -322,9 +319,9 @@ class TTS():
       # the same pattern in tts_batched()). Falls back to the per-segment
       # parallel path below if the batch fails for any reason.
       results = self._tts_batch_vieneu(tasks, speed) \
-        if self.t2s_method == "VietTTS" \
+        if self.t2s_method == "VieneuTTS" \
            and os.getenv("TTS_VIENEU_BATCH", "1") != "0" \
-           and getattr(self.tts_client.tts_client, "name", "") == "VietTTS" else None
+           and getattr(self.tts_client.tts_client, "name", "") == "VieneuTTS" else None
       if results is None:
         max_workers = compute_max_workers(self.t2s_method, len(tasks))
         print("Start TTS:: concurrency =", max_workers)
@@ -398,7 +395,7 @@ class TTS():
     custom_voice,
     speed=1,
     method="join",
-    t2s_method="VietTTS"
+    t2s_method="VieneuTTS"
     ):
       self.TRANSLATE_AUDIO_TO = TRANSLATE_AUDIO_TO
       self.tts_voice = tts_voice
@@ -511,7 +508,7 @@ class TTS():
                 with gr.Column():
                   with gr.Accordion("T2S Method", open=False):
                     with gr.Row():
-                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VietTTS","XTTS"], label='T2S', value="VietTTS", visible=True, elem_id="t2s_method",interactive=True)
+                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS","VieneuTTS"], label='T2S', value="VieneuTTS", visible=True, elem_id="t2s_method",interactive=True)
                       t2s_method.change(None, t2s_method, None, js="(v) => setStorage('t2s_method',v)")
 
                       ## update tts method

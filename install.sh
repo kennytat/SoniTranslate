@@ -27,9 +27,6 @@ CONDA_BIN=~/miniconda3/bin
 
 ENV_BIN=~/miniconda3/envs/"${ENV_NAME}"/bin
 
-# Order matters: TTS (Coqui fork) pins pandas<2.0 while whisperx pins
-# pandas>=2.2.3 — installing STT last lets whisperx win (Coqui tolerates
-# pandas 2.x at runtime).
 for req in requirements_ttt.txt requirements_tts.txt requirements_stt.txt; do
 	"${ENV_BIN}"/pip install -r ${req} --no-cache-dir --resume-retries 10 --force-reinstall
 done

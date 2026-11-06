@@ -16,9 +16,6 @@ COPY vieneuTTS /app/vieneuTTS/
 ARG CACHE_DIR=/root/.cache/pip
 RUN --mount=type=cache,target=${CACHE_DIR} \
     pip install --upgrade pip && \
-# Order matters: TTS (Coqui fork) pins pandas<2.0 while whisperx pins
-# pandas>=2.2.3 — installing STT last lets whisperx win (Coqui tolerates
-# pandas 2.x at runtime).
     for req in requirements_ttt.txt requirements_tts.txt requirements_stt.txt; do \
         pip install --cache-dir=${CACHE_DIR} -r ${req} --resume-retries 10; \
     done && \

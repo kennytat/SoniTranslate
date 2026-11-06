@@ -96,7 +96,7 @@ class VoiceChat():
         k=10
       )
       self.tts_client = TTSClient()
-      self.tts_client.init_tts_client(client="VietTTS")
+      self.tts_client.init_tts_client(client="VieneuTTS")
     # --------------------------------- supplemented util to get the record --------------------------------------------- #
 
     def callback(self, indata, frames, time, status):
@@ -202,7 +202,7 @@ class VoiceChat():
         tts_speed=1
         filename=os.path.join(temp_dir, f"assistant_{new_dir_now()}.wav")
         language="vi"
-        t2s_method="VietTTS"
+        t2s_method="VieneuTTS"
         self.tts_client.make_voice_gradio(tts_text=tts_text, tts_voice=tts_voice, tts_speed=tts_speed, filename=filename, language=language, t2s_method=t2s_method)
         print(f"{emoji_man} ------ Assistant ------ {emoji_man}")
         print(colored(tts_text, 'green'))

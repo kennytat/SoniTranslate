@@ -210,7 +210,7 @@ function() {
   return [
     s2t_method || "Whisper",
     t2t_method || "LLM",
-    t2s_method || "VietTTS",
+    t2s_method || "VieneuTTS",
     llm_url || "http://localhost:8081/v1",
     llm_model,
     llm_temp || 0.3,
@@ -370,7 +370,6 @@ else:
 list_gtts = ['default']
 list_ptts = piper_tts_voices_list()
 list_vtts = list_finetuned_voice_names()
-list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
 
 # models, index_paths = upload_model_list()
 
@@ -393,14 +392,12 @@ user_settings=load_settings()
 def get_tts_list(method, language):
   print("method::", method, language)
   match method:
-    case 'VietTTS':
+    case 'VieneuTTS':
       list_tts = list_vtts
     # case 'EdgeTTS':
     #   list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
     case 'PiperTTS':
       list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
-    case 'XTTS':
-      list_tts = list_xtts
     case _:
       list_tts = list_gtts
   return list_tts
@@ -1094,7 +1091,7 @@ class Main():
 
           if result['segments'] and len(result['segments']) > 0: 
               self.tts_client.init_tts_client(self.t2s_method)
-              if self.t2s_method == "VietTTS" and TRANSLATE_AUDIO_TO == "vi":
+              if self.t2s_method == "VieneuTTS" and TRANSLATE_AUDIO_TO == "vi":
                 # Vieneu fast path: batch all sentences of one speaker in a single
                 # GPU call instead of a joblib thread per segment.
                 tts_results = self.tts_batched(
@@ -1106,10 +1103,10 @@ class Main():
                 )
               else:
                 N_JOBS = os.getenv('TTS_JOBS', round(CUDA_MEM*0.5/1000000000) if CUDA_MEM else 1)
-                # VietTTS (Vieneu) and XTTS share one engine instance: parallel
-                # threads are not safe for independent inference (adapter swaps +
+                # VietTTS (Vieneu) shares one engine instance: parallel threads
+                # are not safe for independent inference (adapter swaps +
                 # non-reentrant generation -> CUDA device-side asserts).
-                N_JOBS = N_JOBS if self.t2s_method not in ("VietTTS", "XTTS") else 1
+                N_JOBS = N_JOBS if self.t2s_method != "VieneuTTS" else 1
                 print("Start TTS:: concurrency =", N_JOBS)
 
                 with joblib.parallel_config(backend="threading", prefer="threads", n_jobs=int(N_JOBS) if self.max_speakers == 1 else 1):
@@ -1444,7 +1441,7 @@ class Main():
                     with gr.Row():
                       s2t_method = gr.Dropdown(["Whisper"], label='S2T', value=user_settings['s2t'], visible=True, elem_id="s2t_method", interactive=True)
                       t2t_method = gr.Dropdown(["Google", "LLM"], label='T2T', value=user_settings['t2t'], visible=True, elem_id="t2t_method",interactive=True)
-                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS", "VietTTS", "XTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
+                      t2s_method = gr.Dropdown(["GTTS", "EdgeTTS", "PiperTTS", "VieneuTTS"], label='T2S', value=user_settings['t2s'], visible=True, elem_id="t2s_method",interactive=True)
                       s2t_method.change(None, s2t_method, None, js="(v) => setStorage('s2t_method',v)")
                       t2t_method.change(None, t2t_method, None, js="(v) => setStorage('t2t_method',v)")
                       t2s_method.change(None, t2s_method, None, js="(v) => setStorage('t2s_method',v)")

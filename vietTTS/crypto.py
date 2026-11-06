@@ -8,7 +8,7 @@ import getpass
 import argparse
 import os
 
-SALT_PATH = os.path.join(os.getcwd(),"model","vietTTS","salt.salt")
+SALT_PATH = os.path.join(os.getcwd(),"model","VieneuTTS","salt.salt")
 
 def generate_salt(size=16):
     """Generate the salt used for key derivation, 

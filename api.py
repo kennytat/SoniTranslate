@@ -24,7 +24,7 @@ device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.i
 compute_type = "float32" if device == "cpu" else "float16"
 input_language = os.getenv("INPUT_LANG", "en")
 output_language = os.getenv("OUTPUT_LANG", "vi")
-tts_method = os.getenv("TTS_METHOD", "VietTTS")
+tts_method = os.getenv("TTS_METHOD", "VieneuTTS")
 basic_auth_admin = os.getenv("BASIC_AUTH_ADMIN", "admin")
 basic_auth_password = os.getenv("BASIC_AUTH_PASSWORD", "password")
 ## ----- Configuration - end -----
@@ -35,7 +35,7 @@ def current_milli_time():
 def get_tts_list(method=tts_method, language="vi"):
   print("method::", method, language)
   match method:
-    case 'VietTTS':
+    case 'VieneuTTS':
       list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
       list_tts = list_vtts
     case 'EdgeTTS':
@@ -44,9 +44,6 @@ def get_tts_list(method=tts_method, language="vi"):
     case 'PiperTTS':
       list_ptts = piper_tts_voices_list()
       list_tts = [ x for x in list_ptts if x.startswith(LANGUAGES[language])]
-    case 'XTTS':
-      list_xtts = natsorted([voice for voice in os.listdir(os.path.join("model","viXTTS","voices"))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
-      list_tts = list_xtts
     case _:
       list_tts = ['default']
   return list_tts

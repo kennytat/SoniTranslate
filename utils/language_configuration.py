@@ -189,9 +189,6 @@ def fix_code_language(translate_to, syntax="google"):
     if syntax == "google":
         # google-translator, gTTS
         replace_lang_code = {"zh": "zh-CN", "he": "iw", "zh-cn": "zh-CN"}
-    elif syntax == "coqui":
-        # coqui-xtts
-        replace_lang_code = {"zh": "zh-cn", "zh-CN": "zh-cn", "zh-TW": "zh-cn"}
 
     new_code_lang = replace_lang_code.get(translate_to, translate_to)
     logger.debug(f"Fix code {translate_to} -> {new_code_lang}")

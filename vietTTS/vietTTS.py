@@ -30,7 +30,7 @@ voice_data = {}
 
 class VietTTS():
   def __init__(self):
-    self.name = "VietTTS"
+    self.name = "VieneuTTS"
     self.current_model_name = None
     self.model = None
 

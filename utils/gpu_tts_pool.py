@@ -9,11 +9,10 @@ import torch
 
 T = TypeVar("T")
 
-_GPU_TTS_METHODS = frozenset({"VietTTS", "XTTS", "PiperTTS"})
+_GPU_TTS_METHODS = frozenset({"VieneuTTS", "PiperTTS"})
 
 _VRAM_PROFILES = {
-    "VietTTS": {"reserved_mb": 1200, "per_job_mb": 400},
-    "XTTS": {"reserved_mb": 3000, "per_job_mb": 1500},
+    "VieneuTTS": {"reserved_mb": 1200, "per_job_mb": 400},
     "PiperTTS": {"reserved_mb": 500, "per_job_mb": 250},
     "default": {"reserved_mb": 0, "per_job_mb": 256},
 }
@@ -50,8 +49,7 @@ def compute_max_workers(t2s_method: str, task_count: int) -> int:
         return 1
     # VieneuTTS is serialized at the wrapper level (engine is not thread-safe
     # for independent calls) — parallel workers would only queue on the lock.
-    # XTTS shares one Coqui model instance: concurrent inference is unsafe.
-    if t2s_method in ("VietTTS", "XTTS"):
+    if t2s_method == "VieneuTTS":
         return 1
     if t2s_method not in _GPU_TTS_METHODS or not torch.cuda.is_available():
         return max(1, min(cap, task_count))

@@ -17,57 +17,38 @@ cryptography
 vietnam_number
 nest_asyncio
 ## === Vieneu TTS (VieneuTTS wrapper) ===
-# Installed directly from the local vieneuTTS/ git submodule (local rename of
+# Installed editable from the local vieneuTTS/ git submodule (local rename of
 # the VGM-TTS private fork, remote still git.vgm.cloud/models/VGM-TTS); the
 # vendor/vieneu copy is retired - this environment has submodule access.
 # Do NOT use PyPI vieneu==3.2.8: that is the upstream release and differs from
 # this tested fork in every engine file.
 # NOTE: the submodule's "gpu" dependencies are a PEP 735 dependency-group, not
 # a project extra, so `pip install -e ./vieneuTTS` does not pull torch/peft/
-# transformers/accelerate. torch/torchaudio are pinned below, pydub/librosa
-# are pinned under "Audio / misc", and peft is pinned explicitly here.
-./vieneuTTS
+# transformers/accelerate. torch/torchaudio/transformers are pinned below,
+# pydub/librosa are pinned under "Audio / misc", and peft is pinned here.
+-e ./vieneuTTS
 peft>=0.14.0
 # neucodec is NOT needed for the v3turbo engine (MOSS codec is built in); it is
-# only used by vieneu's legacy engine and hard-requires numpy>=2.0.2, which
-# conflicts with gruut==2.2.3 (via TTS) in a single-file solve. Skip it.
-# numpy is NOT pinned here on purpose: TTS (gruut==2.2.3) demands numpy<2.0
-# while whisperx (install-order: after this file) demands numpy>=2.1.0. The
-# per-file install loop resolves each file separately and the STT stage's
-# numpy>=2.1.0 ends up final (Coqui tolerates numpy 2.x at runtime).
+# only used by vieneu's legacy engine and hard-requires numpy>=2.0.2. Skip it.
 # perth: vieneu depends on 'perth>=0.2.0', but PyPI 'perth' (only 1.0.0) is an
 # unrelated squatted package. Watermarking is optional and disabled in our
 # code (apply_watermark=False); the benign warning can be ignored.
-# torch/torchaudio are pinned in requirements_stt.txt (cu128 pytorch index).
 # vieneu core deps (sea-g2p, onnxruntime, soundfile, soxr, tokenizers,
 # huggingface-hub, gradio>=5.49.1, librosa, onnx) resolve automatically.
-# A numpy pin must NOT live in this file: see the note under the VieneuTTS
-# section (numpy 1.26.x is acceptable here; whisperx upgrades it later).
 # torch stack bound: requirements_stt.txt pins torch/torchaudio==2.8.0 (cu128
 # pytorch index). These bounds stop a standalone TTS-file resolve from
 # floating torch to latest and breaking the torchvision/torchcodec pairing.
 torch>=2.8,<2.9
 torchaudio>=2.8,<2.9
 # torchcodec follows torch 2.8 (pulled by pyannote/whisperx side)
-## === xTTS ===
-# Stay on transformers 4.x until Coqui TTS supports v5. abi-lstm support via transformers_coqui_shim for 4.57+.
-# 4.57+ drops top-level BeamSearchScorer; utils/transformers_coqui_shim.py patches that for Coqui TTS.
+# vieneu needs transformers>=4.48; the <5 bound keeps the whisperx/pyannote
+# stack working (requirements_stt.txt mirrors the same bound).
 transformers>=4.48.0,<5
 huggingface-hub==0.33.5
 spacy==3.8.11
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl; sys_platform == "linux"
-TTS @ git+https://github.com/kennytat/TTS.git@vietnamese
 typing-extensions
 torchcodec
-cutlet
-deepspeed
-pinyin
-# mecab-python3==1.0.6
-# unidic-lite==1.0.8
-# unidic==1.1.0
-# langid
-# vinorm
-# underthesea
 ## === TTS ===
 gTTS
 edge_tts
