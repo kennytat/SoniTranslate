@@ -13,6 +13,18 @@ import torch
 import gc
 import numpy as np
 
+# The Vieneu engine adapter exposes name="VietTTS" (its legacy dispatch key),
+# while the app's TTS method key is "VieneuTTS". Both identify the same engine.
+VIENEU_ENGINE_NAMES = frozenset({"VieneuTTS", "VietTTS"})
+
+
+def is_vieneu_engine(client, t2s_method):
+  """True when `client` is the Vieneu engine for the requested method key."""
+  if t2s_method not in VIENEU_ENGINE_NAMES:
+    return False
+  return client is not None and getattr(client, "name", "") in VIENEU_ENGINE_NAMES
+
+
 class TTSClient():
   def __init__(self):
     self.tts_client = None
@@ -45,7 +57,7 @@ class TTSClient():
         # (normalize turns "sil 3" -> "sil ba." breaking the engine's check).
         if re.match(r'^\s*(sil\s+\d+|♪)\s*\.?\s*$', tts_text or "", re.IGNORECASE):
           audio = self.tts_client.text_to_speech(tts_text.lower(), tts_voice, tts_speed if tts_speed else 1) \
-              if (t2s_method == "VieneuTTS" and self.tts_client and self.tts_client.name == t2s_method) else None
+              if is_vieneu_engine(self.tts_client, t2s_method) else None
           if audio is not None and filename:
             audio.export(filename, format="wav")
             return filename
@@ -70,7 +82,7 @@ class TTSClient():
               audio.export(filename)
               return filename
             return (audio.frame_rate, np.array(audio.get_array_of_samples()))
-          if t2s_method == "VieneuTTS" and language == "vi" and self.tts_client and self.tts_client.name == t2s_method:
+          if language == "vi" and is_vieneu_engine(self.tts_client, t2s_method):
             print("vietTTS::")
             audio = self.tts_client.text_to_speech(tts_text, tts_voice, tts_speed if tts_speed else 1)
             if filename:
@@ -101,7 +113,7 @@ class TTSClient():
     on failure), aligned with tts_texts/filenames.
     """
     files = list(filenames)
-    if not (t2s_method == "VieneuTTS" and self.tts_client and self.tts_client.name == t2s_method) or language != 'vi':
+    if not is_vieneu_engine(self.tts_client, t2s_method) or language != 'vi':
       return [self.make_voice_gradio(text, tts_voice, tts_speed, filename, language, t2s_method)
               for text, filename in zip(tts_texts, files)]
 

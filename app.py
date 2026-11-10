@@ -390,9 +390,12 @@ def load_settings(filename='user_settings.json'):
 user_settings=load_settings()
 
 def get_tts_list(method, language):
+  global list_vtts
+  from voice_names import vieneu_voice_names
   print("method::", method, language)
   match method:
     case 'VieneuTTS':
+      list_vtts = vieneu_voice_names()
       list_tts = list_vtts
     # case 'EdgeTTS':
     #   list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
@@ -401,6 +404,7 @@ def get_tts_list(method, language):
     case _:
       list_tts = list_gtts
   return list_tts
+
 
 class Main():
     def __init__(self):

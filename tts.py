@@ -117,9 +117,12 @@ user_settings=load_settings()
 _tts_instance = None
 
 def get_tts_list(method, language):
+  global list_vtts
+  from voice_names import vieneu_voice_names
   print("method::", method, language)
   match method:
     case 'VieneuTTS':
+      list_vtts = vieneu_voice_names()
       list_tts = list_vtts
     # case 'EdgeTTS':
     #   list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
@@ -321,7 +324,7 @@ class TTS():
       results = self._tts_batch_vieneu(tasks, speed) \
         if self.t2s_method == "VieneuTTS" \
            and os.getenv("TTS_VIENEU_BATCH", "1") != "0" \
-           and getattr(self.tts_client.tts_client, "name", "") == "VieneuTTS" else None
+           and getattr(self.tts_client.tts_client, "name", "") in ("VieneuTTS", "VietTTS") else None
       if results is None:
         max_workers = compute_max_workers(self.t2s_method, len(tasks))
         print("Start TTS:: concurrency =", max_workers)

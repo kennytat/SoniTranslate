@@ -33,11 +33,11 @@ def current_milli_time():
     return round(time.time() * 1000)
 
 def get_tts_list(method=tts_method, language="vi"):
+  from voice_names import vieneu_voice_names
   print("method::", method, language)
   match method:
     case 'VieneuTTS':
-      list_vtts = natsorted([voice for voice in os.listdir(os.path.join("model","vits")) if os.path.isdir(os.path.join("model","vits", voice))], key=lambda x: (x.count(os.sep), os.path.dirname(x), os.path.basename(x)))
-      list_tts = list_vtts
+      list_tts = vieneu_voice_names()
     case 'EdgeTTS':
       list_etts = edge_tts_voices_list()
       list_tts = [ x for x in list_etts if x.startswith(LANGUAGES[language])]
@@ -47,6 +47,7 @@ def get_tts_list(method=tts_method, language="vi"):
     case _:
       list_tts = ['default']
   return list_tts
+
 
 security = HTTPBasic()
 
