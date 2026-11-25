@@ -7,6 +7,7 @@ import atexit
 import argparse
 import shutil
 import tempfile
+import gc
 import gradio as gr
 import torch
 import torchaudio
@@ -126,6 +127,9 @@ else:
     compute_type_default = 'float32'
     whisper_model_default = 'medium'
 
+# large-v3 activations at batch 16 overflow ~12 GB cards; start smaller there.
+batch_size_default = 8 if device == "cuda" and CUDA_MEM <= 13 * 1024**3 else 16
+
 LANGUAGES = {
     'Automatic detection': 'Automatic detection',
     'Arabic (ar)': 'ar',
@@ -187,10 +191,22 @@ class CONFIG():
     os_tmp = Path(os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "STT")))
 
 
+def _is_oom_error(exc):
+    return isinstance(exc, torch.cuda.OutOfMemoryError) or "out of memory" in str(exc).lower()
+
+
+def _release_gpu_memory():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
 class Whisper:
     def __init__(self, whisper_model="", device="", compute_type=compute_type_default, language='en'):
         self.current_model = whisper_model
         self.current_language = language
+        # Language is not baked into the model: it is passed per transcribe() call,
+        # so switching language never requires reloading the model onto the GPU.
         self.model = whisperx.load_model(
             whisper_arch=whisper_model,
             device=device,
@@ -198,17 +214,41 @@ class Whisper:
             language=None if language == 'Automatic detection' else language,
             ) if device != 'mps' else None
 
-    def stt(self, file_path="", batch_size=16, chunk_size=24):
+    def unload(self):
+        """Drop the model and free its VRAM before another model is loaded."""
+        self.model = None
+        _release_gpu_memory()
+
+    def stt(self, file_path="", batch_size=16, chunk_size=24, language=None):
+        if language is not None:
+            self.current_language = language
+        language = None if self.current_language == 'Automatic detection' else self.current_language
         try:
           if device == 'mps':
             result = whisperx.transcribe(file_path, path_or_hf_repo=f"mlx-community/whisper-{self.current_model}-mlx")
           else:
             audio_bytes = whisperx.load_audio(file_path)
-            result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size, print_progress=True)
+            if language is None:
+              # Force fresh detection; otherwise the cached tokenizer keeps the previous language.
+              self.model.tokenizer = None
+            result = None
+            while result is None:
+              try:
+                # task must be explicit: whisperx otherwise falls back to tokenizer.task, which
+                # faster-whisper stores as a token id (e.g. 50360) and then rejects as invalid.
+                result = self.model.transcribe(audio_bytes, batch_size=batch_size, chunk_size=chunk_size,
+                                               language=language, task="transcribe", print_progress=True)
+              except Exception as e:
+                if not _is_oom_error(e) or batch_size <= 1:
+                  raise
+                _release_gpu_memory()
+                batch_size = max(1, batch_size // 2)
+                print(f'CUDA out of memory, retrying with batch_size={batch_size}::', file_path)
             result["segments"] = [seg for seg in result["segments"] if not any(ft in seg["text"] for ft in FAULT_TEXT)]
           return result
         except Exception as e:
           print('Error stt::', e)
+          _release_gpu_memory()
           return ""
         
 class STT():
@@ -280,7 +320,10 @@ class STT():
       results_list = []
       LANGUAGE = LANGUAGES[LANGUAGE]
       print("Start transcribing source language::")
-      if self.stt_client.current_model != whisper_model or self.stt_client.current_language != LANGUAGE:
+      if self.stt_client.current_model != whisper_model:
+        # Free the old model first so two models never sit on the GPU at once.
+        self.stt_client.unload()
+        self.stt_client = None
         self.stt_client = Whisper(whisper_model=whisper_model, device=device, language=LANGUAGE)
       global total_input
       global total_output
@@ -299,7 +342,7 @@ class STT():
           output_format = "all"
           Path(tmp_dir).mkdir(parents=True, exist_ok=True)
           processing_file_path = origin_path if file_path.startswith(gradio_temp_processing_dir) else file_path
-          result = self.stt_client.stt(file_path=processing_file_path, batch_size=batch_size, chunk_size=chunk_size)
+          result = self.stt_client.stt(file_path=processing_file_path, batch_size=batch_size, chunk_size=chunk_size, language=LANGUAGE)
           writer_args = {"highlight_words": False, "max_line_count": None, "max_line_width": None}
           writer = get_writer(output_format, tmp_dir)
           writer(result, file_path, writer_args)
@@ -349,7 +392,7 @@ class STT():
                           WHISPER_MODEL = gr.Dropdown(['tiny', 'base', 'base.en', 'small','small.en', 'medium', 'medium.en', 'large-v3'], value=whisper_model_default, label="Whisper model",  scale=1)
                           LANGUAGE = gr.Dropdown(list(LANGUAGES.keys()), value='English (en)',label = 'Language', scale=1)
                         with gr.Row():
-                          batch_size = gr.Slider(minimum=1, maximum=32, value=16, label="Batch size", step=1, scale=1)
+                          batch_size = gr.Slider(minimum=1, maximum=32, value=batch_size_default, label="Batch size", step=1, scale=1)
                           chunk_size = gr.Slider(minimum=2, maximum=30, value=24, label="Chunk size", step=1, scale=1)
                     with gr.Column():
                         def update_output_list():
