@@ -191,6 +191,23 @@ class CONFIG():
     os_tmp = Path(os.getenv("APP_TEMP_DIR", os.path.join(tempfile.gettempdir(), "STT")))
 
 
+VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.m4v', '.flv', '.wmv', '.ts'}
+
+
+def is_video_file(path):
+    return os.path.splitext(path)[1].lower() in VIDEO_EXTENSIONS
+
+
+def extract_audio(video_path, out_path):
+    """Extract mono 16 kHz wav from a video with ffmpeg; returns out_path."""
+    proc = subprocess.run(
+        ["ffmpeg", "-y", "-i", video_path, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", out_path],
+        capture_output=True, text=True)
+    if proc.returncode != 0 or not os.path.isfile(out_path):
+        raise RuntimeError(f"ffmpeg audio extraction failed: {proc.stderr[-300:]}")
+    return out_path
+
+
 def _is_oom_error(exc):
     return isinstance(exc, torch.cuda.OutOfMemoryError) or "out of memory" in str(exc).lower()
 
@@ -328,39 +345,81 @@ class STT():
       global total_input
       global total_output
       total_input = input_files
+      preserve_output = os.getenv('PRESERVE_OUTPUT_DIR', '').strip().lower() == 'true'
+      copy_output_dir = os.getenv('COPY_OUTPUT_DIR', '')
       for index, file_path in enumerate(file_list):
+        audio_tmp_dir = None
+        tmp_dir = None
         try:
           print('file_path::',file_path)
-          tmp_dir = os.path.join(output_dir_path, encode_filename(file_path))
-          archive_path = os.path.join(Path(output_dir_path).absolute(), os.path.splitext(os.path.basename(file_path))[0])
-          if file_path.startswith(gradio_temp_processing_dir) and len(self.local_input_dirs) > 0:
+          in_processing_dir = file_path.startswith(gradio_temp_processing_dir)
+          # Real location of the input on disk (None for gradio uploads, which only exist as temp copies)
+          if in_processing_dir:
             origin_entry = next((obj for obj in self.local_input_temp_pairs if obj['temp'] == file_path), None)
             origin_path = origin_entry['origin'] if origin_entry else None
-            output_dir_path = os.path.splitext(origin_path)[0]
-            tmp_dir = os.path.splitext(origin_path)[0]
-            archive_path = Path(output_dir_path).absolute()
-          output_format = "all"
+          elif file_path.startswith(gradio_temp_dir):
+            origin_path = None
+          else:
+            origin_path = file_path
+          source_path = origin_path or file_path
+
+          # Per-file work dirs so same-named files never collide
+          stem = os.path.splitext(os.path.basename(source_path))[0]
+          tmp_dir = os.path.join(output_dir_path, f"{index}_{encode_filename(file_path)}")
+          archive_dir = os.path.join(output_dir_path, "archives", str(index))
           Path(tmp_dir).mkdir(parents=True, exist_ok=True)
-          processing_file_path = origin_path if file_path.startswith(gradio_temp_processing_dir) else file_path
+          Path(archive_dir).mkdir(parents=True, exist_ok=True)
+          archive_path = os.path.join(archive_dir, stem)
+
+          # Video input: extract audio first, then feed it to the STT engine
+          processing_file_path = source_path
+          if is_video_file(source_path):
+            audio_tmp_dir = tempfile.mkdtemp(prefix="stt_audio_", dir=output_dir_path)
+            processing_file_path = extract_audio(source_path, os.path.join(audio_tmp_dir, f"{stem}.wav"))
+
           result = self.stt_client.stt(file_path=processing_file_path, batch_size=batch_size, chunk_size=chunk_size, language=LANGUAGE)
           writer_args = {"highlight_words": False, "max_line_count": None, "max_line_width": None}
-          writer = get_writer(output_format, tmp_dir)
-          writer(result, file_path, writer_args)
+          writer = get_writer("all", tmp_dir)
+          writer(result, source_path, writer_args)
           print(f'Done:: {index}/{len(file_list)} task::', file_path)
-          print("archive_path::", archive_path)
-          shutil.make_archive(archive_path, 'zip', tmp_dir)   
-          results_list.append(f"{archive_path}.zip")
-          total_output.append(f"{archive_path}.zip")
-          
-          # copy_output_dir = os.getenv('COPY_OUTPUT_DIR', '')
-          # if copy_output_dir and os.path.isdir(copy_output_dir):
-          #   subprocess.run(["cp", f"{archive_path}.zip", copy_output_dir], capture_output=True, text=True)
+          shutil.make_archive(archive_path, 'zip', tmp_dir)
+          final_output = f"{archive_path}.zip"
+
+          ## Deliver result
+          try:
+            target_dir = None
+            if preserve_output and origin_path:
+              # Same directory as the input file; COPY_OUTPUT_DIR ignored
+              target_dir = os.path.dirname(os.path.abspath(origin_path))
+            elif copy_output_dir and os.path.isdir(copy_output_dir):
+              target_dir = copy_output_dir
+              if in_processing_dir:
+                # Keep nested tree: <input dir name>/<sub dirs>
+                rel_dir = os.path.relpath(os.path.dirname(file_path), gradio_temp_processing_dir)
+                if rel_dir != '.':
+                  target_dir = os.path.join(copy_output_dir, rel_dir)
+            if target_dir:
+              print("Copying to output directory::", final_output, target_dir)
+              os.makedirs(target_dir, exist_ok=True)
+              shutil.copy(final_output, os.path.join(target_dir, f"{stem}.zip"))
+              # Leave an empty placeholder so the UI does not hold a duplicate of the result
+              open(final_output, 'w').close()
+          except Exception as e:
+            print('copy to target dir failed::', e)
+
+          results_list.append(final_output)
+          total_output.append(final_output)
 
           ## Remove tmp files
           shutil.rmtree(tmp_dir, ignore_errors=True)
-          os.remove(file_path)
-        except:
-            print("Skip error file while stt: {}".format(file_path))
+          shutil.rmtree(audio_tmp_dir, ignore_errors=True) if audio_tmp_dir else None
+          # Only delete our own temp copies, never the user's original file
+          if file_path.startswith(gradio_temp_dir) and os.path.isfile(file_path):
+            os.remove(file_path)
+        except Exception as e:
+            print("Skip error file while stt: {} | {}".format(file_path, e))
+            if tmp_dir: shutil.rmtree(tmp_dir, ignore_errors=True)
+            if audio_tmp_dir: shutil.rmtree(audio_tmp_dir, ignore_errors=True)
       print("[DONE] {} tasks: {}".format(len(results_list), results_list))
       return results_list
 
@@ -384,7 +443,7 @@ class STT():
             with gr.Tab("STT"):
                 with gr.Row():
                     with gr.Column():
-                        input_files = gr.Files(label="Upload audio file(s)", file_types=["audio"])
+                        input_files = gr.Files(label="Upload audio/video file(s)", file_types=["audio", "video"])
                         with gr.Row():
                           link_input = gr.Textbox(label="OS Path",info="Example: M:\\warehouse\\video.mp3", placeholder="Path goes here, seperate by comma...", scale=5)        
                           link_btn = gr.Button("Submit", size="sm", scale=1)
@@ -575,5 +634,6 @@ if __name__ == "__main__":
         show_error=True,
         server_name="0.0.0.0",
         server_port=port,
+        allowed_paths=["/mnt"],
         share=False)
     sys.exit()
